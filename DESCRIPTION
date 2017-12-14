@@ -16,6 +16,7 @@ Description: Geometrically Designed Spline ('GeDS') Regression is a non-parametr
   Kaishev et al. (2016) <doi:10.1007/s00180-015-0621-7> and Dimitrova et al. (2017) <https://openaccess.city.ac.uk/18460>.
 License: GPL-3
 LazyData: TRUE
+URL: http://github.com/alattuada/GeDS
 Depends:
     R (>= 3.0.1),
     Rcpp (>= 0.12.1),
