@@ -63,8 +63,8 @@
 #'
 #' \tabular{rl}{
 #' Package: \tab GeDS\cr
-#' Version: \tab 0.1.2 \cr
-#' Date: \tab 2017-11-08\cr
+#' Version: \tab 0.1.3 \cr
+#' Date: \tab 2017-12-19\cr
 #' License: \tab GPL-3 \cr
 #' }
 #'
