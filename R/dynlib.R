@@ -25,7 +25,7 @@ NULL
                         "Type ", sQuote("citation('GeDS')"), " to learn how to cite this package.\n",
                         "\n",
                         "Please report any issue or bug to the authors (See the description\n",
-                        "file for email addresses)\n",
+                        "file)\n",
                         "\n",
                         "##################################################################\n",
                         appendLF = TRUE)
