@@ -70,7 +70,7 @@
 #' Integrate(Gmod, to = 1, from = c(1,-1), n = 3)
 #' }
 Integrate <- function(object, to, from, n = 3L){
-  if(class(object)!= "GeDS") stop("incorrect object class")
+  if (!inherits(object, "GeDS")) stop("incorrect object class")
   to <- as.numeric(to)
   l <- length(to)
   n <- as.numeric(n)
@@ -148,7 +148,7 @@ Integrate <- function(object, to, from, n = 3L){
 #' # at the points 0, -1 and 1
 #' Derive(Gmod, x = c(0, -1, 1), order = 2, n = 4)
 Derive <- function(object, order = 1L, x, n = 3L){
-  if(class(object)!= "GeDS") stop("incorrect object class")
+  if (!inherits(object, "GeDS")) stop("incorrect object class")
   if(!(object$Type %in% c("LM - Univ","GLM - Univ"))) stop("Implemented only for the univariate case")
   x <- as.numeric(x)
   l <- length(x)

@@ -123,8 +123,8 @@ NULL
 #'
 #' @format A \code{data.frame} with 109 entries and 3 variables: \code{Age},
 #'   \code{Deaths} and \code{Exposure}.
-#'
-#'   {\code{Exposure} is a mid-year estimate of the population exposed to risk.}
+#' 
+#'   \code{Exposure} is a mid-year estimate of the population exposed to risk.
 #'
 #' @docType data
 #' @usage data(EWmortality)

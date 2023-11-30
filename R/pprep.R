@@ -73,7 +73,7 @@
 #'
 #' @export
 PPolyRep <- function(object, n = 3){
-  if(class(object)!="GeDS") stop("This function works only with GeDS class objects")
+  if (!inherits(object, "GeDS")) stop("This function works only with GeDS class objects")
   n <- as.integer(n)
   kn <- knots(object, n = n, options="all")
   cf <- coef(object, n = n)
