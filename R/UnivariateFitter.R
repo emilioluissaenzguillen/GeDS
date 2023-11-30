@@ -113,11 +113,11 @@
 #' Kaishev, V.K., Dimitrova, D.S., Haberman, S., & Verrall, R.J. (2016).
 #' Geometrically designed, variable knot regression splines.
 #' \emph{Computational Statistics}, \strong{31}, 1079--1105. \cr
-#' DOI: \href{https://doi.org/10.1007/s00180-015-0621-7}{doi.org/10.1007/s00180-015-0621-7}
+#' DOI: \doi{10.1007/s00180-015-0621-7}
 #'
 #' Dimitrova, D.S., Kaishev, V.K., Lattuada A. and Verrall, R.J. (2017).
 #' Geometrically designed, variable knot splines in Generalized (Non-)Linear Models.
-#' Available at \href{http://openaccess.city.ac.uk/18460/}{openaccess.city.ac.uk}
+#' Available at \href{https://openaccess.city.ac.uk/18460/}{openaccess.city.ac.uk}
 #'
 UnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0,NROW(Y)), weights = rep(1,length(X)), beta=.5, phi = 0.5,
                              min.intknots = 0,

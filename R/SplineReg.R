@@ -114,16 +114,16 @@
 #' Kaishev, V. K., Dimitrova, D. S., Haberman, S. & Verrall, R. J. (2006).
 #' Geometrically designed, variable know regression splines: asymptotics and inference \emph{(Statistical Research Paper No. 28)}.
 #' London, UK: Faculty of Actuarial Science & Insurance, City University London. \cr
-#' URL: \href{http://openaccess.city.ac.uk/id/eprint/2372}{openaccess.city.ac.uk}
+#' URL: \href{https://openaccess.city.ac.uk/id/eprint/2372}{openaccess.city.ac.uk}
 #'
 #' Kaishev, V.K., Dimitrova, D.S., Haberman, S., & Verrall, R.J. (2016).
 #' Geometrically designed, variable knot regression splines.
 #' \emph{Computational Statistics}, \strong{31}, 1079--1105. \cr
-#' DOI: \href{https://doi.org/10.1007/s00180-015-0621-7}{doi.org/10.1007/s00180-015-0621-7}
+#' DOI: \doi{10.1007/s00180-015-0621-7}
 #'
 #' Dimitrova, D.S., Kaishev, V.K., Lattuada A. and Verrall, R.J. (2017).
 #' Geometrically designed, variable knot splines in Generalized (Non-)Linear Models.
-#' Available at \href{http://openaccess.city.ac.uk/18460/}{openaccess.city.ac.uk}
+#' Available at \href{https://openaccess.city.ac.uk/18460/}{openaccess.city.ac.uk}
 #'
 #' @export
 #'
