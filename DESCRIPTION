@@ -16,8 +16,8 @@ Description: Geometrically Designed Spline ('GeDS') Regression is a non-parametr
   distribution from the exponential family. A description of the method can be found in
   Kaishev et al. (2016) <doi:10.1007/s00180-015-0621-7> and Dimitrova et al. (2017) <https://openaccess.city.ac.uk/id/eprint/18460/>.
 License: GPL-3
-URL: https://github.com/alattuada/GeDS
-BugReports: https://github.com/alattuada/GeDS/issues
+URL: https://github.com/emilioluissaenzguillen/GeDS
+BugReports: https://github.com/emilioluissaenzguillen/GeDS/issues
 LazyData: TRUE
 Depends:
     R (>= 3.0.1),
