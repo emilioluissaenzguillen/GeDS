@@ -32,7 +32,7 @@ confint.GeDS <- function(object, parm, level = 0.95, n = 3L, ...){
 
   a <- (1 - level)/2
   a <- c(a, 1 - a)
-  pct <- format.perc(a, 3) # stats package
+  pct <- format_perc(a, 3) # stats package
 
 
   if(object$Type=="GLM - Univ"){
@@ -155,7 +155,8 @@ BerPoly <- function(n,x){
 
 # just copy and paste from package::stats
 # unexported there, same here
-format.perc <- function(probs, digits)
+# rename format.perc to format_perc to avoid the confusion with S3 method naming conventions
+format_perc <- function(probs, digits)
   ## Not yet exported, maybe useful in other contexts:
   ## quantile.default() sometimes uses a version of it
   paste(format(100 * probs, trim = TRUE, scientific = FALSE, digits = digits),
