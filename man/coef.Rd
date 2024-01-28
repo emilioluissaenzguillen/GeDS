@@ -75,6 +75,7 @@ coef(Gmod, n = 3)
 
 # Extract all the coefficients, including the one for the linear component
 coef(Gmod, onlySpline = FALSE, n = 3)
+
 }
 \seealso{
 \code{\link[stats]{coef}} for the standard definition; \code{\link{NGeDS}} for examples.

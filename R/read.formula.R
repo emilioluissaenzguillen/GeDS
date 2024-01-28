@@ -1,3 +1,6 @@
+#######################################################
+# Function for reading the formula of NGeDS and GGeDS #
+#######################################################
 read.formula <- function(formula,data,weights,offset){
   mt <- if (missing(data)){
     terms(formula, "f")
@@ -39,6 +42,68 @@ read.formula <- function(formula,data,weights,offset){
   return(out)
 }
 
+###############################################################
+# Function for reading the formula of NGeDSboost and NGeDSgam #
+###############################################################
+read.formula.boost <- read.formula.gam <- function(formula, data){
+  
+  formula <- as.formula(formula)
+  # Parse formula
+  terms <- all.vars(formula)
+  outcome <- terms[1]
+  predictors <- terms[-1]
+  
+  # Split the formula into LHS and RHS
+  formula_string <- paste(deparse(formula), collapse = " ")
+  parts <- strsplit(formula_string, " ~ ")[[1]]
+  lhs <- parts[1]
+  rhs <- parts[2]
+  # Split the RHS into individual terms
+  rhs_parts <- trimws(unlist(strsplit(rhs, " \\+ ")))
+  # Reformat parts for validation: keep the first part as is, append others to LHS
+  parts_to_validate <- c(lhs, paste(lhs, "~", rhs_parts))[-1]
+  # Adjusted pattern for validation
+  pattern <- "^[a-zA-Z0-9_.]+ ~ (\\.|(f\\([^)]+\\)|[a-zA-Z0-9_.]+))$"
+  # Validate each part
+  valid_parts <- sapply(parts_to_validate, function(part) {
+    grepl(pattern, part)
+  })
+  # Check if all parts are valid
+  all_parts_valid <- all(valid_parts)
+  if (!all_parts_valid) {
+    stop("Formula incorrectly specified. Read documentation for further information.")
+  }
+  
+  # Predictors terms
+  bl_part <- parts[2]
+  bl_elements <- unlist(strsplit(bl_part, "\\+"))
+  bl_elements <- trimws(bl_elements) # remove any leading or trailing white spaces from each element
+  if(any(predictors == ".")) {
+    # Handling "Y ~ ." case
+    predictors <- predictors[predictors != "."]
+    rest_predictors <- setdiff(names(data), c(outcome, predictors))
+    predictors <- c(predictors, rest_predictors)
+    bl_elements <- bl_elements[bl_elements != "."]
+    rest_bl_elements <- gsub("(x\\.\\d+)", "f(\\1)", rest_predictors)
+    bl_elements <- c(bl_elements, rest_bl_elements)
+  } 
+  
+  # Extract predictor variable names from each base-learner element
+  base_learners <- setNames(lapply(bl_elements, function(bl) {
+    # Determine the type of the base learner
+    type <- ifelse(grepl("f\\(.*\\)", bl), "GeDS", "linear")
+    # Extract the predictor variables
+    variables <- trimws(unlist(strsplit(gsub("f\\((.*?)\\)", "\\1", bl), ",")))
+    # Check if the f() has more than two predictors
+    if (type == "GeDS" && length(variables) > 2) {
+      stop("Formula incorrectly specified: f() can have at most two predictors. Read documentation for further information.")
+    }
+    # Return a list containing variable names and the type
+    return(list(variables = variables, type = type))
+  }), bl_elements)
+  
+  return(list(terms = terms, outcome = outcome, predictors = predictors, base_learners = base_learners))
+}
 
 
 #' Formula for the predictor model

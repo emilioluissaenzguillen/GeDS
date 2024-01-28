@@ -42,6 +42,8 @@
 #' estimation (alternative to providing either \code{inits} or \code{mustart}). Must be a vector of length \eqn{N}.
 #' @param prob the confidence level to be used for the confidence bands in the \code{SplineReg_LM}
 #' fit. See details below.
+#' @param coefficients optional vector of spline coefficients. If provided, \code{SplineReg} computes only the
+#' corresponding predicted values.
 #'
 #' @details The functions estimate the coefficients of a predictor model with a spline component (and possibly
 #' a parametric component) for a given, fixed order and vector of
@@ -127,35 +129,46 @@
 #'
 #' @export
 #'
-SplineReg_LM <- function(X,Y,Z=NULL,offset=rep(0,NROW(Y)),weights=rep(1,length(X)),InterKnots,n,extr=range(X),prob=.95){
+
+SplineReg_LM <- function(X,Y,Z=NULL,offset=rep(0,NROW(X)),weights=rep(1,length(X)),InterKnots,n,extr=range(X),prob=.95,
+                         coefficients = NULL){
   n <- as.integer(n)
   matrice <- splineDesign(knots=sort(c(InterKnots,rep(extr,n))),derivs=rep(0,length(X)),x=X,ord=n,outer.ok = T)
   matrice2 <- cbind(matrice,Z)
-  Y0 <- Y - offset
-  tmp <- lm(Y0~-1+matrice2,weights=as.numeric(weights))
-  theta <- coef(tmp)
-  predicted <- matrice2%*%theta+offset
-  polyknots <- makenewknots(sort(c(InterKnots,rep(extr,n)))[-c(1,NCOL(matrice)+1)],degree=n)
-  resid <- Y - predicted
-  df <- tmp$df
-  sigma_hat <- sqrt(sum(resid^2)/df)
-  prob <- 1-.5*(1-prob)
-  band <- qt(prob,df)*sigma_hat*influence(tmp)$hat^.5
-
-  n <- length(Y)
-  N <- NCOL(matrice)
-  matcb <- matrix(0,N,N)
-  # to be written in cpp
-  for(i in 1:n){
-    matcb <- matcb + matrice[i,]%*%t(matrice[i,])
+  
+  # 1) If coefficients are NOT provided estimate the corresponding regression model
+  if (is.null(coefficients)){
+    Y0 <- Y - offset
+    tmp <- lm(Y0~-1+matrice2,weights=as.numeric(weights))
+    theta <- coef(tmp)
+    predicted <- matrice2%*%theta+offset
+    polyknots <- makenewknots(sort(c(InterKnots,rep(extr,n)))[-c(1,NCOL(matrice)+1)],degree=n)
+    resid <- Y - predicted
+    df <- tmp$df
+    sigma_hat <- sqrt(sum(resid^2)/df)
+    prob <- 1-.5*(1-prob)
+    band <- qt(prob,df)*sigma_hat*influence(tmp)$hat^.5
+    
+    n <- length(Y)
+    N <- NCOL(matrice)
+    matcb <- matrix(0,N,N)
+    # to be written in cpp
+    for(i in 1:n){
+      matcb <- matcb + matrice[i,]%*%t(matrice[i,])
+    }
+    matcb <- matcb/n
+    matcbinv <- solve(matcb)
+    
+    band_width_huang <- qnorm(prob)*n^(-.5)*diag(sigma_hat*matrice%*%matcbinv%*%t(matrice))
+  
+  # 2) If coefficients are provided compute the corresponding predicted values
+  } else {
+    theta <- coefficients
+    predicted <- matrice2%*%theta+offset
+    polyknots <- resid <- band <- band_width_huang <- NA
+    tmp <- NULL
   }
-  matcb <- matcb/n
-  matcbinv <- solve(matcb)
-
-
-  band_width_huang <- qnorm(prob)*n^(-.5)*diag(sigma_hat*matrice%*%matcbinv%*%t(matrice))
-
-#  print(dim(band_with_huang))
+  
   out <- list("Theta"=theta,"Predicted"=predicted,
               "Residuals"=resid,"RSS"=t(resid)%*%resid,
               "NCI"=list("Upp"=predicted+band,"Low"=predicted-band),
@@ -164,8 +177,10 @@ SplineReg_LM <- function(X,Y,Z=NULL,offset=rep(0,NROW(Y)),weights=rep(1,length(X
                                           "Low"=predicted-band_width_huang))
   return(out)
 }
+
 #' @rdname SplineReg
 #' @export
+#' 
 SplineReg_GLM <- function(X,Y,Z,offset=rep(0,nobs),
                           weights=rep(1,length(X)),InterKnots,n,extr=range(X),family,
                           mustart,inits = NULL,etastart=NULL){

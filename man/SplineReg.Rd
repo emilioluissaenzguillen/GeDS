@@ -10,12 +10,13 @@ SplineReg_LM(
   X,
   Y,
   Z = NULL,
-  offset = rep(0, NROW(Y)),
+  offset = rep(0, NROW(X)),
   weights = rep(1, length(X)),
   InterKnots,
   n,
   extr = range(X),
-  prob = 0.95
+  prob = 0.95,
+  coefficients = NULL
 )
 
 SplineReg_GLM(
@@ -67,6 +68,9 @@ of the interval embedding the sample values of \code{X}.
 
 \item{prob}{the confidence level to be used for the confidence bands in the \code{SplineReg_LM}
 fit. See details below.}
+
+\item{coefficients}{optional vector of spline coefficients. If provided, \code{SplineReg} computes only the
+corresponding predicted values.}
 
 \item{family}{a description of the error distribution and link function to be used
 in the model. This can be a character string naming a family function, a family function or the result of a call to a family function. See \code{\link[stats]{family}} for details of family functions.}

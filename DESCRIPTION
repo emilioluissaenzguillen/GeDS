@@ -31,3 +31,13 @@ Depends:
 LinkingTo: Rcpp
 RoxygenNote: 7.2.3
 Encoding: UTF-8
+Imports:
+    mboost,
+    MASS,
+    foreach,
+    doParallel,
+    doFuture,
+    future,
+    doRNG,
+    TH.data
+

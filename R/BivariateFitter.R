@@ -81,7 +81,7 @@ BivariateFitter <- function(X, Y, Z, W, weights=rep(1,length(X)), Indicator, bet
     kk <- 1
     dXY <- numeric()
 
-    #formazione dei cluster per ogni slice
+    #formation of clusters for each slice
     for(i in 1:nintX){
       if(!zeroes[i]) {
         if (i == 1){
@@ -172,7 +172,7 @@ BivariateFitter <- function(X, Y, Z, W, weights=rep(1,length(X)), Indicator, bet
     weightY <- Yweights[indice]
 
 
-    ### qua inizia la X del nodo
+    ### here starts the X of the node
 
     dY <- numeric(nintY)
     upperY <- upperY+1e-15
@@ -183,14 +183,14 @@ BivariateFitter <- function(X, Y, Z, W, weights=rep(1,length(X)), Indicator, bet
     zeroes <- dY==0
     dcumY <- cumsum(dY)
     matrY <- matr[ordY,]
-    matrY <- makeNewMatr(matrY, Indicator, by.row=TRUE)#che va pulita qui per le osservazioni multiple
+    matrY <- makeNewMatr(matrY, Indicator, by.row=TRUE)#which needs to be cleaned here for multiple observations
     Xmean <- numeric()
     Xwidth <- numeric()
     Xnum <- numeric()
     kk <- 1
     dYX <- numeric()
 
-    # andrebbe aggiunta questione indicator
+    # indicator of the matter should be added
     for(i in 1:nintY){
       if(!zeroes[i]) {
         if (i == 1){
@@ -321,36 +321,39 @@ BivariateFitter <- function(X, Y, Z, W, weights=rep(1,length(X)), Indicator, bet
     previousY <- previousY[,-((toBeSaved+1):(max.intknots+4))]
     lastXknots <- sum(!is.na(previousX[j,]))
     lastYknots <- sum(!is.na(previousY[j,]))
-    oldcoef <- oldcoef[-((j+1):(max.intknots+1)),]
-    oldcoef <- oldcoef[,-((j+2):(max.intknots+2))]
+    #oldcoef <- oldcoef[-((j+1):(max.intknots+1)),]
+    #oldcoef <- oldcoef[,-((j+2):(max.intknots+2))]
     if(j<2){
-      warning("Too few internal knots found: Linear spline will not be computed. Try to set a different value for 'q' or a different treshold")
+      warning("Too few internal knots found: Linear spline will be computed with NULL internal knots. Try to set a different value for 'q' or a different treshold")
       llX <- NULL
       llY <- NULL
-      lin <- NULL} else {
+      lin <- SplineReg_biv(X = X, Y = Y, Z = Z, InterKnotsX = llX,InterKnotsY = llY, Xextr = Xextr, Yextr = Yextr, n = 2)
+      } else {
         ikX <- previousX[j,3:(lastXknots-2)]
         ikY <- previousY[j,3:(lastYknots-2)]
-        llX <- makenewknots(ikX,2)#lin #l'approssimazione
-        llY <- makenewknots(ikY,2)#lin #l'approssimazione
-        lin <- SplineReg_biv(X=X, Y=Y, Z=Z, InterKnotsX=ikX,InterKnotsY=ikY, Xextr=Xextr, Yextr=Yextr, n=2)
+        llX <- if (length(ikX) < 1) NULL else makenewknots(ikX, 2) #lin #l'approssimazione
+        llY <- if (length(ikY) < 1) NULL else makenewknots(ikY, 2) #lin #l'approssimazioned
+        lin <- SplineReg_biv(X = X, Y = Y, Z = Z, InterKnotsX = llX,InterKnotsY = llY, Xextr = Xextr, Yextr = Yextr, n = 2)
       }
     if(j<3){
-      warning("Too few internal knots found: Quadratic spline will not be computed. Try to set a different value for 'q' or a different treshold")
+      warning("Too few internal knots found: Quadratic spline will be computed with NULL internal knots. Try to set a different value for 'q' or a different treshold")
       qqX <- NULL
       qqY <- NULL
-      squ <- NULL} else {
-        qqX <- makenewknots(ikX,3)#quad
-        qqY <- makenewknots(ikY,3)#quad
-        squ <- SplineReg_biv(X=X, Y=Y, Z=Z, InterKnotsX=qqX,InterKnotsY=qqY, Xextr=Xextr, Yextr=Yextr, n=3)
+      squ <- SplineReg_biv(X = X, Y = Y, Z = Z, InterKnotsX = qqX, InterKnotsY = qqY, Xextr = Xextr, Yextr = Yextr, n = 3)
+      } else {
+        qqX <- if (length(ikX) < 2) NULL else makenewknots(ikX, 3) #quad
+        qqY <- if (length(ikY) < 2) NULL else makenewknots(ikY, 3) #quad
+        squ <- SplineReg_biv(X = X, Y = Y, Z = Z, InterKnotsX = qqX, InterKnotsY = qqY, Xextr = Xextr, Yextr = Yextr, n = 3)
       }
     if(j< 4){
-      warning("Too few internal knots found: Cubic spline will not be computed. Try to set a different value for 'q' or a different treshold")
+      warning("Too few internal knots found: Cubic spline will be computed with NULL internal knots. Try to set a different value for 'q' or a different treshold")
       ccX <- NULL
       ccY <- NULL
-      cub <- NULL} else {
-        ccX <- makenewknots(ikY,4)#cub
-        ccY <- makenewknots(ikY,4)#cub
-        cub <- SplineReg_biv(X=X, Y=Y, Z=Z, InterKnotsX=ikX,InterKnotsY=ikY, Xextr=Xextr, Yextr=Yextr, n=4)
+      cub <- SplineReg_biv(X = X, Y = Y, Z = Z, InterKnotsX = ccX, InterKnotsY = ccY, Xextr = Xextr, Yextr = Yextr, n = 4)
+      } else {
+        ccX <- if (length(ikX) < 3) NULL else makenewknots(ikX, 4) #cub
+        ccY <- if (length(ikY) < 3) NULL else makenewknots(ikX, 4) #cub
+        cub <- SplineReg_biv(X = X, Y = Y, Z = Z, InterKnotsX = ccX, InterKnotsY = ccY, Xextr = Xextr, Yextr = Yextr, n = 4)
       }
 
   } else {
@@ -362,36 +365,39 @@ BivariateFitter <- function(X, Y, Z, W, weights=rep(1,length(X)), Indicator, bet
     previousY <- previousY[-((j+1):(max.intknots+1)),] #delete also last two
     toBeSaved <- sum(!is.na(previousY[j,]))
     previousY <- previousY[,-((toBeSaved+1):(max.intknots+4))]
-    oldcoef <- oldcoef[-((j+1):(max.intknots+1)),]
-    oldcoef <- oldcoef[,-((j+2):(max.intknots+2))]
-    if(j-q<2){
-      warning("Too few internal knots found: Linear spline will not be computed. Try to set a different value for 'q' or a different treshold")
+    #oldcoef <- oldcoef[-((j+1):(max.intknots+1)),]
+    #oldcoef <- oldcoef[,-((j+2):(max.intknots+2))]
+    if (j-q < 2) {
+      warning("Too few internal knots found: Linear spline will be computed with NULL internal knots. Try to set a different value for 'q' or a different treshold")
       llX <- NULL
       llY <- NULL
-      lin <- NULL} else {
+      lin <- SplineReg_biv(X = X, Y = Y, Z = Z, InterKnotsX = llX, InterKnotsY = llY, Xextr = Xextr, Yextr = Yextr, n = 2)
+      } else {
         ikX <- previousX[j-q,3:(lastXknots-2)]
         ikY <- previousY[j-q,3:(lastYknots-2)]
-        llX <- makenewknots(ikX,2)#lin #l'approssimazione
-        llY <- makenewknots(ikY,2)#lin #l'approssimazione
-        lin <- SplineReg_biv(X=X, Y=Y, Z=Z, InterKnotsX=ikX,InterKnotsY=ikY, Xextr=Xextr, Yextr=Yextr, n=2)
+        llX <- if (length(ikX) < 1) NULL else makenewknots(ikX, 2) #lin #l'approssimazione
+        llY <- if (length(ikY) < 1) NULL else makenewknots(ikY, 2) #lin #l'approssimazioned
+        lin <- SplineReg_biv(X = X, Y = Y, Z = Z, InterKnotsX = llX, InterKnotsY = llY, Xextr = Xextr, Yextr = Yextr, n = 2)
       }
-    if(j-q<3){
-      warning("Too few internal knots found: Quadratic spline will not be computed. Try to set a different value for 'q' or a different treshold")
+    if(j-q < 3){
+      warning("Too few internal knots found: Quadratic spline will be computed with NULL internal knots. Try to set a different value for 'q' or a different treshold")
       qqX <- NULL
       qqY <- NULL
-      squ <- NULL} else {
-        qqX <- makenewknots(ikX,3)#quad
-        qqY <- makenewknots(ikY,3)#quad
-        squ <- SplineReg_biv(X=X, Y=Y, Z=Z, InterKnotsX=qqX,InterKnotsY=qqY, Xextr=Xextr, Yextr=Yextr, n=3)
+      squ <- SplineReg_biv(X=X, Y=Y, Z=Z, InterKnotsX=qqX,InterKnotsY=qqY, Xextr=Xextr, Yextr=Yextr, n=3)
+      } else {
+        qqX <- if (length(ikX) < 2) NULL else makenewknots(ikX, 3) #quad
+        qqY <- if (length(ikY) < 2) NULL else makenewknots(ikY, 3) #quad
+        squ <- SplineReg_biv(X = X, Y = Y, Z = Z, InterKnotsX = qqX, InterKnotsY = qqY, Xextr = Xextr, Yextr = Yextr, n = 3)
       }
     if(j-q < 4){
-      warning("Too few internal knots found: Cubic spline will not be computed. Try to set a different value for 'q' or a different treshold")
+      warning("Too few internal knots found: Cubic spline will be computed with NULL internal knots. Try to set a different value for 'q' or a different treshold")
       ccX <- NULL
       ccY <- NULL
-      cub <- NULL} else {
-        ccX <- makenewknots(ikX,4)#cub
-        ccY <- makenewknots(ikY,4)#cub
-        cub <- SplineReg_biv(X=X, Y=Y, Z=Z, InterKnotsX=ccX,InterKnotsY=ccY, Xextr=Xextr, Yextr=Yextr, n=4)
+      cub <- SplineReg_biv(X=X, Y=Y, Z=Z, InterKnotsX=ccX,InterKnotsY=ccY, Xextr=Xextr, Yextr=Yextr, n = 4)
+      } else {
+        ccX <- if (length(ikX) < 3) NULL else makenewknots(ikX, 4) #cub
+        ccY <- if (length(ikY) < 3) NULL else makenewknots(ikX, 4) #cub
+        cub <- SplineReg_biv(X = X, Y = Y, Z = Z, InterKnotsX = ccX,InterKnotsY = ccY, Xextr = Xextr, Yextr = Yextr, n = 4)
       }
 
   }
@@ -399,7 +405,7 @@ BivariateFitter <- function(X, Y, Z, W, weights=rep(1,length(X)), Indicator, bet
   out <- list("Type" = "LM - biv","Linear.Knots"=list("Xk" = llX,"Yk" = llY),"Quadratic.Knots"=list("Xk" = qqX,"Yk" = qqY),
               "Cubic.Knots"=list("Xk" = ccX,"Yk" = ccY),"Dev.Linear" = lin$RSS,
               "Dev.Quadratic" = squ$RSS,"Dev.Cubic" = cub$RSS,
-              "RSS" = RSSnew, "Linear" = lin, "Quadratic" = squ, "Cubic" = cub, "Stored" = previousX,
+              "RSS" = RSSnew, "Linear" = lin, "Quadratic" = squ, "Cubic" = cub, "Stored" = list("previousX" = previousX, "previousY" = previousY),
               "Args"= args,"Call"= save, "Nintknots"= list("X"= length(llX), "Y"= length(llY)),"iters" = j, "Guesses" = NULL,
               "Coefficients" = oldcoef)
   class(out) <- "GeDS"

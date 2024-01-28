@@ -65,6 +65,7 @@
 #'
 #' # Extract all the coefficients, including the one for the linear component
 #' coef(Gmod, onlySpline = FALSE, n = 3)
+#' 
 coef.GeDS <- function(object, n = 3L, onlySpline = TRUE, ...){
   if(!missing(...)) warning("Only 'object', 'n' and 'onlySpline' arguments will be considered")
   n <- as.integer(n)
@@ -99,6 +100,7 @@ coef.GeDS <- function(object, n = 3L, onlySpline = TRUE, ...){
 coefficients.GeDS <- function(object, n = 3L, onlySpline = TRUE, ...){
   coef.GeDS(object = object, n=n, onlySpline = onlySpline, ...)
 }
+
 
 #' Deviance method for GeDS objects
 #' @export
@@ -140,7 +142,6 @@ deviance.GeDS <- function(object, n = 3L, ...){
   dev <- as.numeric(dev)
   return(dev)
 }
-
 
 
 #' Predict method for GeDS objects
@@ -253,9 +254,6 @@ predict.GeDS <- function(object, newdata, type = c("response", "link", "terms"),
 }
 
 
-
-
-
 #' Print method for GeDS objects
 #' @export
 #' @description Method for the generic function \code{\link[base]{print}} that allows to
@@ -321,6 +319,7 @@ print.GeDS <- function(x, digits = max(3L, getOption("digits") - 3L), ...){
   invisible(x)
 }
 
+
 #' Knots method for GeDS objects
 #' @export
 #' @rdname knots
@@ -369,9 +368,13 @@ knots.GeDS <-  function(Fn, n = 3L, options = c("all","internal"), ...){
   if(n == 2L){
     kn <- Fn$Linear.Knots
   }
-  extr <- if(options=="all") Fn$Args$extr else NULL
-  if(Fn$Type!="LM - biv"){
-    kn <- sort(c(rep(extr,n),kn))
+  if (options == "all") {
+    if(Fn$Type!="LM - biv"){
+      kn <- sort(c(rep(Fn$Args$extr,n),kn))
+      } else if (Fn$Type =="LM - biv") {
+        kn$Xk <- sort(c(rep(Fn$Args$Xextr,n), kn$Xk))
+        kn$Yk <- sort(c(rep(Fn$Args$Yextr,n), kn$Yk))
+      }
   }
   return(kn)
 }

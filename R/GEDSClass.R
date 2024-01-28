@@ -76,3 +76,110 @@ setClass(
   )
 
 
+#' GeDSboost Class
+#'
+#' @name GeDSboost-class
+#' @rdname GeDSboost-class
+#' @aliases GeDSboost-Class GeDSboost-class
+#'
+#' @description 
+#' A class representing a fitted GeDSboost object. This object encapsulates details about the
+#' GeDS gradient boosting model, including its formula, arguments, models, the final model,
+#' predictions, and internal knots. Objects of this class are typically returned by the \code{\link{NGeDSboost}} function.
+#'
+#' @slot formula A formula object representing the relationship between the variables used in the model.
+#'
+#' @slot args A list containing the arguments passed to the \code{\link{NGeDSboost}} function. 
+#' It includes details about base learners, family, initial learner, knots for initialization, normalization options, outcome, 
+#' predictors, shrinkage parameter, mean and standard deviation of predictors (X_mean, X_sd) and outcome (Y_mean, Y_sd).
+#'
+#' @slot models A list containing the models generated during the boosting process.
+#'
+#' @slot final_model A list detailing the final GeDS model after all boosting iterations. This includes 
+#' base learners, the best base learner (best_bl), cubic fit, model name, quadratic fit, and predicted values (Y_hat).
+#'
+#' @slot predictions A list containing predictions obtained from the model for different fit types 
+#' (linear, quadratic, and cubic).
+#'
+#' @slot internal_knots A list detailing the internal knots used for the different fit types 
+#' (linear, quadratic, and cubic) during the boosting process.
+#'
+#' @references 
+#' Dimitrova, D.S., Kaishev, V.K., Lattuada A. and Verrall, R.J. (2017).
+#' Geometrically designed, variable knot splines in Generalized (Non-)Linear Models.
+#' Available at \href{http://openaccess.city.ac.uk/18460/}{openaccess.city.ac.uk}
+#'
+#' @seealso \code{\link{NGeDSboost}} which generates objects of this class.
+#'
+setClass(
+  "GeDSboost",
+  representation(
+    formula = "formula",
+    args = "list",
+    models = "list",
+    final_model = "list",
+    predictions = "list",
+    internal_knots = "list"
+  )
+)
+
+
+#' GeDSgam Class
+#'
+#' @name GeDSgam-class
+#' @rdname GeDSgam-class
+#' @aliases GeDSgam-Class GeDSgam-class
+#'
+#' @description 
+#' A class representing a fitted GeDSgam object returned by function \code{\link{NGeDSgam}}.
+#'
+#' @slot formula A formula object representing the relationship between the variables used in the model.
+#'
+#' @slot args A list containing:
+#' \describe{
+#'   \item{base_learners}{List of base learners used in the model.}
+#'   \item{family}{Family of the model.}
+#'   \item{normalize_data}{Indicator whether the data should be normalized.}
+#'   \item{outcome}{Outcome variable of the model.}
+#'   \item{predictors}{Predictors used in the model.}
+#' }
+#'
+#' @slot final_model The final GeDSgam model object containing:
+#' \describe{
+#'   \item{base_learners}{List of base learners used in the model. Each base learner contains:
+#'     \describe{
+#'       \item{coefficients}{Coefficients of the base learner.}
+#'       \item{cubic.int.knots}{Knots used in the cubic fit.}
+#'       \item{knots}{General knots used in the model.}
+#'       \item{quadratic.int.knots}{Knots used in the quadratic fit.}
+#'     }
+#'   }
+#'   \item{Y_hat}{Predicted values.}
+#'   \item{model_name}{Name of the model.}
+#'   \item{Quadratic.Fit}{Results of the quadratic fit.}
+#'   \item{Cubic.Fit}{Results of the cubic fit.}
+#' }
+#'
+#' @slot predictions A list containing:
+#' \describe{
+#'   \item{pred_linear}{Predictions from the linear fit.}
+#'   \item{pred_quadratic}{Predictions from the quadratic fit.}
+#'   \item{pred_cubic}{Predictions from the cubic fit.}
+#' }
+#'
+#' @references 
+#' Dimitrova, D.S., Kaishev, V.K., Lattuada A. and Verrall, R.J. (2017).
+#' Geometrically designed, variable knot splines in Generalized (Non-)Linear Models.
+#' Available at \href{http://openaccess.city.ac.uk/18460/}{openaccess.city.ac.uk}
+#'
+#'@seealso \code{\link{NGeDSgam}} which generates objects of this class.
+#'
+setClass(
+  "GeDSgam",
+  representation(
+    formula = "formula",
+    args = "list",
+    final_model = "list",
+    predictions = "list"
+  )
+)
