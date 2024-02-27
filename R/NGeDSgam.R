@@ -1,37 +1,84 @@
 #' NGeDSgam: Local Scoring Algorithm with GeD Splines in Backfitting
 #'
 #' @description Implements the Local Scoring Algorithm (Hastie and Tibshirani (1986)),
-#' applying GeD splines to fit the targets within the backfitting iterations.
+#' applying normal GeD splines (i.e., \code{\link{NGeDS}} function) to fit the targets within the backfitting iterations.
 #' 
 #' @importFrom stats setNames
 #'
-#' @param formula a formula specifying the model structure. It is expected to be in the
-#'                format `Y ~ f(x1) + f(x2) + ...`.
+#' @param formula a description of the structure of the model to be fitted, including the
+#' dependent and independent variables. Unlike \code{\link{NGeDS}} and \code{\link{GGeDS}}, the formula specified
+#' allows for multiple additive GeD spline regression components (as well as linear components) to be included (e.g., \code{Y ~ f(X1) + f(X2) + X3}).
+#' See \code{\link[=formula.GeDS]{formula}} for further details.
 #' @param data a data frame containing the variables referenced in the formula.
-#' @param weights optional vector of weights for each observation.
-#' @param offset optional offset to be added to the linear predictor during the backfitting.
-#' @param normalize_data a logical that defines whether the data is normalized before fitting the model or not.
-#' @param family a character string indicating the response distribution and link function to be used. Default is "gaussian".
-#'               This should be a character or a family object. Accepted characters are "gaussian" and "binomial".
-#' @param min_iterations Minimum number of iterations in the algorithm. Default is 0.
-#' @param max_iterations Maximum number of iterations in the algorithm. Default is 100.
-#' @param phi_gam_exit Convergence threshold for local-scoring. The algorithm stops when the relative change in the deviance is below this threshold.
-#'             Default is 1e-3.
-#' @param q_gam numeric parameter which allows to fine-tune the stopping rule of stage A of GeDS, by default equal to 2.
+#' @param weights an optional vector of `prior weights' to be put on the observations during the fitting
+#' process. It should be \code{NULL} or a numeric vector of the same length as the response
+#' variable defined in the formula.
+#' @param normalize_data a logical that defines whether the data should be normalized (standardized)
+#' before fitting the baseline linear model, i.e., before running the local-scoring algorithm. 
+#' Normalizing the data involves scaling the predictor variables to have a mean of 0 and a standard deviation of 1.
+#' This process alters the scale and interpretation of the knots and coefficients estimated.
+#' @param family a character string indicating the response variable distribution and link function to be used. Default is \code{"gaussian"}.
+#' This should be a character or a family object.
+#' @param min_iterations Minimum number of iterations in the local-scoring algorithm. Default is \code{0L}.
+#' @param max_iterations Maximum number of iterations in the local-scoring algorithm. Default is \code{100L}.
+#' @param phi_gam_exit Convergence threshold for local-scoring and backfitting. Both algorithms stop when the relative change
+#' in the deviance is below this threshold. Default is \code{0.995}.
+#' @param q_gam numeric parameter which allows to fine-tune the stopping rule of local-scoring/backfitting, by default equal to \code{2L}.
 #' @param beta numeric parameter in the interval \eqn{[0,1]}
-#' tuning the knot placement in stage A of GeDS. See details.
+#' tuning the knot placement in stage A of GeDS. Default is equal to \code{0.5}. See details in \code{\link{NGeDS}}.
 #' @param phi numeric parameter in the interval \eqn{[0,1]} specifying the threshold for
-#'  the stopping rule  (model selector) in stage A of GeDS. See also \code{stoptype} and details below.
-#' @param internal_knots maximum number of internal knots to be added by the GeDS learners within the backfitting iterations. Default is 500.
-#' @param q numeric parameter which allows to fine-tune the stopping rule of stage A of GeDS, by default equal to 2.
-#' @param higher_order a logical that defines whether to compute the higher order fits (quadratic and cubic).
+#'  the stopping rule  (model selector) in stage A of GeDS. Default is equal to \code{0.99}. See details in \code{\link{NGeDS}}.
+#' @param internal_knots The maximum number of internal knots that can be added by the GeDS 
+#' base-learners in each boosting iteration, effectively setting the value of \code{max.intknots} 
+#' in \code{\link{NGeDS}} at each backfitting iteration. Default is \code{500L}.
+#' @param q numeric parameter which allows to fine-tune the stopping rule of stage A of GeDS, by default equal to \code{2L}.
+#' See details in \code{\link{NGeDS}}.
+#' @param higher_order a logical that defines whether to compute the higher order fits (quadratic and cubic) after the local-scoring algorithm is run.
+#' Default is \code{TRUE}.
 #'
-#' @return A list of class "GeDSgam" containing:
-#'   * formula: The formula provided as input.
-#'   * args: List of arguments and relevant data used internally.
-#'   * final_model: The final fitted model after local scoring.
-#'   * predictions: Predictions for linear, quadratic, and cubic fits.
-#'
+#' @return \code{\link{GeDSgam-Class}} object, i.e. a list of items that summarizes the main details of the fitted GAM-GeDS model.
+#' See \code{\link{GeDSgam-Class}} for details. Some S3 methods are available in order to make these objects tractable, such as
+#' \code{\link[=coef.GeDSgam]{coef}}, \code{\link[=knots.GeDSgam]{knots}}, \code{\link[=print.GeDSgam]{print}} and \code{\link[=predict.GeDSgam]{predict}}.
+#'   
+#' @details
+#' The  \code{NGeDSgam} function fits a GAM model through the local scoring algorithm,
+#' which iteratively fits weighted additive models by backfitting.
+#' Normal linear GeD splines are supported as function smoothers within the backfitting algorithm, also linear learners are allowed.
+#' The local-scoring algorithm yields a final linear fit. Higher order fits (quadratic and cubic) are then computed
+#' by calculating the Schoenberg’s variation diminishing spline (VDS) approximation of the linear fit.
+#' 
+#' On the one hand, \code{NGeDSgam} includes all the parameters of \code{\link{NGeDS}},
+#' which in this case tune the smoother fit at each backfitting iteration. On the other hand,
+#' \code{NGeDSgam} includes some additional parameters proper to the local-scoring procedure. We describe
+#' the main ones as follows. 
+#' 
+#' The \code{family} chosen determines the link function, adjusted dependent variable and weights to be used
+#' in the local-scoring algorithm. The number of local-scoring and backfitting iterations is controlled by
+#' a \emph{Ratio of Deviances} stopping rule similar to the one presented for \code{\link{GGeDS}}.
+#' In the same way \code{phi} and \code{q} tune the stopping rule of \code{\link{GGeDS}},
+#' \code{phi_boost_exit} and \code{q_boost} tune the stopping rule of \code{NGeDSgam}. The user
+#' can also manually control the number of local-scoring iterations through \code{min_iterations} and
+#' \code{max_iterations}.
+#' 
+#' @references 
+#' Hastie, T. and Tibshirani, R. (1986). Generalized Additive Models. \emph{Statistical Science} \strong{1 (3)} 297 - 310. \cr
+#' DOI: \doi{10.1214/ss/1177013604}
+#' 
+#' Kaishev, V.K., Dimitrova, D.S., Haberman, S. and Verrall, R.J. (2016).
+#' Geometrically designed, variable knot regression splines.
+#' \emph{Computational Statistics}, \strong{31}, 1079--1105. \cr
+#' DOI: \doi{10.1007/s00180-015-0621-7}
+#' 
+#' Dimitrova, D. S., Kaishev, V. K., Lattuada, A. and Verrall, R. J.  (2023).
+#' Geometrically designed variable knot splines in generalized (non-)linear models.
+#' \emph{Applied Mathematics and Computation}, \strong{436}. \cr
+#' DOI: \doi{10.1016/j.amc.2022.127493}
+#' 
+#' 
+#' @seealso \code{\link{NGeDS}}; \code{\link{GGeDS}}; \code{\link{GeDSgam-Class}}; S3 methods such as
+#' \code{\link{knots.GeDSgam}}; \code{\link{coef.GeDSgam}};
+#' \code{\link{deviance.GeDSgam}}; \code{\link{predict.GeDSgam}}
+#' 
 #' @examples
 #' # Load package
 #' library(GeDS) 
@@ -41,21 +88,35 @@
 #' data$Ozone <- data$Ozone^(1/3)
 #' 
 #' formula = Ozone ~ f(Solar.R) + f(Wind, Temp)
-#' Gmod_gam <- NGeDSgam(formula = formula, data = data,
+#' Gmodgam <- NGeDSgam(formula = formula, data = data,
 #' phi_gam_exit = 0.995, phi = 0.995, q = 2)
-#' mse_ngedsgam1 <- mean((data$Ozone - Gmod_gam$predictions$pred_linear)^2)
-#' mse_ngedsgam2 <- mean((data$Ozone - Gmod_gam$predictions$pred_quadratic)^2)
-#' mse_ngedsgam3 <- mean((data$Ozone - Gmod_gam$predictions$pred_cubic)^2)
+#' MSE_Gmodgam_linear <- mean((data$Ozone - Gmodgam$predictions$pred_linear)^2)
+#' MSE_Gmodgam_quadratic <- mean((data$Ozone - Gmodgam$predictions$pred_quadratic)^2)
+#' MSE_Gmodgam_cubic <- mean((data$Ozone - Gmodgam$predictions$pred_cubic)^2)
 #' 
 #' cat("\n", "MEAN SQUARED ERROR", "\n",
-#' "Linear NGeDSgam:", mse_ngedsgam1, "\n",
-#' "Quadratic NGeDSgam:", mse_ngedsgam2, "\n",
-#' "Cubic NGeDSgam:", mse_ngedsgam3, "\n")
+#' "Linear NGeDSgam:", MSE_Gmodgam_linear, "\n",
+#' "Quadratic NGeDSgam:", MSE_Gmodgam_quadratic, "\n",
+#' "Cubic NGeDSgam:", MSE_Gmodgam_cubic, "\n")
+#' 
+#' ## S3 methods for class 'GeDSboost'
+#' # Print 
+#' print(Gmodgam)
+#' # Knots
+#' knots(Gmodgam, n = 2L)
+#' knots(Gmodgam, n = 3L)
+#' knots(Gmodgam, n = 4L)
+#' # Coefficients
+#' coef(Gmodgam, n = 2L)
+#' coef(Gmodgam, n = 3L)
+#' coef(Gmodgam, n = 4L)
+#' # Deviances
+#' deviance(Gmodgam, n = 2L)
+#' deviance(Gmodgam, n = 3L)
+#' deviance(Gmodgam, n = 4L)
 #'
 #' @export
 #' @seealso \link{gam}, \link{glm}
-#' @references
-#' Hastie, T., & Tibshirani, R. (1986). Generalized Additive Models. Statistical Science, 1(3), 297–310. http://www.jstor.org/stable/2245459
 
 ################################################################################
 ################################################################################
@@ -66,12 +127,12 @@
 #####################
 ### Local Scoring ###
 #####################
-NGeDSgam <- function(formula, data, weights = NULL, offset = NULL, normalize_data = FALSE, family = "gaussian",
-                     min_iterations = 0, max_iterations = 100,
+NGeDSgam <- function(formula, data, weights = NULL, normalize_data = FALSE, family = "gaussian",
+                     min_iterations = 0L, max_iterations = 100L,
                      phi_gam_exit = 0.995, q_gam = 2,
                      beta = 0.5, phi = 0.99, internal_knots = 500, q = 2,
                      higher_order = TRUE)
-  {
+{
   
   # Capture the function call
   extcall <- match.call()
@@ -79,13 +140,13 @@ NGeDSgam <- function(formula, data, weights = NULL, offset = NULL, normalize_dat
   # Formula
   read.formula <- read.formula.gam(formula, data)
   terms <-  read.formula$terms
-  outcome <- read.formula$outcome
+  response <- read.formula$response
   predictors <- read.formula$predictors
   base_learners <- read.formula$base_learners
   
   # Eliminate indexes and keep only relevant variables
   rownames(data) <- NULL
-  all_vars <- c(outcome, predictors)
+  all_vars <- c(response, predictors)
   if(all(all_vars %in% names(data))) {
     data <- data[, all_vars]
   } else {
@@ -123,24 +184,25 @@ NGeDSgam <- function(formula, data, weights = NULL, offset = NULL, normalize_dat
   args <- list(
     "predictors" = data[predictors], 
     "base_learners"= base_learners,
-    "normalize_data" = normalize_data,
-    "family" = family
+    "family" = family,
+    "normalize_data" = normalize_data
   )
   
+  # Add 'response' as the first element of the list 'args'
   if (args$family$family != "binomial") {
-    args$outcome <- data[outcome]
+    args <- c(list(response = data[response]), args)
   } else {
-    args$outcome <- data.frame(as.numeric(data[[outcome]])-1)
-    names(args$outcome) <- outcome
+    args <- c(list(response = data.frame(as.numeric(data[[response]])-1)), args) # encode to 0/1
+    names(args$response) <- response
   }
   
   # Normalize data if necessary
   if (normalize_data == TRUE) {
     if (args$family$family != "binomial") {
-      # Mean and SD of the original outcome and predictor(s) variables (to de-normalize afterwards)
-      args$Y_mean <- mean(data[[outcome]])
-      args$Y_sd <- sd(data[[outcome]])
-      data[outcome] <- as.vector(scale(data[outcome]))
+      # Mean and SD of the original response and predictor(s) variables (to de-normalize afterwards)
+      args$Y_mean <- mean(data[[response]])
+      args$Y_sd <- sd(data[[response]])
+      data[response] <- as.vector(scale(data[response]))
       
       numeric_predictors <- names(data[predictors])[sapply(data[predictors], is.numeric)]
       args$X_mean <- colMeans(data[numeric_predictors])
@@ -155,15 +217,12 @@ NGeDSgam <- function(formula, data, weights = NULL, offset = NULL, normalize_dat
       data[predictors] <- scale(data[predictors])
     }
   }
-  
-  # Data matrices
-  Y <- data[[outcome]]
-  X <- as.matrix(data[predictors])
-  
+ 
   # Weights and offset
-  nobs = length(Y)
+  nobs = length(data[[response]])
   if (is.null(weights)) weights <- rep.int(1, nobs)
   else weights <- rescale_weights(weights)
+  offset = NULL # by the moment we won't include offset as an argument of NGeDSgam
   if (is.null(offset))
     offset <- rep.int(0, nobs)
   
@@ -203,6 +262,7 @@ NGeDSgam <- function(formula, data, weights = NULL, offset = NULL, normalize_dat
   }
   
   # 1. INITIALIZE
+  Y <- data[[response]]
   temp_env <- list2env(list(y = Y, nobs = nobs,
                             etastart = NULL, start = NULL, mustart = NULL ))
   eval(family$initialize, envir = temp_env)
@@ -268,23 +328,31 @@ NGeDSgam <- function(formula, data, weights = NULL, offset = NULL, normalize_dat
   }
   
   ## 4. Set the "final model" to be the one with lower deviance
-  # Use sapply to calculate deviances for each model
+  # 4.1. De-normalize predictions if necessary
+  if (normalize_data == TRUE && args$family$family != "binomial") {
+    models <- lapply(models, function(model) {
+      model$Y_hat$mu = model$Y_hat$mu * args$Y_sd + args$Y_mean
+      model$Y_hat$eta = link(model$Y_hat$mu)
+      return(model)
+    })
+  }
+  # 4.2. Calculate each model's deviance
   deviances <- sapply(models, function(model) {
     mu <- model$Y_hat$mu
-    sum(dev.resids(args$outcome[[outcome]], mu, weights))
+    sum(dev.resids(args$response[[response]], mu, weights))
   })
-  # Find the model with the smallest deviance
+  # 4.3. Find the model with the smallest deviance
   model_min_deviance <- names(models)[which.min(deviances)]
-  # Set the final model to the model with the smallest MSE
-  final_model <- models[[model_min_deviance]]
-  final_model$model_name <- model_min_deviance
-  final_model$RSS <- min(deviances)
-  final_model$best_bl <- NULL # to simplify the final_model output
-  # Save predictions
-  if (normalize_data == TRUE && args$family$family != "binomial"){
-    final_model$Y_hat$mu = final_model$Y_hat$mu * args$Y_sd + args$Y_mean
-    final_model$Y_hat$eta = link(final_model$Y_hat$mu)
-  } 
+  final_model <- list(
+    model_name = model_min_deviance,
+    DEV = min(deviances),
+    Y_hat = models[[model_min_deviance]]$Y_hat,      
+    base_learners = models[[model_min_deviance]]$base_learners
+  )
+  # Save linear internal knots for each base-learner
+  for (bl_name in names(base_learners)) {
+    final_model$base_learners[[bl_name]]$linear.int.knots <- get_internal_knots(final_model$base_learners[[bl_name]]$knots)
+  }
   
   #######################
   ## Higher order fits ##
@@ -301,7 +369,7 @@ NGeDSgam <- function(formula, data, weights = NULL, offset = NULL, normalize_dat
     qq_list <- compute_avg_int.knots(final_model, base_learners = base_learners,
                                    args$X_sd, args$X_mean, normalize_data, n = 3)
     quadratic_fit <- tryCatch({
-      SplineReg_Multivar(X = args$predictors[GeDS_variables], Y = args$outcome[[outcome]],
+      SplineReg_Multivar(X = args$predictors[GeDS_variables], Y = args$response[[response]],
                          Z = args$predictors[linear_variables],
                          base_learners = args$base_learners, InterKnotsList = qq_list,
                          n = 3, family = family)}, error = function(e) {
@@ -315,7 +383,7 @@ NGeDSgam <- function(formula, data, weights = NULL, offset = NULL, normalize_dat
     cc_list <- compute_avg_int.knots(final_model, base_learners = base_learners,
                                      args$X_sd, args$X_mean, normalize_data, n = 4)
     cubic_fit <- tryCatch({
-      SplineReg_Multivar(X = args$predictors[GeDS_variables], Y = args$outcome[[outcome]],
+      SplineReg_Multivar(X = args$predictors[GeDS_variables], Y = args$response[[response]],
                          Z = args$predictors[linear_variables],
                          base_learners = args$base_learners, InterKnotsList = cc_list,
                          n = 4, family = family)}, error = function(e) {
@@ -336,6 +404,12 @@ NGeDSgam <- function(formula, data, weights = NULL, offset = NULL, normalize_dat
     final_model$base_learners[[bl_name]]$cubic.int.knots <- NULL
   }
   
+  # Simplify final_model structure
+  for (bl_name in names(base_learners)){
+    final_model$base_learners[[bl_name]]$knots <- NULL
+  }
+  
+  # Store predictions
   preds <- list(pred_linear = as.numeric(final_model$Y_hat$mu), pred_quadratic = pred_quadratic, pred_cubic = pred_cubic)
   
   # Store internal knots
@@ -344,15 +418,15 @@ NGeDSgam <- function(formula, data, weights = NULL, offset = NULL, normalize_dat
   cubic.int.knots <- setNames(vector("list", length(base_learners)), names(base_learners))
   # Loop through each base learner and extract the int.knots
   for(bl_name in names(base_learners)){
-    # Extract and store linear knots
-    linear_knots <- get_internal_knots(final_model$base_learners[[bl_name]]$knots)
-    linear.int.knots[bl_name] <- list(linear_knots)
-    # Extract and store quadratic knots
-    quadratic_knots <- final_model$base_learners[[bl_name]]$quadratic.int.knots
-    quadratic.int.knots[bl_name] <- list(quadratic_knots)
-    # Extract and store cubic knots
-    cubic_knots <- final_model$base_learners[[bl_name]]$cubic.int.knots
-    cubic.int.knots[bl_name] <- list(cubic_knots)
+    # Extract and store linear internal knots
+    linear_int.knt <- final_model$base_learners[[bl_name]]$linear.int.knots
+    linear.int.knots[bl_name] <- list(linear_int.knt)
+    # Extract and store quadratic internal knots
+    quadratic_int.knt <- final_model$base_learners[[bl_name]]$quadratic.int.knots
+    quadratic.int.knots[bl_name] <- list(quadratic_int.knt)
+    # Extract and store cubic internal knots
+    cubic_int.knt <- final_model$base_learners[[bl_name]]$cubic.int.knots
+    cubic.int.knots[bl_name] <- list(cubic_int.knt)
   }
   # Combine the extracted knots into a single list
   internal_knots <- list(linear.int.knots = linear.int.knots, quadratic.int.knots = quadratic.int.knots,

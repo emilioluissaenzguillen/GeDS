@@ -12,13 +12,16 @@ years from 1850 to 1962. Each entry has:
   \item{years}{ year during which accidents occurred.}
 }
 }
+\source{
+\url{https://people.reed.edu/~jones/141/Coal.html}
+}
 \usage{
 data(coalMining)
 }
 \description{
-A dataset with 112 entries containing annual numbers of accidents due to disasters in
-British coal mines for years from 1850 to 1962, considered in Carlin et al. (1992) and
-also in Eilers and Marx (1996).
+A dataset with 112 entries containing annual numbers of accidents due to
+disasters in British coal mines for years from 1850 to 1962, considered in
+Carlin et al. (1992) and also in Eilers and Marx (1996).
 }
 \references{
 Carlin, B.P., Gelfand, A.E. and Smith, A.F.M. (1992).

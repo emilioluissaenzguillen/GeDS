@@ -6,36 +6,78 @@
 \alias{GeDSboost-Class}
 \title{GeDSboost Class}
 \description{
-A class representing a fitted GeDSboost object. This object encapsulates details about the
-GeDS gradient boosting model, including its formula, arguments, models, the final model,
-predictions, and internal knots. Objects of this class are typically returned by the \code{\link{NGeDSboost}} function.
+A fitted GeDSboost object returned by function \code{\link{NGeDSboost}}
+inheriting the methods from class \code{"GeDSboost"}. Methods for functions
+\code{coef}, \code{knots}, \code{print}, \code{predict},
+\code{visualize_boosting}, and \code{bl_imp} are available.
 }
 \section{Slots}{
 
 \describe{
-\item{\code{formula}}{A formula object representing the relationship between the variables used in the model.}
+\item{\code{extcall}}{call to the \code{\link{NGeDSboost}} function.}
 
-\item{\code{args}}{A list containing the arguments passed to the \code{\link{NGeDSboost}} function. 
-It includes details about base learners, family, initial learner, knots for initialization, normalization options, outcome, 
-predictors, shrinkage parameter, mean and standard deviation of predictors (X_mean, X_sd) and outcome (Y_mean, Y_sd).}
+\item{\code{formula}}{A formula object representing the model to be fit.}
 
-\item{\code{models}}{A list containing the models generated during the boosting process.}
+\item{\code{args}}{A list containing the arguments passed to the \code{\link{NGeDSboost}}
+function. This list includes:
+\itemize{
+  \item \code{response}: \code{data.frame} containing the response variable.
+  \item \code{predictors}: \code{data.frame} containing the predictor
+  variables included in the model.
+  \item \code{base_learners}: description of model's base learners.
+  \item \code{family}: the statistical family (e.g., \code{mboost:Gaussian()},
+  \code{mboost:Binomial()},...).
+  \item \code{initial_learner}: if \code{TRUE} a \code{\link{NGeDS}} fit was
+  used as initial learner; otherwise, the empirical risk minimizer
+  corresponding to the selected \code{family} was employed.
+  \item \code{int.knots_init}: if \code{initial_learner = TRUE} the maximum
+  number of internal knots set to the \code{\link{NGeDS}} function before the
+  initial learner fit.
+  \item \code{shrinkage}: shrinkage/step-length/learning rate utilized
+  throughout the boosting iterations.
+  \item \code{normalize_data}: if \code{TRUE}, then response and predictors
+  were standardized before running the FGB algorithm.
+  \item \code{X_mean}: mean of the predictor variables (only if
+  \code{normalize_data = TRUE}).
+  \item \code{X_sd}: standard deviation of the predictors (only if
+  \code{normalize_data = TRUE}).
+  \item \code{Y_mean}: mean of the response variable (only if
+  \code{normalize_data = TRUE}).
+  \item \code{Y_sd}: standard deviation of the response variable (only if
+  \code{normalize_data = TRUE}).
+}}
 
-\item{\code{final_model}}{A list detailing the final GeDS model after all boosting iterations. This includes 
-base learners, the best base learner (best_bl), cubic fit, model name, quadratic fit, and predicted values (Y_hat).}
+\item{\code{models}}{A list containing the 'model' generated at each boosting
+iteration. Each of these models includes:
+\itemize{
+ \item \code{best_bl}: fit of the base learner that minimized the residual
+ sum of squares (RSS) in fitting the gradient at the \emph{i}-th boosting
+ iteration.
+  \item \code{Y_hat}: model fitted values at the \emph{i}-th boosting
+  iteration.
+  \item \code{base_learners}: knots and coefficients for each of the
+  base-learners at the \emph{i}-th boosting iteration.  
+}}
 
-\item{\code{predictions}}{A list containing predictions obtained from the model for different fit types 
-(linear, quadratic, and cubic).}
+\item{\code{final_model}}{A list detailing the final GeDSboost model after the
+gradient descent algorithm is run. Apart of the components present in any
+model it includes the quadratic and cubic fits obtained through Schoenberg
+variation diminishing spline approximation. These include the same elements
+as \code{Quadratic} and \code{Cubic} in a \code{\link{GeDS-class}} object
+(see \code{\link{SplineReg}} for details). \code{best_bl} is eliminated to
+simplify the output.#'}
 
-\item{\code{internal_knots}}{A list detailing the internal knots used for the different fit types 
-(linear, quadratic, and cubic) during the boosting process.}
+\item{\code{predictions}}{A list containing the predicted values obtained (linear,
+quadratic, and cubic).}
+
+\item{\code{internal_knots}}{A list detailing the internal knots obtained for the
+different fit types (linear, quadratic, and cubic).}
 }}
 
 \references{
-Dimitrova, D.S., Kaishev, V.K., Lattuada A. and Verrall, R.J. (2017).
-Geometrically designed, variable knot splines in Generalized (Non-)Linear Models.
-Available at \href{http://openaccess.city.ac.uk/18460/}{openaccess.city.ac.uk}
-}
-\seealso{
-\code{\link{NGeDSboost}} which generates objects of this class.
+Dimitrova, D. S., Kaishev, V. K., Lattuada, A. and Verrall, R. J.  (2023).
+Geometrically designed variable knot splines in generalized (non-)linear
+models.
+\emph{Applied Mathematics and Computation}, \strong{436}. \cr
+DOI: \doi{10.1016/j.amc.2022.127493}
 }

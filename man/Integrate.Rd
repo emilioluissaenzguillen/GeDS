@@ -7,46 +7,45 @@
 Integrate(object, to, from, n = 3L)
 }
 \arguments{
-\item{object}{the \code{\link{GeDS-class}} object containing the  GeDS fit which should be integrated.
-It should be the result of fitting a
-univariate GeDS regression via \code{\link{NGeDS}} or \code{\link{GGeDS}}.}
+\item{object}{the \code{\link{GeDS-class}} object containing the  GeDS fit
+which should be integrated. It should be the result of fitting a univariate
+GeDS regression via \code{\link{NGeDS}} or \code{\link{GGeDS}}.}
 
 \item{to}{numeric vector containing the upper limit(s) of integration.}
 
-\item{from}{optional numeric vector containing the lower limit(s) of integration. It should be either
-of size one or of the same size as the argument \code{to}. If left unspecified,
-by default it is set to the left-most limit
-of the interval embedding the observations of the independent variable.}
+\item{from}{optional numeric vector containing the lower limit(s) of
+integration. It should be either of size one or of the same size as the
+argument \code{to}. If left unspecified, by default it is set to the left-most
+limit of the interval embedding the observations of the independent variable.}
 
-\item{n}{integer value (2, 3 or 4) specifying the order (\eqn{=} degree \eqn{+ 1}) of the GeDS fit
-to be integrated.
-By default equal to \code{3L}.
+\item{n}{integer value (2, 3 or 4) specifying the order (\eqn{=} degree
+\eqn{+ 1}) of the GeDS fit to be integrated. By default equal to \code{3L}.
 Non-integer values will be passed to the function \code{\link{as.integer}}.}
 }
 \description{
 This function computes defined integrals of a fitted GeDS regression model.
 }
 \details{
-The function is based on the well known property (c.f. De Boor, 2001, Chapter X, formula (33))
- that the integral of a linear combination of appropriately normalized B-splines is equal to
-the sum of its corresponding coefficients, noting that the GeDS regression is
-in fact such a linear combination.
+The function is based on the well known property (c.f. De Boor, 2001, Chapter
+X, formula (33)) that the integral of a linear combination of appropriately
+normalized B-splines is equal to the sum of its corresponding coefficients,
+noting that the GeDS regression is in fact such a linear combination.
 
+Since the function is based on this property, it is designed to work only on
+the predictor scale in the GNM (GLM) framework.
 
-Since the function is based on this property, it is designed to work only on the predictor scale in
-the GNM (GLM) framework.
-
-If the argument \code{from} is a single value, then it is taken as the lower limit of integration for all
-the defined integrals required, whereas the upper limits of integration are the values contained
-in the argument \code{to}.
-If the arguments \code{from} and \code{to} are of similar size, the integrals (as many as the size)
-are computed by sequentially taking the pairs of values in the \code{from} and \code{to} vectors as limits
-of integration.
+If the argument \code{from} is a single value, then it is taken as the lower
+limit of integration for all the defined integrals required, whereas the upper
+limits of integration are the values contained in the argument \code{to}. If
+the arguments \code{from} and \code{to} are of similar size, the integrals
+(as many as the size) are computed by sequentially taking the pairs of values
+in the \code{from} and \code{to} vectors as limits of integration.
 }
 \examples{
+
 # Generate a data sample for the response variable
 # Y and the single covariate X
-# see Dimitrova et al. (2017), section 4.1
+# see Dimitrova et al. (2023), section 4.1
 set.seed(123)
 N <- 500
 f_1 <- function(x) (10*x/(1+100*x^2))*4+4
@@ -74,6 +73,7 @@ Integrate(Gmod, to = c(-1,1), from = c(1,-1), n = 3)
 ## This gives an error
 Integrate(Gmod, to = 1, from = c(1,-1), n = 3)
 }
+
 }
 \references{
 De Boor, C. (2001). \emph{A Practical Guide to Splines (Revised Edition)}.

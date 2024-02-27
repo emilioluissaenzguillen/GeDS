@@ -3,7 +3,7 @@
 \docType{data}
 \name{BaFe2As2}
 \alias{BaFe2As2}
-\title{Barium-Ferrum-Arsenide powder diffraction data}
+\title{Barium-Ferrum-Arsenide Powder Diffraction Data}
 \format{
 A \code{data.frame} with 1151 cases and 2 variables:
 \describe{
@@ -18,11 +18,11 @@ A \code{data.frame} with 1151 cases and 2 variables:
 data(BaFe2As2)
 }
 \description{
-This dataset contains the results of a neutron diffraction experiment
-on Barium-Ferrum-Arsenide (\eqn{\mathrm{Ba Fe_2 As_2}})  powder carried out by
-Kimber et al. (2009) and used in Kaishev et al. (2016).
-The neutron diffraction intensity was measured at 1151 different dispersion angles
-in order to model the diffraction profile.
+This dataset contains the results of a neutron diffraction experiment on
+Barium-Ferrum-Arsenide (\eqn{\mathrm{Ba Fe_2 As_2}}) powder carried out by
+Kimber et al. (2009) and used in Kaishev et al. (2016). The neutron
+diffraction intensity was measured at 1,151 different dispersion angles in
+order to model the diffraction profile.
 }
 \examples{
 \dontrun{
@@ -38,15 +38,15 @@ plot(Gmod)
 
 }
 \references{
+Kimber, S.A.J., Kreyssig, A., Zhang, Y.Z., Jeschke, H.O., Valenti, R.,
+Yokaichiya, F., Colombier, E., Yan, J., Hansen, T.C., Chatterji, T.,
+McQueeney, R.J., Canfield, P.C., Goldman, A.I. and Argyriou, D.N. (2009).
+Similarities between structural distortions under pressure and chemical
+doping in superconducting \eqn{\mathrm{Ba Fe_2 As_2}}. \emph{Nat Mater},
+\strong{8}, 471--475.
+
 Kaishev, V.K., Dimitrova, D.S., Haberman, S. and Verrall, R.J. (2016).
 Geometrically designed, variable knot regression splines.
 \emph{Computational Statistics}, \strong{31}, 1079--1105. \cr
 DOI: \doi{10.1007/s00180-015-0621-7}
-
-Kimber, S.A.J., Kreyssig, A., Zhang, Y.Z., Jeschke, H.O., Valenti, R., Yokaichiya, F.,
- Colombier, E., Yan, J., Hansen, T.C., Chatterji, T.,
- McQueeney, R.J., Canfield, P.C., Goldman, A.I. and Argyriou, D.N. (2009).
- Similarities between structural distortions under pressure and chemical doping in superconducting
- \eqn{\mathrm{Ba Fe_2 As_2}}.
- \emph{Nat Mater}, \strong{8}, 471--475.
 }

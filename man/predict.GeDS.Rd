@@ -7,54 +7,57 @@
 \method{predict}{GeDS}(object, newdata, type = c("response", "link", "terms"), n = 3L, ...)
 }
 \arguments{
-\item{object}{the  \code{\link{GeDS-class}} object for which the
+\item{object}{the \code{\link{GeDS-class}} object for which the
 computation of the predicted values is required.}
 
-\item{newdata}{an optional \code{data.frame}, \code{list} or \code{environment} containing values
- of the independent variables for  which predicted values of the predictor model
- (including the GeDS and the parametric components) should be computed.
-If left empty the values are extracted from the object \code{x} itself.}
+\item{newdata}{an optional \code{data.frame}, \code{list} or
+\code{environment} containing values of the independent variables for  which
+predicted values of the predictor model (including the GeDS and the
+parametric components) should be computed. If left empty the values are
+extracted from the object \code{x} itself.}
 
-\item{type}{character string indicating the type of prediction required.
-By default it is equal to \code{"response"}, i.e. the result is on the scale of the response variable.
-See details for the other options.}
+\item{type}{character string indicating the type of prediction required. By
+default it is equal to \code{"response"}, i.e. the result is on the scale of
+the response variable. See details for the other options.}
 
-\item{n}{integer value (2, 3 or 4) specifying the order (\eqn{=} degree \eqn{+ 1}) of the GeDS fit
-whose predicted values should be computed.
-By default equal to \code{3L}.
-Non-integer values will be passed to the function \code{\link{as.integer}}.}
+\item{n}{integer value (2, 3 or 4) specifying the order (\eqn{=} degree
+\eqn{+ 1}) of the GeDS fit whose predicted values should be computed. By
+default equal to \code{3L}. Non-integer values will be passed to the function
+\code{\link{as.integer}}.}
 
-\item{...}{potentially further arguments (required by the definition of the generic function.).
-They are ignored, but with a warning.}
+\item{...}{potentially further arguments (required by the definition of the
+generic function). They are ignored, but with a warning.}
 }
 \value{
-A numeric vector corresponding to the predicted values (if \code{type = "link"} or
-\code{type = "response"}). If \code{type = "terms"} a numeric matrix with a column per term.
+A numeric vector corresponding to the predicted values (if
+\code{type = "link"} or \code{type = "response"}). If \code{type = "terms"} a
+numeric matrix with a column per term.
 }
 \description{
 This is a user friendly method to compute predictions from GeDS objects.
 }
 \details{
-This is a method for the function \code{\link[stats]{predict}} that
-allows the user to handle \code{\link{GeDS-Class}} objects.
+This is a method for the function \code{\link[stats]{predict}} that allows
+the user to handle \code{\link{GeDS-Class}} objects.
 
-In analogy with the function \code{\link[stats]{predict.glm}} in the \pkg{stats} package,
-the user can specify the scale on
-which the predictions should be computed through the argument \code{type}.
-If the predictions are required to be on the scale of the response variable, the user should set
-\code{type = "response"}, which is the default. Alternatively
-if one wants the predictions to be on the predictor scale, it is necessary to set \code{type = "link"}.
+In analogy with the function \code{\link[stats]{predict.glm}} in the
+\pkg{stats} package, the user can specify the scale on which the predictions
+should be computed through the argument \code{type}. If the predictions are
+required to be on the scale of the response variable, the user should set
+\code{type = "response"}, which is the default. Alternatively if one wants
+the predictions to be on the predictor scale, it is necessary to set
+\code{type = "link"}.
+By specifying \code{type = "terms"}, it is possible to inspect the predicted
+values separately for each single independent variable which enter either the
+GeD spline component or the parametric component of the predictor model. In
+this case the returned result is a matrix whose columns correspond to the
+terms supplied via \code{newdata} or extracted from the \code{object}.
 
-By specifying \code{type = "terms"}, it is possible to inspect the predicted values
- separately for each single independent variable which enter either the GeD spline
- component or the parametric component of the predictor model.
- In this case the returned result is a matrix whose columns correspond to the terms supplied
- via \code{newdata} or extracted from the \code{object}.
-
-As GeDS objects contain three different fits (linear, quadratic and cubic), it is possible
-to specify the order
-for which GeDS predictions are required via the input argument \code{n}.
+As GeDS objects contain three different fits (linear, quadratic and cubic),
+it is possible to specify the order for which GeDS predictions are required
+via the input argument \code{n}.
 }
 \seealso{
-\code{\link[stats]{predict}} for the standard definition; \code{\link{GGeDS}} for examples.
+\code{\link[stats]{predict}} for the standard definition;
+\code{\link{GGeDS}} for examples.
 }

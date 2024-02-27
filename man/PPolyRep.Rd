@@ -7,39 +7,44 @@
 PPolyRep(object, n = 3)
 }
 \arguments{
-\item{object}{the \code{\link{GeDS-class}} where the GeDS fit to be converted is found.}
+\item{object}{the \code{\link{GeDS-class}} where the GeDS fit to be
+converted is found.}
 
-\item{n}{integer value (2, 3 or 4) specifying the order (\eqn{=} degree \eqn{+ 1}) of the GeDS fit which should be converted to a piecewise polynomial form.
-By default equal to \code{3L}.
-Non-integer values will be passed to the function \code{\link{as.integer}}.}
+\item{n}{integer value (2, 3 or 4) specifying the order (\eqn{=} degree
+\eqn{+ 1}) of the GeDS fit which should be converted to a piecewise
+polynomial form. By default equal to \code{3L}. Non-integer values will be
+passed to the function \code{\link{as.integer}}.}
 }
 \value{
-An object that inherits from classes  \code{"spline"} and \code{"polySpline"}. It is a list
-whose arguments are:
- \item{knots}{ a vector of size  \eqn{k + 2}
- containing the  complete set of  knots (internal knots plus the limits of the interval)
- of the GeDS fit.}
- \item{coefficients}{ a \eqn{(k + 2) \times n} matrix containing the coefficients of the  polynomials
- in the required piecewise polynomial representation. }
+An object that inherits from classes  \code{"spline"} and
+\code{"polySpline"}. It is a list whose arguments are:
+\item{knots}{ a vector of size  \eqn{k + 2} containing the complete set of 
+knots (internal knots plus the limits of the interval) of the GeDS fit.}
+\item{coefficients}{ a \eqn{(k + 2) \times n} matrix containing the
+coefficients of the  polynomials in the required piecewise polynomial
+representation. }
 }
 \description{
-The function converts a GeDS fit which has a  B-spline representation
-to a piecewise polynomial form.
+The function converts a GeDS fit which has a  B-spline representation to a
+piecewise polynomial form.
 }
 \details{
-This function converts a selected GeDS fit from a \code{\link{GeDS-class}} object
-represented in terms of B-splines into an object where the fit is represented in terms
-of piecewise polynomials.
+This function converts a selected GeDS fit from a \code{\link{GeDS-class}}
+object represented in terms of B-splines into an object where the fit is
+represented in terms of piecewise polynomials.
 
-The function  wraps \code{\link[splines]{polySpline}} in order to let it
-accept \code{\link{GeDS-class}} objects as input.
-Hence the function provides a useful link between the package \pkg{GeDS} and the package \pkg{splines}, allowing
-the user to take advantage of the functions provided in the \pkg{splines} package.
+The function  wraps \code{\link[splines]{polySpline}} in order to let it 
+accept \code{\link{GeDS-class}} objects as input. Hence the function provides
+a useful link between the package \pkg{GeDS} and the package \pkg{splines},
+allowing the user to take advantage of the functions provided in the
+\pkg{splines} package.
 }
 \note{
-Let us note that the first \eqn{k+1} rows of the matrix contain the \code{n} coefficients
- of the \eqn{k+1} consecutive pieces of the piecewise polynomial representation. The last \eqn{(k+2)}-th
- row is extraneous and it appears as a result of the use of the function \code{\link[splines]{polySpline}}.
+Let us note that the first \eqn{k+1} rows of the matrix contain the
+\code{n} coefficients of the \eqn{k+1} consecutive pieces of the piecewise
+polynomial representation. The last \eqn{(k+2)}-th row is extraneous and it
+appears as a result of the use of the function
+\code{\link[splines]{polySpline}}.
 }
 \examples{
 # Generate a data sample for the response variable

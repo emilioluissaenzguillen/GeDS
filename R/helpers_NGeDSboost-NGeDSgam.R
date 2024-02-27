@@ -214,7 +214,7 @@ piecewise_multivar_linear_model <- function(X, model, base_learners = NULL) {
     # Get the predictor variable
     predictor <- base_learners[[base_learner]]$variables
     # Add first and last intervals to cover all possible X values
-    intervals <- c(-Inf, model_bl$knots[-c(1, length(model_bl$knots))], Inf)
+    intervals <- c(-Inf, model_bl$linear.int.knots, Inf)
     # Number of intervals
     n_intervals <- length(intervals)-1
     
@@ -248,9 +248,9 @@ univariate_bl_linear_model <- function(pred_vars, model, shrinkage, base_learner
     
     X <- pred_vars[, base_learners[[base_learner]][1]]
     
-    bl <- model$base_learners[[base_learner]]
-    int.knt <- bl$knots[-c(1, length(bl$knots))]
-    theta <- bl$coefficients
+    bl      <- model$base_learners[[base_learner]]
+    int.knt <- bl$linear.int.knots
+    theta   <- bl$coefficients
     
     lin <- SplineReg_LM(X, InterKnots=int.knt, extr=range(X), n=2,
                         coefficients = theta)
@@ -293,8 +293,8 @@ bivariate_bl_linear_model <- function(pred_vars, model, shrinkage, base_learners
       }
     # (II) Bivariate gam
     } else if (type == "gam"){
-      Xint.knt <- get_internal_knots(bl$knots$Xknt)
-      Yint.knt <- get_internal_knots(bl$knots$Yknt)
+      Xint.knt <- bl$linear.int.knots$ikX
+      Yint.knt <- bl$linear.int.knots$ikY
       theta <- bl$coefficients
       lin <- SplineReg_biv(X, Y, InterKnotsX=Xint.knt, InterKnotsY=Yint.knt,
                            Xextr=range(X), Yextr=range(Y), n=2,
@@ -336,7 +336,7 @@ compute_avg_int.knots <- function(final_model, base_learners = base_learners, X_
       return(intknt)
       # Bivariate
     } else if (length(pred_vars) == 2) {
-      intknt <- list(X = get_internal_knots(final_model$base_learners[[bl]]$knots$Xk),
+      intknt <- list(X = get_internal_knots(final_model$base_learners[[bl]]$knots$Xk), 
                      Y = get_internal_knots(final_model$base_learners[[bl]]$knots$Yk))
       if (normalize_data){
         if (!is.null(intknt$X)) {intknt$X <- intknt$X * X_sd[[pred_vars[1]]] + X_mean[[pred_vars[1]]]}

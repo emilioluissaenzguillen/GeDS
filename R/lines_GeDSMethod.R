@@ -1,29 +1,39 @@
-
-#' Lines method for GeDS objects. Adds a GeDS curve to an existing plot.
-#'
-#' @aliases lines.GeDS
-#' @param x a \code{\link{GeDS-Class}} object from which the GeDS fit should be extracted.
-#' @param n integer value (2, 3 or 4) specifying the order (\eqn{=} degree \eqn{+ 1}) of the GeDS fit that should be plotted.
-#' By default equal to \code{3L}.
-#' Non-integer values will be passed to the function \code{\link{as.integer}}.
-#' @param transform a function that can be used to transform the scale of the Y axis. Typically it can be the
-#' inverse of the link function if the plot is on the scale of the response variable.
-#' @param onlySpline logical variable specifying whether only the spline component of the
-#' fitted GeDS predictor model  should be plotted or alternatively also the parametric component
-#' (see \code{\link[=formula.GeDS]{formula}}) should be plotted.
-#' @param data an optional \code{data.frame}, \code{list} or \code{environment} containing values
-#'  of the independent variables for  which the GeDS predicted values should be plotted.
-#' If left empty the values are extracted from the object \code{x} itself.
+################################################################################
+################################################################################
+############################### lines_GeDSMethod ###############################
+################################################################################
+################################################################################
+#' @title Lines method for GeDS objects.
+#' @name lines,GeDS-method
+#' @description
+#' Lines method for GeDS objects. Adds a GeDS curve to an existing plot.#' 
+#' @param x a \code{\link{GeDS-Class}} object from which the GeDS fit should be
+#' extracted.
+#' @param n integer value (2, 3 or 4) specifying the order (\eqn{=} degree
+#' \eqn{+ 1}) of the GeDS fit that should be plotted. By default equal to
+#' \code{3L}. Non-integer values will be passed to the function
+#' \code{\link{as.integer}}.
+#' @param transform a function that can be used to transform the scale of the Y
+#' axis. Typically it can be the inverse of the link function if the plot is on
+#' the scale of the response variable.
+#' @param onlySpline logical variable specifying whether only the spline
+#' component of the fitted GeDS predictor model  should be plotted or
+#' alternatively also the parametric component (see
+#' \code{\link[=formula.GeDS]{formula}}) should be plotted.
+#' @param data an optional \code{data.frame}, \code{list} or \code{environment}
+#' containing values of the independent variables for  which the GeDS predicted
+#' values should be plotted. If left empty the values are extracted from the
+#' object \code{x} itself.
 #' @param ... further arguments to be passed to the default
 #' \code{\link[graphics]{lines}} function.
 #'
-#' @details This method can be used to add a curve corresponding to a particular GeDS fit to an active plot.
+#' @details
+#' This method can be used to add a curve corresponding to a particular GeDS fit
+#' to an active plot.
 #'
-#' As GeDS objects contain three different fits (linear, quadratic and cubic), it is possible
-#' to specify the order of the GeDS regression to be plotted via the input argument \code{n}.
-#'
-#' @seealso \code{\link[graphics]{lines}} for the definition of the generic function;
-#' \code{\link{NGeDS}} and \code{\link{GGeDS}} for examples.
+#' As GeDS objects contain three different fits (linear, quadratic and cubic),
+#' it is possible to specify the order of the GeDS regression to be plotted via
+#' the input argument \code{n}.
 #'
 #' @examples
 #'
@@ -48,9 +58,19 @@
 #'
 #' # Add a curve corresponding to the second order fit (the linear one)
 #' lines(Gmod, n = 2, col = "green", lwd = 2, lty = 3)
+#' 
+#' @seealso \code{\link[graphics]{lines}} for the definition of the generic
+#' function; \code{\link{NGeDS}} and \code{\link{GGeDS}} for examples.
+#' 
 #' @export
-setMethod("lines", signature(x = "GeDS"),  function(x , n=3L, transform = function(x) x, onlySpline = TRUE, data = data.frame(), ...){
+#' 
+#' @aliases lines.GeDS
 
+setMethod("lines", signature(x = "GeDS"),  function(x , n=3L,
+                                                    transform = function(x) x,
+                                                    onlySpline = TRUE,
+                                                    data = data.frame(), ...)
+  {
   object <- x
   if(object$Type== "LM - Biv") stop("Works only with univariate spline objects")
   extr <- object$Args$extr

@@ -134,7 +134,7 @@ SplineReg_LM_Multivar <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)), base
   # Univariate 
   if (length(InterKnotsList_univ) != 0) {
     for (learner_name in names(InterKnotsList_univ)) {
-      if (!is.null(InterKnotsList_univ[[learner_name]])){
+      if (!is.null(InterKnotsList_univ[[learner_name]]) && length(InterKnotsList_univ[[learner_name]]) >= n - 1) {
         polyknots_list[[learner_name]] <-
           makenewknots(
             sort(c(InterKnotsList_univ[[learner_name]],
@@ -153,12 +153,12 @@ SplineReg_LM_Multivar <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)), base
       learner_knots <- list()
       for (i in seq_along(learner_vars)) {
         var_name <- learner_vars[i]
-        if (i == 1 && !is.null(InterKnotsList_biv[[learner_name]]$ikX)) {
+        if (i == 1 && !is.null(InterKnotsList_biv[[learner_name]]$ikX) && length(InterKnotsList_biv[[learner_name]]$ikX) >= n - 1) {
           learner_knots[[var_name]] <- makenewknots(
             sort(c(InterKnotsList_biv[[learner_name]]$ikX,
                    rep(extrList[[var_name]], n)))[-c(1, NCOL(matrices_biv_list_aux[[learner_name]][[var_name]]) + 1)],
             degree = n)
-        } else if (i == 2 && !is.null(InterKnotsList_biv[[learner_name]]$ikY)) {
+        } else if (i == 2 && !is.null(InterKnotsList_biv[[learner_name]]$ikY) && length(InterKnotsList_biv[[learner_name]]$ikY) >= n - 1) {
           learner_knots[[var_name]] <- makenewknots(
             sort(c(InterKnotsList_biv[[learner_name]]$ikY,
                    rep(extrList[[var_name]], n)))[-c(1, NCOL(matrices_biv_list_aux[[learner_name]][[var_name]]) + 1)],
@@ -332,6 +332,7 @@ SplineReg_GLM_Multivar <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)), bas
   
   theta <- coef(tmp)
   names(theta) <- sub("matrice2", "", names(theta))
+  # predicted <- family$linkinv(matrice2%*%theta + offset)
   predicted <- tmp$fitted.values + offset
   
   # Control polygon knots

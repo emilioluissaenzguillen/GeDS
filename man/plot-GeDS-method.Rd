@@ -3,7 +3,7 @@
 \name{plot,GeDS-method}
 \alias{plot,GeDS-method}
 \alias{plot.GeDS}
-\title{Plot method for GeDS objects. Plots GeDS fits.}
+\title{Plot method for GeDS objects.}
 \usage{
 \S4method{plot}{GeDS}(
   x,
@@ -20,64 +20,78 @@
 )
 }
 \arguments{
-\item{x}{a \code{\link{GeDS-Class}} object from which the GeDS fit(s) should be extracted.}
+\item{x}{a \code{\link{GeDS-Class}} object from which the GeDS fit(s) should
+be extracted.}
 
-\item{which}{a numeric vector specifying the iterations of stage A for which the corresponding GeDS fits should be plotted.
+\item{which}{a numeric vector specifying the iterations of stage A for which
+the corresponding GeDS fits should be plotted.
 It has to be a subset of  \code{1:nrow(x$stored)}. See details.}
 
-\item{DEV}{logical variable specifying whether a plot representing the deviance at each iteration of stage A should be produced or not.}
+\item{DEV}{logical variable specifying whether a plot representing the
+deviance at each iteration of stage A should be produced or not.}
 
-\item{ask}{logical variable specifying whether the user should be prompted before changing the plot page.}
+\item{ask}{logical variable specifying whether the user should be prompted
+before changing the plot page.}
 
 \item{main}{optional character string to be used as a title of the plot.}
 
-\item{legend.pos}{the position of the legend within the panel. See \link[graphics]{legend} for details.}
+\item{legend.pos}{the position of the legend within the panel. See
+\link[graphics]{legend} for details.}
 
-\item{new.window}{logical variable specifying whether the plot should be shown in a new window or in the active one.}
+\item{new.window}{logical variable specifying whether the plot should be
+shown in a new window or in the active one.}
 
-\item{wait}{time, in seconds, the system should wait before plotting a new page.
-Ignored if \code{ask = TRUE}.}
+\item{wait}{time, in seconds, the system should wait before plotting a new
+page. Ignored if \code{ask = TRUE}.}
 
-\item{n}{integer value (2, 3 or 4) specifying the order (\eqn{=} degree \eqn{+ 1}) of the GeDS fit that should be plotted.
-By default equal to \code{3L}.
-Non-integer values will be passed to the function \code{\link{as.integer}}.}
+\item{n}{integer value (2, 3 or 4) specifying the order (\eqn{=} degree
+\eqn{+ 1}) of the GeDS fit that should be plotted. By default equal to
+\code{3L}. Non-integer values will be passed to the function
+\code{\link{as.integer}}.}
 
-\item{type}{character string specifying the type of plot required.
-Should be set either to "\code{Polygon}" if the
-user wants to get also the control polygon of the GeDS fit,  \code{"NCI"} or  \code{"ACI"} if 95\%
-confidence bands for the predictions should be plotted (see details)
-or \code{"none"} if only the fitted GeDS curve should be plotted.
-Applies only when plotting a univariate spline regression.}
+\item{type}{character string specifying the type of plot required. Should be
+set either to "\code{Polygon}" if the user wants to get also the control
+polygon of the GeDS fit,  \code{"NCI"} or  \code{"ACI"} if 95\% confidence
+bands for the predictions should be plotted (see details) or \code{"none"} if
+only the fitted GeDS curve should be plotted. Applies only when plotting a
+univariate spline regression.}
 
-\item{...}{further arguments to be passed to the \code{\link[graphics]{plot.default}} function.}
+\item{...}{further arguments to be passed to the
+\code{\link[graphics]{plot.default}} function.}
 }
 \description{
 Plot method for GeDS objects. Plots GeDS fits.
 }
 \details{
-This method is provided in order to allow the user to plot the GeDS  fits contained
-in the \code{\link{GeDS-Class}} objects.
+This method is provided in order to allow the user to plot the GeDS  fits
+contained in the \code{\link{GeDS-Class}} objects.
 
-Since in Stage A of the GeDS algorithm the knots of a linear spline fit are sequentially located, one at a time, the user may wish to visually
-inspect this process using the argument \code{which}.
-The latter specifies a particular iteration number (or a vector of such numbers) for which the corresponding
-linear fit(s) should be plotted.
-The \code{ask} and \code{wait} arguments can help the user to manage these pages.
+Since in Stage A of the GeDS algorithm the knots of a linear spline fit are
+sequentially located, one at a time, the user may wish to visually inspect
+this process using the argument \code{which}. The latter specifies a
+particular iteration number (or a vector of such numbers) for which the
+corresponding linear fit(s) should be plotted. The \code{ask} and \code{wait}
+arguments can help the user to manage these pages.
 
-By means of \code{ask} the user can determine for how long each page should appear on the screen.
-Pages are sequentially replaced by pressing the enter button.
+By means of \code{ask} the user can determine for how long each page should
+appear on the screen. Pages are sequentially replaced by pressing the enter
+button.
 
-Note that, in order to ensure stability, if the object was produced by the function \code{\link{GGeDS}},
-plotting intermediate fits of stage A is allowed  only if \code{n = 2}, in contrast to objects produced
- by  \code{\link{NGeDS}} for which plotting intermediate results is allowed also for \code{n = }2 or 3 results.
+Note that, in order to ensure stability, if the object was produced by the
+function \code{\link{GGeDS}}, plotting intermediate fits of stage A is
+allowed  only if \code{n = 2}, in contrast to objects produced by 
+\code{\link{NGeDS}} for which plotting intermediate results is allowed also
+for \code{n = }2 or 3 results.
 
-The confidence intervals obtained by setting \code{type = "NCI"} are approximate local
-bands obtained considering the knots as fixed constants.
+The confidence intervals obtained by setting \code{type = "NCI"} are
+approximate local bands obtained considering the knots as fixed constants.
 Hence the columns of the design matrix are seen as covariates and standard
-methodology relying on the \code{se.fit} option of \code{predict.lm} or \code{predict.glm} is applied.
+methodology relying on the \code{se.fit} option of \code{predict.lm} or
+\code{predict.glm} is applied.
 
-Setting \code{type = "ACI"}, asymptotic confidence intervals are plotted. This option is
-applicable only if the canonical link function has been used in the fitting procedure.
+Setting \code{type = "ACI"}, asymptotic confidence intervals are plotted.
+This option is applicable only if the canonical link function has been used
+in the fitting procedure.
 }
 \examples{
 ###################################################
@@ -139,5 +153,6 @@ plot(Gmod2, which = 1:16, n = 2, ask = T)
 
 }
 \seealso{
-\code{\link{NGeDS}} and \code{\link{GGeDS}}; \code{\link[graphics]{plot}}.
+\code{\link{NGeDS}} and \code{\link{GGeDS}};
+\code{\link[graphics]{plot}}.
 }

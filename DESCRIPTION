@@ -1,43 +1,29 @@
 Package: GeDS
 Type: Package
 Title: Geometrically Designed Spline Regression
-Version: 0.1.4
-Date: 2023-11-30
+Version: 0.2.0
+Date: 2024-02-02
 Author: Dimitrina S. Dimitrova <D.Dimitrova@city.ac.uk>,
   Emilio S. Guillen <emilio.saenz-guillen@bayes.city.ac.uk>,
   Vladimir K. Kaishev <V.Kaishev@city.ac.uk>,
   Andrea Lattuada <andrea.lattuada@hotmail.com> and
   Richard J. Verrall <R.J.Verrall@city.ac.uk>
 Maintainer: Emilio S. Guillen <emilio.saenz-guillen@bayes.city.ac.uk>
-Description: Geometrically Designed Spline ('GeDS') Regression is a non-parametric geometrically 
-  motivated method for fitting variable knots spline predictor models in one or two independent 
-  variables, in the context of generalized (non-)linear models. 'GeDS' estimates the number and 
-  position of the knots and the order of the spline, assuming the response variable has a 
-  distribution from the exponential family. A description of the method can be found in
-  Kaishev et al. (2016) <doi:10.1007/s00180-015-0621-7> and Dimitrova et al. (2017) <https://openaccess.city.ac.uk/id/eprint/18460/>.
+Description: Geometrically Designed Spline (GeDS) Regression is a non-parametric
+  geometrically motivated method for fitting spline predictor models with variable knots
+  in one or two independent variables. Within the realm of generalized (non-)linear models,
+  GeDS estimates the number and position of the knots, as well as the order of the spline, 
+  assuming the response follows a distribution from the exponential family. A description
+  of the method can be found in Kaishev et al. (2016) <doi:10.1007/s00180-015-0621-7> and
+  Dimitrova et al. (2023) <doi:10.1016/j.amc.2022.127493>. Furthermore, the implementation
+  of GeDS extends to Functional Gradient Boosting (FGB) and Generalized Additive Models (GAM), enabling versatile multivariate modeling.
 License: GPL-3
 URL: https://github.com/emilioluissaenzguillen/GeDS
 BugReports: https://github.com/emilioluissaenzguillen/GeDS/issues
 LazyData: TRUE
-Depends:
-    R (>= 3.0.1),
-    Rcpp (>= 0.12.1),
-    splines,
-    stats,
-    utils,
-    Matrix,
-    methods,
-    Rmpfr
+Depends: R (>= 3.0.1), Rcpp (>= 0.12.1), splines, stats, utils, Matrix, methods, Rmpfr
 LinkingTo: Rcpp
 RoxygenNote: 7.2.3
 Encoding: UTF-8
-Imports:
-    mboost,
-    MASS,
-    foreach,
-    doParallel,
-    doFuture,
-    future,
-    doRNG,
-    TH.data
+Imports: mboost, MASS, foreach, doParallel, doFuture, future, doRNG, TH.data
 

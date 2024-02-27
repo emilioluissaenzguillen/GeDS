@@ -2,20 +2,24 @@
 % Please edit documentation in R/S3methods_GeDSboost-GeDSgam.R
 \name{visualize_boosting}
 \alias{visualize_boosting}
-\title{Visualize Boosting Process}
+\alias{visualize_boosting.GeDSboost}
+\title{Visualize Boosting Iterations}
 \usage{
-visualize_boosting(M, Gmodboost)
+\method{visualize_boosting}{GeDSboost}(M, object)
 }
 \arguments{
 \item{M}{Numeric, specifies the iteration number.}
 
-\item{Gmodboost}{An object of class  \code{\link{GeDSboost-Class}}, containing the results of the GeDS boosting model.}
+\item{object}{A \code{\link{GeDSboost-Class}} object.}
 }
 \description{
-This function presents  the fit over the data at the start of each boosting iteration and the subsequent fit on the residuals.
+This function plots the \code{\link{NGeDSboost}} fit over data at the
+beginning of a given boosting iteration and then plots the subsequent
+\code{\link{NGeDS}} fit on the corresponding residual (negative gradient).
+Note: Applicable only for \code{\link{NGeDSboost}} models with one covariate
+and \code{family = mboost::Gaussian()}.
 }
 \examples{
-\dontrun{
 # Load packages
 library(GeDS)
 
@@ -31,16 +35,14 @@ means <- f_1(X)
 # Add (Normal) noise to the mean of Y
 Y <- rnorm(N, means, sd = 0.2)
 data = data.frame(X, Y)
-Gmodboost <- NGeDSboost(Y ~ f(X), data = data, initial_learner = "GeDS", int.knots_init = 2,
-internal_knots = 500, q_boost = 2, phi_boost_exit = 0.995, shrinkage = 1,
-phi = 0.99, normalize_data = TRUE, family = mboost::Gaussian())
+object <- NGeDSboost(Y ~ f(X), data = data, normalize_data = TRUE)
 
 # Plot
 plot(X, Y, pch=20, col=c("darkgrey"))
 lines(X, sapply(X, f_1), col = "black", lwd = 2)
-lines(X, Gmodboost$predictions$pred_linear, col = "green4", lwd = 2)
-lines(X, Gmodboost$predictions$pred_quadratic, col="red", lwd=2)
-lines(X, Gmodboost$predictions$pred_cubic, col="purple", lwd=2)
+lines(X, object$predictions$pred_linear, col = "green4", lwd = 2)
+lines(X, object$predictions$pred_quadratic, col="red", lwd=2)
+lines(X, object$predictions$pred_cubic, col="purple", lwd=2)
 legend("topright",
 legend = c("Order 2 (degree=1)", "Order 3 (degree=2)", "Order 4 (degree=3)"),
 col = c("green4", "red", "purple"),
@@ -51,9 +53,8 @@ bty="n",
 bg = "white")
 # Visualize boosting iterations
 par(mfrow=c(2,2))
-visualize_boosting(0, Gmodboost)
-visualize_boosting(1, Gmodboost)
+visualize_boosting(0, object)
+visualize_boosting(1, object)
 par(mfrow=c(1,1))
-}
 
 }

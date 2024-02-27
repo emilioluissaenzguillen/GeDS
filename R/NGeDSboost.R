@@ -1,109 +1,123 @@
-#' Component-wise gradient boosting with NGeDS base-learners
-#'
-#' @description \code{NGeDSboost} performs component-wise gradient boosting  
-#' using GeD splines, for a response having a Normal distribution, as base-learners. 
+################################################################################
+################################################################################
+################################## NGeDSboost ##################################
+################################################################################
+################################################################################
+#' @title Component-wise gradient boosting with NGeDS base-learners
+#' @name NGeDSboost
+#' @description
+#' \code{NGeDSboost} performs component-wise gradient boosting (Bühlmann and Yu
+#' (2003), Bühlmann and Hothorn (2007)) using normal GeD splines (i.e., fitted
+#' with \code{\link{NGeDS}} function) as base-learners.
+#' @param formula a description of the structure of the model to be fitted,
+#' including the dependent and independent variables. Unlike \code{\link{NGeDS}}
+#' and \code{\link{GGeDS}}, the formula specified allows for multiple additive
+#' GeD spline regression components (as well as linear components) to be
+#' included (e.g., \code{Y ~ f(X1) + f(X2) + X3}).
+#' See \code{\link[=formula.GeDS]{formula}} for further details.
+#' @param data a data frame containing the variables referenced in the formula.
+#' @param weights an optional vector of `prior weights' to be put on the
+#' observations during the fitting process. It should be \code{NULL} or a
+#' numeric vector of the same length as the response variable defined in the
+#' formula.
+#' @param normalize_data a logical that defines whether the data should be
+#' normalized (standardized) before fitting the baseline linear model, i.e.,
+#' before running the FGB algorithm. Normalizing the data involves scaling the
+#' predictor variables to have a mean of 0 and a standard deviation of 1. This
+#' process alters the scale and interpretation of the knots and coefficients
+#' estimated.
+#' @param family determines the loss function to be optimized by the boosting
+#' algorithm. In case \code{initial_learner = FALSE} it also determines the
+#' corresponding empirical risk minimizer to be used as offset initial learner.
+#' By default, it is set to \code{mboost::Gaussian()}. Users can specify any
+#' \code{\link[mboost]{Family}} object from the \pkg{mboost} package.
+#' @param initial_learner a logical value. If set to \code{TRUE}, the model's
+#' initial learner will be a normal GeD spline. If set to FALSE, then the
+#' initial predictor will consist of the empirical risk minimizer corresponding
+#' to the specified family. Note that if \code{initial_learner = TRUE},
+#' \code{family} must be \code{mboost::Gaussian()}.
+#' @param int.knots_init optional parameter allowing the user to set a
+#' maximum number of internal knots to be added by the initial GeDS learner in
+#' case \code{initial_learner = TRUE}. Default is equal to \code{2L}.
+#' @param min_iterations optional parameter allowing the user to set a minimum
+#' number of boosting iterations to be run. 
+#' @param max_iterations optional parameter allowing the user to set a maximum
+#' number of boosting iterations to be run.
+#' @param shrinkage numeric parameter in the interval \eqn{[0,1]} defining the
+#' step size or shrinkage parameter. This controls the size of the steps taken
+#' in the direction of the gradient of the loss function. In other words, the
+#' magnitude of the update each new iteration contributes to the final model.
+#' Default is equal to \code{1}.
+#' @param phi_boost_exit numeric parameter in the interval \eqn{[0,1]}
+#' specifying the threshold for the boosting iterations stopping rule. Default
+#' is equal to \code{0.995}.
+#' @param q_boost numeric parameter which allows to fine-tune the boosting
+#' iterations stopping rule, by default equal to \code{2L}.
+#' @param beta numeric parameter in the interval \eqn{[0,1]} tuning the knot
+#' placement in stage A of GeDS. Default is equal to \code{0.5}. See details in
+#' \code{\link{NGeDS}}.
+#' @param phi numeric parameter in the interval \eqn{[0,1]} specifying the
+#' threshold for the stopping rule  (model selector) in stage A of GeDS.
+#' Default is equal to \code{0.99}. See details in \code{\link{NGeDS}}.
+#' @param internal_knots The maximum number of internal knots that can be added
+#' by the GeDS base-learners in each boosting iteration, effectively setting the
+#' value of \code{max.intknots} in \code{\link{NGeDS}} at each boosting
+#' iteration. Default is \code{500L}.
+#' @param q numeric parameter which allows to fine-tune the stopping rule of
+#' stage A of GeDS, by default equal to \code{2L}. See details in
+#' \code{\link{NGeDS}}.
+#' @param higher_order a logical that defines whether to compute the higher
+#' order fits (quadratic and cubic) after the FGB algorithm is run. Default is
+#' \code{TRUE}.
 #' 
-#' @import foreach
-#' @import doParallel
-#' @import doFuture
-#' @import future
-#' @import doRNG
-#' @import TH.data
-#' @importFrom parallel detectCores
-#' @importFrom stats setNames
-#' 
-#' @export
-#'
-#' @param formula a description of the structure of the model to be fitted, including the
-#' dependent and independent variables. See \code{\link[=formula.GeDS]{formula}} for details.
-#' @param data a data frame containing the variables of the model.
-#' @param weights an optional vector of `prior weights' to be put on the observations in the fitting
-#' process in case the user requires weighted GeDS fitting. It should be \code{NULL} or a numeric vector of the same length as the response
-#' variable in the argument \code{\link[=formula.GeDS]{formula}}.
-#' @param normalize_data a logical that defines whether the data should be normalized (standardized)
-#' before fitting the model or not.
-#' @param family specifies the loss function to be used in the boosting model. By default, it's set to \code{"gaussian"}.
-#' Users can specify any \link[mboost]{Family} object from the \code{mboost} package.
-#' @param initial_learner a logical value. If set to \code{TRUE}, the initial learner will be a GeD spline. 
-#' When set to FALSE, it defaults to the empirical risk minimizer of the specified family. Note: If 
-#' \code{initial_learner} is set to \code{TRUE}, \code{family} must be \code{"gaussian"}.
-#' @param int.knots_init optional parameter allowing the user to set a maximum number
-#' of internal knots to be added by the initial GeDS learner in case \code{initial_learner = TRUE}. Default is equal to \code{2L}.
-#' @param min_iterations optional parameter allowing the user to set a minimum number
-#' of boosting iterations.
-#' @param max_iterations optional parameter allowing the user to set a maximum number
-#' of boosting iterations.
-#' @param shrinkage numeric parameter in the interval \eqn{[0,1]} defining the step size or shrinkage parameter.
-#' @param phi_boost_exit numeric parameter in the interval \eqn{[0,1]} specifying the threshold for
-#' the boosting iterations stopping rule.
-#' @param q_boost numeric parameter which allows to fine-tune the boosting iterations stopping rule,
-#' by default equal to \code{2L}.
-#' @param beta numeric parameter in the interval \eqn{[0,1]}
-#' tuning the knot placement in stage A of GeDS. See details in \code{\link{NGeDS}}.
-#' @param phi numeric parameter in the interval \eqn{[0,1]} specifying the threshold for
-#'  the stopping rule  (model selector) in stage A of GeDS. See also \code{stoptype} and details in
-#'  \code{\link{NGeDS}}.
-#' @param internal_knots The maximum number of internal knots that can be added by the GeDS 
-#' base-learners in each boosting iteration, effectively setting the value of \code{max.intknots} 
-#' in \code{\link{NGeDS}}. Default is \code{500L}.
-#' @param q numeric parameter which allows to fine-tune the stopping rule of stage A of GeDS, by default equal to \code{2L}.
-#' See details in \code{\link{NGeDS}}.
-#' @param higher_order a logical that defines whether to compute the higher order fits (quadratic and cubic), default is \code{TRUE}.
-#' 
-#' #' @return \code{\link{GeDSboost-Class}} object, i.e. a list of items that summarizes the main
-#' details of the fitted FGB-GeDS regression. See \code{\link{GeDSboost-Class}} for details.
-#' Some S3 methods are available in order to make these objects tractable, such as \code{\link[=predict.GeDSboost]{predict}}
-#' as well as S4 methods such as \code{\link{visualize_boosting}}.
+#' @return \code{\link{GeDSboost-Class}} object, i.e. a list of items that
+#' summarizes the main details of the fitted FGB-GeDS model. See
+#' \code{\link{GeDSboost-Class}} for details. Some S3 methods are available in
+#' order to make these objects tractable, such as
+#' \code{\link[=coef.GeDSboost]{coef}}, \code{\link[=knots.GeDSboost]{knots}},
+#' \code{\link[=print.GeDSboost]{print}} and
+#' \code{\link[=predict.GeDSboost]{predict}}. Also variable importance measures
+#' (\code{\link[=bl_imp.GeDSboost]{bl_imp}}) and improved plotting facilities
+#' (\code{\link[=visualize_boosting.GeDSboost]{visualize_boosting}}).
 #' 
 #' @details
-#' The  \code{NGeDSboost} function performs functional gradient boosting 
-#' for some pre-defined loss function and GeD splines as base learners. 
-#' At each boosting iteration, the negative gradient vector is fitted using the base procedure
-#' encapsulated within the \code{\link{NGeDS}} function. The latter constructs a
-#' Geometrically Designed variable knots spline regression model for a response having a
-#' Normal distribution.
+#' The  \code{NGeDSboost} function implements functional gradient boosting
+#' algorithm for some pre-defined loss function, using linear GeD splines as
+#' base learners. At each boosting iteration, the negative gradient vector is
+#' fitted through the base procedure encapsulated within the \code{\link{NGeDS}}
+#' function. The latter constructs a Geometrically Designed variable knots
+#' spline regression model for a response having a Normal distribution. The FGB
+#' algorithm yields a final linear fit. Higher order fits (quadratic and cubic)
+#' are then computed by calculating the Schoenberg’s variation diminishing
+#' spline (VDS) approximation of the linear fit.
 #' 
-#' On the one hand, \code{NGeDSboost} includes all the parameters of \code{\link{NGeDS}},
-#' which in this case tune the base-learner fit at each boosting iteration. On the other hand,
-#' \code{NGeDSboost} includes some additional parameters proper to the FGB procedure. We describe
-#' the main ones as follows. 
+#' On the one hand, \code{NGeDSboost} includes all the parameters of
+#' \code{\link{NGeDS}}, which in this case tune the base-learner fit at each
+#' boosting iteration. On the other hand, \code{NGeDSboost} includes some
+#' additional parameters proper to the FGB procedure. We describe the main ones
+#' as follows. 
 #' 
-#' First, \code{family} allows to specify the loss function and corresponding risk
-#' function to be optimized by the boosting algorithm. If \code{initial_learner = FALSE},
-#' the initial learner used will be the empirical risk minimizer corresponding to the family
-#' chosen. If \code{initial_learner = TRUE} then the initial learner will be an \code{\link{NGeDS}}
-#' fit with maximum number of internal knots equal to \code{int.knots_init}.
+#' First, \code{family} allows to specify the loss function and corresponding
+#' risk function to be optimized by the boosting algorithm. If
+#' \code{initial_learner = FALSE}, the initial learner employed will be the
+#' empirical risk minimizer corresponding to the family chosen. If
+#' \code{initial_learner = TRUE} then the initial learner will be an
+#' \code{\link{NGeDS}} fit with maximum number of internal knots equal to
+#' \code{int.knots_init}.
 #' 
+#' \code{shrinkage} tunes the step length/shrinkage parameter which helps to 
+#' control the learning rate of the model. In other words, when a new base
+#' learner is added to the ensemble, its contribution to the final prediction is
+#' multiplied by the shrinkage parameter. The smaller \code{shrinkage} is, the
+#' slower/more gradual the learning process will be, and viceversa.
 #' 
-#' \code{shrinkage} tunes the step length/shrinkage parameter which
-#' helps to control the learning rate of the model. In other words, when a new base learner is 
-#' added to the ensemble, its contribution to the final prediction is multiplied by the
-#' shrinkage parameter. This results in a slower, more gradual learning process. 
-#' The number of boosting iterations is controlled by a \emph{Ratio of Deviances} stopping rule 
-#' similar to the one presented for \code{\link{GGeDS}}.
-#' In the same way \code{phi} and \code{q} tune the stopping rule of \code{\link{NGeDS}},
-#' \code{phi_boost_exit} and \code{q_boost} tune the stopping rule of \code{NGeDSboost}. The user
-#' can also manually control the number of boosting iterations through \code{min_iterations} and
-#' \code{max_iterations}.
-#' 
-#' @references 
-#' Dimitrova, D. S. , Kaishev, V. K., Lattuada, A. view all authors (2023).
-#' Geometrically designed variable knot splines in generalized (non-)linear models.
-#' \emph{Applied Mathematics and Computation}, \strong{436}. \cr
-#' DOI: \href{https://doi.org/10.1016/j.amc.2022.127493}{doi.org/10.1016/j.amc.2022.127493}
-#' 
-#' Friedman, J.H. (2001).
-#' Greedy function approximation: A gradient boosting machine.
-#' \emph{The Annals of Statistics}, \strong{29 (5)}, 1189--1232. \cr
-#' DOI: \href{https://doi.org/10.1214/aos/1013203451}{doi.org/10.1214/aos/1013203451}
-#' 
-#' Kaishev, V.K., Dimitrova, D.S., Haberman, S. and Verrall, R.J. (2016).
-#' Geometrically designed, variable knot regression splines.
-#' \emph{Computational Statistics}, \strong{31}, 1079--1105. \cr
-#' DOI: \href{https://doi.org/10.1007/s00180-015-0621-7}{doi.org/10.1007/s00180-015-0621-7}
-#'
-#' @seealso \code{\link{NGeDS}}; \code{\link{GGeDS}}; \code{\link{GeDSboost-Class}}; S3 methods such as
-#' \code{\link{predict.GeDSboost}}; \code{\link{coef.GeDSboost}}
+#' The number of boosting iterations is controlled by a
+#' \emph{Ratio of Deviances} stopping rule similar to the one presented for
+#' \code{\link{GGeDS}}. In the same way \code{phi} and \code{q} tune the
+#' stopping rule of \code{\link{GGeDS}}, \code{phi_boost_exit} and
+#' \code{q_boost} tune the stopping rule of \code{NGeDSboost}. The user can also
+#' manually control the number of boosting iterations through
+#' \code{min_iterations} and \code{max_iterations}.
 #' 
 #' @examples
 #' 
@@ -129,9 +143,9 @@
 #' MSE_Gmodboost_cubic <- mean((sapply(X, f_1) - Gmodboost$predictions$pred_cubic)^2)
 #'
 #' cat("\n", "MEAN SQUARED ERROR", "\n",
-#' "Linear NGeDSboost:", MSE_Gmodboost_linear, "\n",
-#' "Quadratic NGeDSboost:", MSE_Gmodboost_quadratic, "\n",
-#' "Cubic NGeDSboost:", MSE_Gmodboost_cubic, "\n")
+#'     "Linear NGeDSboost:", MSE_Gmodboost_linear, "\n",
+#'     "Quadratic NGeDSboost:", MSE_Gmodboost_quadratic, "\n",
+#'     "Cubic NGeDSboost:", MSE_Gmodboost_cubic, "\n")
 #' 
 #' # Compute predictions on new randomly generated data
 #' X <- sort(runif(100, min = -2, max = 2))
@@ -144,9 +158,25 @@
 #' MSE_Gmodboost_quadratic <- mean((sapply(X, f_1) - pred_quadratic)^2)
 #' MSE_Gmodboost_cubic <- mean((sapply(X, f_1) - pred_cubic)^2)
 #' cat("\n", "MEAN SQUARED ERROR", "\n",
-#' "Linear NGeDSboost:", MSE_Gmodboost_linear, "\n",
-#' "Quadratic NGeDSboost:", MSE_Gmodboost_quadratic, "\n",
-#' "Cubic NGeDSboost:", MSE_Gmodboost_cubic, "\n")
+#'     "Linear NGeDSboost:", MSE_Gmodboost_linear, "\n",
+#'     "Quadratic NGeDSboost:", MSE_Gmodboost_quadratic, "\n",
+#'     "Cubic NGeDSboost:", MSE_Gmodboost_cubic, "\n")
+#' 
+#' ## S3 methods for class 'GeDSboost'
+#' # Print 
+#' print(Gmodboost)
+#' # Knots
+#' knots(Gmodboost, n = 2L)
+#' knots(Gmodboost, n = 3L)
+#' knots(Gmodboost, n = 4L)
+#' # Coefficients
+#' coef(Gmodboost, n = 2L)
+#' coef(Gmodboost, n = 3L)
+#' coef(Gmodboost, n = 4L)
+#' # Deviances
+#' deviance(Gmodboost, n = 2L)
+#' deviance(Gmodboost, n = 3L)
+#' deviance(Gmodboost, n = 4L)
 #' 
 #' ############################ Example 2 - Bodyfat ############################
 #' library(TH.data)
@@ -163,27 +193,60 @@
 #'     "Linear NGeDSboost:", MSE_Gmodboost_linear, "\n",
 #'     "Quadratic NGeDSboost:", MSE_Gmodboost_quadratic, "\n",
 #'     "Cubic NGeDSboost:", MSE_Gmodboost_cubic, "\n")
-
-    
-
-
-################################################################################
-################################################################################
-################################## NGeDSboost ##################################
-################################################################################
-################################################################################
+#'
+#' @seealso \code{\link{NGeDS}}; \code{\link{GGeDS}}; \code{\link{GeDSboost-Class}};
+#' S3 methods such as \code{\link{knots.GeDSboost}}; \code{\link{coef.GeDSboost}};
+#' \code{\link{deviance.GeDSboost}}; \code{\link{predict.GeDSboost}}
+#'      
+#' @export
+#' @import foreach
+#' @import doParallel
+#' @import doFuture
+#' @import future
+#' @import doRNG
+#' @import TH.data
+#' @importFrom parallel detectCores
+#' @importFrom stats setNames
+#' 
+#' @references 
+#' Friedman, J.H. (2001).
+#' Greedy function approximation: A gradient boosting machine.
+#' \emph{The Annals of Statistics}, \strong{29 (5)}, 1189--1232. \cr
+#' DOI: \doi{10.1214/aos/1013203451}
+#' 
+#' Bühlmann P., Yu B. (2003).
+#' Boosting With the L2 Loss.
+#' \emph{Journal of the American Statistical Association},
+#' \strong{98(462)}, 324–339.
+#' \doi{10.1198/016214503000125}
+#' 
+#' Bühlmann P., Hothorn T. (2007).
+#' Boosting Algorithms: Regularization, Prediction and Model Fitting.
+#' \emph{Statistical Science}, \strong{22(4)}, 477 – 505. \cr
+#' DOI: \doi{10.1214/07-STS242}
+#' 
+#' Kaishev, V.K., Dimitrova, D.S., Haberman, S. and Verrall, R.J. (2016).
+#' Geometrically designed, variable knot regression splines.
+#' \emph{Computational Statistics}, \strong{31}, 1079--1105. \cr
+#' DOI: \doi{10.1007/s00180-015-0621-7}
+#' 
+#' Dimitrova, D. S., Kaishev, V. K., Lattuada, A. and Verrall, R. J.  (2023).
+#' Geometrically designed variable knot splines in generalized (non-)linear
+#' models.
+#' \emph{Applied Mathematics and Computation}, \strong{436}. \cr
+#' DOI: \doi{10.1016/j.amc.2022.127493}
 
 ##################
 ### NGeDSboost ###
 ##################
-NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE, family = mboost::Gaussian(),
-                       initial_learner = TRUE, int.knots_init = 2L,
-                       min_iterations = 0L, max_iterations = 100L,
-                       shrinkage = 1, phi_boost_exit = 0.995, q_boost = 2L,
-                       beta = 0.5, phi = 0.99, internal_knots = 500L, q = 2L,
+NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE,
+                       family = mboost::Gaussian(), initial_learner = TRUE,
+                       int.knots_init = 2L, min_iterations = 0L,
+                       max_iterations = 100L, shrinkage = 1,
+                       phi_boost_exit = 0.995, q_boost = 2L, beta = 0.5,
+                       phi = 0.99, internal_knots = 500L, q = 2L,
                        higher_order = TRUE)
   {
-  
   # Capture the function call
   extcall <- match.call()
   
@@ -192,13 +255,13 @@ NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE, fa
   
   # Formula
   read.formula <- read.formula.boost(formula, data)
-  outcome <- read.formula$outcome
+  response <- read.formula$response
   predictors <- read.formula$predictors
   base_learners <- read.formula$base_learners
   
   # Eliminate indexes and keep only relevant variables
   rownames(data) <- NULL
-  all_vars <- c(outcome, predictors)
+  all_vars <- c(response, predictors)
   if(all(all_vars %in% names(data))) {
     data <- data[, all_vars]
   } else {
@@ -222,28 +285,27 @@ NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE, fa
   # Save arguments
   args <- list(
     "predictors" = data[predictors], 
-    "base_learners"= base_learners, 
+    "base_learners"= base_learners,
+    "family" = family,
     "initial_learner" = initial_learner, 
     "int.knots_init" = if(!is.null(initial_learner)){int.knots_init} else {NULL},
     "shrinkage" = shrinkage, 
-    "normalize_data" = normalize_data,
-    "family" = family
+    "normalize_data" = normalize_data
   )
   
-  if (family@name != "Negative Binomial Likelihood (logit link)") {
-    args$outcome <- data[outcome]
-  } else {
-    args$outcome <- data.frame(check_y_family(data[[outcome]]))
-    names(args$outcome) <- outcome
-  }
+  # Response variable check
+  data[response] <- check_y_family(data[[response]])
+  # Add 'response' as the first element of the list 'args'
+  args <- c(list(response = data.frame(data[[response]])), args)
+  names(args$response) <- response
   
   # Normalize data if necessary
   if (normalize_data == TRUE) {
     if (family@name != "Negative Binomial Likelihood (logit link)") {
-      # Mean and SD of the original outcome and predictor(s) variables (to de-normalize afterwards)
-      args$Y_mean <- mean(data[[outcome]])
-      args$Y_sd <- sd(data[[outcome]])
-      data[outcome] <- as.vector(scale(data[outcome]))
+      # Mean and SD of the original response and predictor(s) variables (to de-normalize afterwards)
+      args$Y_mean <- mean(data[[response]])
+      args$Y_sd <- sd(data[[response]])
+      data[response] <- as.vector(scale(data[response]))
       
       numeric_predictors <- names(data[predictors])[sapply(data[predictors], is.numeric)]
       args$X_mean <- colMeans(data[numeric_predictors])
@@ -259,11 +321,8 @@ NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE, fa
     }
   }
   
-  # Response variable check
-  Y <- check_y_family(data[[outcome]])
-  
   # Weights
-  nobs = length(Y)
+  nobs = length(data[[response]])
   if (is.null(weights)) weights <- rep.int(1, nobs)
   else weights <- rescale_weights(weights)
   if (!family@weights(weights))
@@ -321,11 +380,11 @@ NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE, fa
     names(results) <- names(base_learners)
     best_pred <- best_bl <- NULL; best_resid <- best_ssr <- Inf
     # Template for model formula
-    model_formula_template <- paste0(outcome, " ~ ")
+    model_formula_template <- paste0(response, " ~ ")
     
     ## 1. Loop through predictors and fit an initial base learner to data (NGeDS with # int.knots_init)
       model_results <- lapply(names(base_learners), function(bl_name) {
-        componentwise_fit(bl_name, data = data, outcome = outcome, model_formula_template, weights, base_learners, m = 0,
+        componentwise_fit(bl_name, data = data, response = response, model_formula_template, weights, base_learners, m = 0,
                           internal_knots = int.knots_init, beta, phi, q)
       })
       
@@ -406,10 +465,6 @@ NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE, fa
     ## 3. Evaluate model and compute residuals
     Y_hat <- best_pred$Y_hat
     U     <- best_resid
-    
-    # de-normalize Y_hat if needed
-    if (normalize_data == TRUE){Y_hat = Y_hat * args$Y_sd + args$Y_mean}
-    
     # Initialize old.dev for stopping rule
     old.dev <- best_ssr
     
@@ -422,15 +477,13 @@ NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE, fa
   ## (II) Offset Initial Learner ##
   } else {
     # 1. Initialize Y_hat with an offset value
-    Y_hat <- offset(Y, weights)
-    if (length(Y_hat) == 1){Y_hat <- rep(Y_hat, NROW(Y))}
-    old.dev <- risk(Y, Y_hat, weights)
+    Y_hat <- offset(data[[response]], weights)
+    if (length(Y_hat) == 1){Y_hat <- rep(Y_hat, NROW(data[[response]]))}
+    old.dev <- risk(data[[response]], Y_hat, weights)
     # 2. Compute the negative gradient of the loss function
-    U <- ngradient(Y, Y_hat, weights)
+    U <- ngradient(data[[response]], Y_hat, weights)
+    
     # Save model
-    if (normalize_data == TRUE && family@name != "Negative Binomial Likelihood (logit link)"){
-      Y_hat = Y_hat * args$Y_sd + args$Y_mean # de-normalize if needed
-    }
     models[["model0"]] <- list("Y_hat" = Y_hat, "base_learners" = base_learners_list)
   }
   
@@ -471,7 +524,7 @@ NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE, fa
     if (length(base_learners) < pprocessing_threshold) {
       ## 3. Loop through base learners and fit to negative gradient (NGeDS with # internal_knots or linear model)
       model_results <- lapply(names(base_learners), function(bl_name) {
-        componentwise_fit(bl_name, data = data_loop, outcome = "U", model_formula_template, weights, base_learners, m,
+        componentwise_fit(bl_name, data = data_loop, response = "U", model_formula_template, weights, base_learners, m,
                           internal_knots = internal_knots, beta, phi, q)
       })
       
@@ -499,7 +552,7 @@ NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE, fa
        ## 3. Loop through base-learners and fit to negative gradient (NGeDS with # internal_knots)
         results <- foreach(bl_name = names(base_learners), .combine = 'rbind', .packages = "GeDS",
                            .export = c("predict_GeDS_linear", "last_row_with_value")) %dorng% {
-          componentwise_fit(bl_name, data = data_loop, outcome = "U", model_formula_template, weights, base_learners, m,
+          componentwise_fit(bl_name, data = data_loop, response = "U", model_formula_template, weights, base_learners, m,
                             internal_knots = internal_knots, beta, phi, q)
         }
       ## 4. Calculate SSR and find model that fits best U according to SSR
@@ -609,18 +662,9 @@ NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE, fa
     
     
     ## 5. Evaluate model and recompute gradient vector and residuals
-    if (normalize_data == TRUE && family@name != "Negative Binomial Likelihood (logit link)"){
-      Y_hat <- (models[[paste0("model", m-1)]]$Y_hat-args$Y_mean)/args$Y_sd + shrinkage*best_pred$Y_hat
-    } else {
-      Y_hat <- models[[paste0("model", m-1)]]$Y_hat + shrinkage*best_pred$Y_hat
-    }
-    U <- ngradient(Y, Y_hat, weights)
-    new.dev <- risk(Y, Y_hat, weights)
-    
-    # Save predictions
-    if (normalize_data == TRUE && family@name != "Negative Binomial Likelihood (logit link)"){
-      Y_hat = Y_hat * args$Y_sd + args$Y_mean
-    } 
+    Y_hat <- models[[paste0("model", m-1)]]$Y_hat + shrinkage*best_pred$Y_hat
+    U <- ngradient(data[[response]], Y_hat, weights)
+    new.dev <- risk(data[[response]], Y_hat, weights)
     
     # Save model
     models[[paste0("model", m)]] <- list("best_bl" = list("name" = best_bl, "n_intknots" = n_intknots, 
@@ -642,25 +686,38 @@ NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE, fa
     }
   }
   
+  
   ## 7. Set the "final model" to be the one with lower deviance
-  # Use sapply to calculate deviances for each model
+  # 7.1. De-normalize predictions if necessary
+  if (normalize_data == TRUE && family@name != "Negative Binomial Likelihood (logit link)") {
+    models <- lapply(models, function(model) {
+      model$Y_hat <- model$Y_hat * args$Y_sd + args$Y_mean
+      return(model)
+      })
+  }
+  # 7.2. Calculate each model's deviance
   family_stats <- get_mboost_family(family@name)
   deviances <- sapply(models, function(model) {
     mu <- family@response(model$Y_hat)
-    if(family_stats$family == "binomial" && all(args$outcome[[outcome]] %in% c(-1, 1))) {
+    if(family_stats$family == "binomial" && all(args$response[[response]] %in% c(-1, 1))) {
       # since for NGeDSboost(family = "binomial") the encoding is -1/1 and for stats::binomial() the encoding is 0/1
-      sum(family_stats$dev.resids((args$outcome[[outcome]] + 1) / 2, mu, weights))
+      sum(family_stats$dev.resids((args$response[[response]] + 1) / 2, mu, weights))
       } else {
-        sum(family_stats$dev.resids(args$outcome[[outcome]], mu, weights))
+        sum(family_stats$dev.resids(args$response[[response]], mu, weights))
         }
     })
-  # Find the model with the smallest deviance
+  # 7.3. Find the model with the smallest deviance
   model_min_deviance <- names(models)[which.min(deviances)]
-  # Set the final model to the model with the smallest MSE
-  final_model <- models[[model_min_deviance]]
-  final_model$model_name <- model_min_deviance
-  final_model$RSS <- min(deviances)
-  final_model$best_bl <- NULL # to simplify the final_model output
+  final_model <- list(
+    model_name = model_min_deviance,
+    DEV = min(deviances),
+    Y_hat = models[[model_min_deviance]]$Y_hat,      
+    base_learners = models[[model_min_deviance]]$base_learners
+  )
+  # Save linear internal knots for each base-learner
+  for (bl_name in names(base_learners)) {
+    final_model$base_learners[[bl_name]]$linear.int.knots <- get_internal_knots(final_model$base_learners[[bl_name]]$knots)
+  }
   
   #######################
   ## Higher order fits ##
@@ -677,7 +734,7 @@ NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE, fa
     qq_list <- compute_avg_int.knots(final_model, base_learners = base_learners,
                                    args$X_sd, args$X_mean, normalize_data, n = 3)
     quadratic_fit <- tryCatch({
-      SplineReg_Multivar(X = args$predictors[GeDS_variables], Y = args$outcome[[outcome]],
+      SplineReg_Multivar(X = args$predictors[GeDS_variables], Y = args$response[[response]],
                          Z = args$predictors[linear_variables],
                          base_learners = args$base_learners, InterKnotsList = qq_list,
                          n = 3, family = get_mboost_family(family@name))}, error = function(e) {
@@ -691,7 +748,7 @@ NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE, fa
     cc_list <- compute_avg_int.knots(final_model, base_learners = base_learners,
                                    args$X_sd, args$X_mean, normalize_data, n = 4)
     cubic_fit <- tryCatch({
-      SplineReg_Multivar(X = args$predictors[GeDS_variables], Y = args$outcome[[outcome]],
+      SplineReg_Multivar(X = args$predictors[GeDS_variables], Y = args$response[[response]],
                          Z = args$predictors[linear_variables],
                          base_learners = args$base_learners, InterKnotsList = cc_list,
                          n = 4, family = get_mboost_family(family@name))}, error = function(e) {
@@ -705,12 +762,18 @@ NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE, fa
     for (bl_name in names(base_learners)){
       final_model$base_learners[[bl_name]]$quadratic.int.knots <- qq_list[[bl_name]]
       final_model$base_learners[[bl_name]]$cubic.int.knots <- cc_list[[bl_name]]
-      }
+    }
+    
     } else {
       pred_quadratic <-  pred_cubic <- NULL
       final_model$base_learners[[bl_name]]$quadratic.int.knots <- NULL
       final_model$base_learners[[bl_name]]$cubic.int.knots <- NULL
     }
+  
+  # Simplify final_model structure
+  for (bl_name in names(base_learners)){
+    final_model$base_learners[[bl_name]]$knots <- NULL
+  }
   
   # Response (for example, if family is binomial, define the probability estimates)
   f <- as.numeric(final_model$Y_hat); pred_linear <- family@response(f)
@@ -724,7 +787,7 @@ NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE, fa
   # Loop through each base learner and extract the int.knots
   for(bl_name in names(base_learners)){
     # Extract and store linear internal knots
-    linear_int.knt <- get_internal_knots(final_model$base_learners[[bl_name]]$knots)
+    linear_int.knt <- final_model$base_learners[[bl_name]]$linear.int.knots
     linear.int.knots[bl_name] <- list(linear_int.knt)
     # Extract and store quadratic internal knots
     quadratic_int.knt <- final_model$base_learners[[bl_name]]$quadratic.int.knots
@@ -747,7 +810,7 @@ NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE, fa
 #######################################
 ### Component-wise fitting function ###
 #######################################
-componentwise_fit <- function(bl_name, data, outcome, model_formula_template, weights, base_learners, m, 
+componentwise_fit <- function(bl_name, data, response, model_formula_template, weights, base_learners, m, 
                               internal_knots, beta, phi, q) {
   
   # Initialize a results list with default values
@@ -791,7 +854,7 @@ componentwise_fit <- function(bl_name, data, outcome, model_formula_template, we
     pred <- if(length(pred_vars) == 1) {
       predict_GeDS_linear(fit, data[[pred_vars]])
     } else if(length(pred_vars) == 2) {
-      predict_GeDS_linear(fit, X = data[pred_vars[1]], Y = data[pred_vars[2]], Z = data[[outcome]])
+      predict_GeDS_linear(fit, X = data[pred_vars[1]], Y = data[pred_vars[2]], Z = data[[response]])
     }
     
     ## (B) Linear base-learners
@@ -823,7 +886,7 @@ componentwise_fit <- function(bl_name, data, outcome, model_formula_template, we
   }
   
   # Calculate SSR
-  resid <- data[[outcome]] - pred$Y_hat
+  resid <- data[[response]] - pred$Y_hat
   ssr <- sum((resid)^2)
   
   # Save results

@@ -3,7 +3,7 @@
 \name{lines,GeDS-method}
 \alias{lines,GeDS-method}
 \alias{lines.GeDS}
-\title{Lines method for GeDS objects. Adds a GeDS curve to an existing plot.}
+\title{Lines method for GeDS objects.}
 \usage{
 \S4method{lines}{GeDS}(
   x,
@@ -15,34 +15,41 @@
 )
 }
 \arguments{
-\item{x}{a \code{\link{GeDS-Class}} object from which the GeDS fit should be extracted.}
+\item{x}{a \code{\link{GeDS-Class}} object from which the GeDS fit should be
+extracted.}
 
-\item{n}{integer value (2, 3 or 4) specifying the order (\eqn{=} degree \eqn{+ 1}) of the GeDS fit that should be plotted.
-By default equal to \code{3L}.
-Non-integer values will be passed to the function \code{\link{as.integer}}.}
+\item{n}{integer value (2, 3 or 4) specifying the order (\eqn{=} degree
+\eqn{+ 1}) of the GeDS fit that should be plotted. By default equal to
+\code{3L}. Non-integer values will be passed to the function
+\code{\link{as.integer}}.}
 
-\item{transform}{a function that can be used to transform the scale of the Y axis. Typically it can be the
-inverse of the link function if the plot is on the scale of the response variable.}
+\item{transform}{a function that can be used to transform the scale of the Y
+axis. Typically it can be the inverse of the link function if the plot is on
+the scale of the response variable.}
 
-\item{onlySpline}{logical variable specifying whether only the spline component of the
-fitted GeDS predictor model  should be plotted or alternatively also the parametric component
-(see \code{\link[=formula.GeDS]{formula}}) should be plotted.}
+\item{onlySpline}{logical variable specifying whether only the spline
+component of the fitted GeDS predictor model  should be plotted or
+alternatively also the parametric component (see
+\code{\link[=formula.GeDS]{formula}}) should be plotted.}
 
-\item{data}{an optional \code{data.frame}, \code{list} or \code{environment} containing values
- of the independent variables for  which the GeDS predicted values should be plotted.
-If left empty the values are extracted from the object \code{x} itself.}
+\item{data}{an optional \code{data.frame}, \code{list} or \code{environment}
+containing values of the independent variables for  which the GeDS predicted
+values should be plotted. If left empty the values are extracted from the
+object \code{x} itself.}
 
 \item{...}{further arguments to be passed to the default
 \code{\link[graphics]{lines}} function.}
 }
 \description{
-Lines method for GeDS objects. Adds a GeDS curve to an existing plot.
+Lines method for GeDS objects. Adds a GeDS curve to an existing plot.#'
 }
 \details{
-This method can be used to add a curve corresponding to a particular GeDS fit to an active plot.
+This method can be used to add a curve corresponding to a particular GeDS fit
+to an active plot.
 
-As GeDS objects contain three different fits (linear, quadratic and cubic), it is possible
-to specify the order of the GeDS regression to be plotted via the input argument \code{n}.
+As GeDS objects contain three different fits (linear, quadratic and cubic),
+it is possible to specify the order of the GeDS regression to be plotted via
+the input argument \code{n}.
 }
 \examples{
 
@@ -67,8 +74,9 @@ plot(Gmod, type = "none")
 
 # Add a curve corresponding to the second order fit (the linear one)
 lines(Gmod, n = 2, col = "green", lwd = 2, lty = 3)
+
 }
 \seealso{
-\code{\link[graphics]{lines}} for the definition of the generic function;
-\code{\link{NGeDS}} and \code{\link{GGeDS}} for examples.
+\code{\link[graphics]{lines}} for the definition of the generic
+function; \code{\link{NGeDS}} and \code{\link{GGeDS}} for examples.
 }

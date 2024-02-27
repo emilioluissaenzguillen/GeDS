@@ -1,44 +1,60 @@
+################################################################################
+################################################################################
+################################### formula ####################################
+################################################################################
+################################################################################
+
 #######################################################
 # Function for reading the formula of NGeDS and GGeDS #
 #######################################################
-read.formula <- function(formula,data,weights,offset){
-  mt <- if (missing(data)){
+read.formula <- function(formula, data, weights, offset)
+  {
+  # Determine model terms based on 'formula', using 'data' if provided
+  mt <- if (missing(data)) {
     terms(formula, "f")
-  } else terms(formula, "f", data = data)
-  if(attr(mt,"intercept")==1) {
+    } else terms(formula, "f", data = data)
+  # Remove intercept from model terms
+  if (attr(mt,"intercept") == 1) {
     attr(mt,"intercept") <- 0
-    #warning("Intercept will be included in the basis functions")
-  } else {
-    warning("An intercept will be included in the basis functions")
-  }
-#  data <- new.env(parent=as.environment(data))
+    } else {
+      # In case the intercept was explicitly removed in the formula
+      warning("An intercept will be included in the basis functions")
+      }
   data <- as.list(data)
   data$f <- function(x,xx=NULL,...) {
     if(!missing(...)) stop("Algorithm supports at most two variables in 'f'")
     cbind(x,xx)
   }
+  
+  # Locate f(X)/f(X,Y) in model terms
   spec <- attr(mt,"specials")$f
-
-  if(length(spec)!=1) stop("Formula incorrectly specified. Read documentation for further informations")
-  mm <- model.matrix(mt,data)
-  mf <- model.frame(mt,data,na.action=NULL)
+  if(length(spec)!= 1) stop("Formula incorrectly specified. Read documentation for further information.")
+  
+  # Generate a model matrix based on the model terms and data
+  mm <- model.matrix(mt, data)
+  # Create a model frame based on the model terms and data, omitting rows with NAs
+  mf <- model.frame(mt, data, na.action = na.omit)
+  
+  # Extract response variable
   Y <- model.response(mf, type="numeric")
   attr(Y,"names")<- NULL
-  #names(mf) <- NULL
+  # Extract GeDS covariates
   X <- mf[,spec]
+  # Extract linear covariates
   if(ncol(mm)>ncol(X)) {
-    Z <- mf[,-c(spec,attr(mt,"response"),attr(mt,"offset")),drop=T]
+    Z <- mf[, -c(spec, attr(mt, "response"), attr(mt, "offset")), drop = TRUE]
   } else {
     Z <- NULL
   }
-
+  
+  # Initialize an offset vector with zeros
   offset <- rep(0, nrow(X))
-  if (!is.null(off.num <- attr(mt, "offset")))
+  # Sum up offset variables included in model terms
+  if (!is.null(off.num <- attr(mt, "offset"))) {
     for (i in off.num) offset <- offset + eval(attr(mt,"variables")[[i + 1]], data)
+  }
 
-
-
-  out<-list("X" = X, "Y" = Y, "Z" = Z, "offset" = offset, "terms" = mt, "model.matrix" = mm)
+  out <- list("X" = X, "Y" = Y, "Z" = Z, "offset" = offset, "terms" = mt, "model.matrix" = mm)
   return(out)
 }
 
@@ -50,7 +66,7 @@ read.formula.boost <- read.formula.gam <- function(formula, data){
   formula <- as.formula(formula)
   # Parse formula
   terms <- all.vars(formula)
-  outcome <- terms[1]
+  response <- terms[1]
   predictors <- terms[-1]
   
   # Split the formula into LHS and RHS
@@ -81,7 +97,7 @@ read.formula.boost <- read.formula.gam <- function(formula, data){
   if(any(predictors == ".")) {
     # Handling "Y ~ ." case
     predictors <- predictors[predictors != "."]
-    rest_predictors <- setdiff(names(data), c(outcome, predictors))
+    rest_predictors <- setdiff(names(data), c(response, predictors))
     predictors <- c(predictors, rest_predictors)
     bl_elements <- bl_elements[bl_elements != "."]
     rest_bl_elements <- gsub("(x\\.\\d+)", "f(\\1)", rest_predictors)
@@ -102,57 +118,68 @@ read.formula.boost <- read.formula.gam <- function(formula, data){
     return(list(variables = variables, type = type))
   }), bl_elements)
   
-  return(list(terms = terms, outcome = outcome, predictors = predictors, base_learners = base_learners))
+  return(list(terms = terms, response = response, predictors = predictors, base_learners = base_learners))
 }
 
 
-#' Formula for the predictor model
-#'
+#' @title Formula for the predictor model
+#' @name formula.GeDS
 #' @description
-#' A description of the structure of a predictor model to be fitted using  \code{\link{NGeDS}}
-#' and/or \code{\link{GGeDS}} and how this information can be extracted from a \code{\link{GeDS-class}} object.
-#'
-#' @aliases formula.GeDS
-#' @export
-#'
+#' A description of the structure of a predictor model to be fitted using
+#' \code{\link{NGeDS}} and/or \code{\link{GGeDS}} and how this information can
+#' be extracted from a \code{\link{GeDS-class}} object.
 #' @param x Fitted \code{\link{GeDS-class}} object, tipically produced by
-#' \code{\link{NGeDS}} or \code{\link{GGeDS}} from which the predictor model \code{\link[stats]{formula}} should be extracted.
+#' \code{\link{NGeDS}} or \code{\link{GGeDS}} from which the predictor model
+#' \code{\link[stats]{formula}} should be extracted.
 #' @param ... Unused in this case.
 #'
 #' @details
-#' In the GeDS GNM (GLM) regression, implemented in \code{\link{NGeDS}}
-#' and \code{\link{GGeDS}}, it is assumed that the mean of the response variable transformed using an
-#' appropriate link function is modelled through a possibly multivariate predictor model involving two components:
-#' a GeD variable knot spline regression component involving up to two of the
-#'  independent variables and a parametric component with respect to  the remaining independent variables.
-#'  The formula is used to specify the structure of such a possibly multivariate predictor model.
+#' In the GeDS GNM (GLM) regression, implemented in \code{\link{NGeDS}} and
+#' \code{\link{GGeDS}}, it is assumed that the mean of the response variable
+#' transformed using an appropriate link function is modelled through a possibly
+#' multivariate predictor model involving two components: a GeD variable knot
+#' spline regression component involving up to two of the independent variables
+#' and a parametric component with respect to  the remaining independent
+#' variables. The formula is used to specify the structure of such a possibly
+#' multivariate predictor model.
 #'
-#'  The formulae that are input in \code{\link{NGeDS}} and \code{\link{GGeDS}} are similar to those input
-#'  in \code{\link[stats]{lm}} or \code{\link[stats]{glm}} except that the function \code{\link{f}} should be
-#'  specified in order to identify which of the covariates enter the GeD spline regression part
-#'  of the predictor model. For example,  if the predictor model is univariate and it links the transformed means of \code{y}
-#'  to \code{x1}, the predictor has only a GeD spline component and the \code{\link[stats]{formula}}
-#'  should be in the form \code{y ~ f(x1)}.
+#' The formulae that are input in \code{\link{NGeDS}} and \code{\link{GGeDS}}
+#' are similar to those input in \code{\link[stats]{lm}} or
+#' \code{\link[stats]{glm}} except that the function \code{\link{f}} should be
+#' specified in order to identify which of the covariates enter the GeD spline
+#' regression part of the predictor model. For example,  if the predictor model
+#' is univariate and it links the transformed means of \code{y} to \code{x1},
+#' the predictor has only a GeD spline component and the
+#' \code{\link[stats]{formula}} should be in the form \code{y ~ f(x1)}.
+#' 
+#' As noted, there may be additional independent variables, \code{x2},
+#' \code{x3}, ... which may enter linearly into the parametric component of the
+#' predictor model and not be part of the GeD spline regression component. For
+#' example one may use the formula \code{y ~ f(x1) + x2 + x3} which assumes a
+#' spline regression only between the transformed mean of \code{y} and \code{x1},
+#' while \code{x2} and \code{x3} enter the predictor model just linearly.
 #'
-#'  As noted, there may be additional independent variables, \code{x2}, \code{x3}, ... which may
-#' enter linearly into the parametric component of the predictor model and not be part of the
-#' GeD spline regression component. For example one may use the formula
-#' \code{y ~ f(x1) + x2 + x3} which assumes a spline regression only between the transformed mean of \code{y}
-#' and \code{x1}, while \code{x2} and \code{x3} enter the predictor model just linearly.
+#' In the current version of the package, \code{\link{GGeDS}} is univariate,
+#' therefore only one covariate which enters the spline regression component can
+#' be specified.
 #'
-#' In the current version of the package, \code{\link{GGeDS}} is univariate, therefore only one covariate
-#' which enters the spline regression component can be specified.
+#' In contrast, the function \code{\link{NGeDS}}, generates also bivariate GeDS
+#' regression models. Therefore, if the functional dependence of the mean of the
+#' response variable \code{y} on \code{x1} and \code{x2} needs to be jointly
+#' modelled and there are no other covariates, the formula for the corresponding
+#' two dimensional predictor model should be specified as \code{y ~ f(x1,x2)}.
+#' 
+#' Within the argument \code{formula}, similarly as in other \R functions, it is
+#' possible to specify one or more offset variables, i.e. known terms with fixed
+#' regression coefficients equal to 1. These terms should be identified via the
+#' function \code{\link[stats]{offset}}.
 #'
-#' In contrast, the function \code{\link{NGeDS}}, generates also bivariate GeDS regression models.
-#' Therefore, if the functional dependence of the mean of the response variable \code{y} on \code{x1} and
-#'  \code{x2} needs to be jointly modelled and there are no other covariates, the formula for the corresponding
-#'  two dimensional predictor model should be specified as \code{y ~ f(x1,x2)}.
-#'
-#'  Within the argument \code{formula}, similarly as in other \R functions, it is possible to
-#'  specify one or more offset variables, i.e. known terms with fixed regression coefficients equal to 1.
-#'  These terms should be identified via the function \code{\link[stats]{offset}}.
-#'
-formula.GeDS <- function(x,...){
+#' @export
+#' 
+#' @aliases formula.GeDS
+
+formula.GeDS <- function(x,...)
+  {
   frm <- x$Formula
   if(is.null(frm)) stop("Unable to extract the formula. \n
                         Please re-fit using 'NGeDS' or 'GGeDS'")
@@ -160,35 +187,27 @@ formula.GeDS <- function(x,...){
 }
 
 
-# #' versions of GeDS have been implemented correspondingly
-# #' in \code{\link{GGeDS}} and \code{\link{NGeDS}}.
-# #' If more than two covariates are
-# #' specifying these arguments will return an error.
-
-
-
-#' Defining the covariates for the spline component in a GeDS formula.
-#'
+#' @title Defining the covariates for the spline component in a GeDS formula.
+#' @name f
 #' @description
-#' In general the GeDS predictor model may include a GeD spline regression component
-#' with respect to part of the independent variables and a parametric component
-#' in which the remaining covariates may enter as additive terms.
+#' In general the GeDS predictor model may include a GeD spline regression
+#' component with respect to part of the independent variables and a parametric
+#' component in which the remaining covariates may enter as additive terms.
 #'
-#' The function \code{f} is to be used in the \code{\link[=formula.GeDS]{formula}} argument of \code{\link{NGeDS}}
-#' or \code{\link{GGeDS}} in order to specify which independent variables (covariates)
-#' should be included in the GeD spline regression component of the predictor model.
-#'
-#' @note This function is intended to be used only as part of the \code{\link[=formula.GeDS]{formula}}
-#' in a GeDS regression via \code{\link{NGeDS}} or \code{\link{GGeDS}}
-#' and not to be called in other cases by the user.
-#'
-#' @param x numeric vector containing \eqn{N} sample values of the covariate chosen to enter the spline
+#' The function \code{f} is to be used in the
+#' \code{\link[=formula.GeDS]{formula}} argument of \code{\link{NGeDS}} or
+#' \code{\link{GGeDS}} in order to specify which independent variables
+#' (covariates) should be included in the GeD spline regression component of the
+#' predictor model.
+#' @param x numeric vector containing \eqn{N} sample values of the covariate
+#' chosen to enter the spline
 #' regression component of the predictor model.
-#' @param xx numeric vector containing \eqn{N} sample values for the second covariate
-#' (in case \code{\link{NGeDS}} is run for two dimensions).
-#' It has to be either \code{NULL} (the default) or a vector of size \eqn{N}, same as \code{x}.
-#' @param ... further arguments. As GeDS currently allows for up to two covariates,
-#' specification of further arguments will return an error.
+#' @param xx numeric vector containing \eqn{N} sample values for the second
+#' covariate (in case \code{\link{NGeDS}} is run for two dimensions). It has to
+#' be either \code{NULL} (the default) or a vector of size \eqn{N}, same as
+#' \code{x}.
+#' @param ... further arguments. As GeDS currently allows for up to two
+#' covariates, specification of further arguments will return an error.
 #'
 #' @examples
 #' # Generate a data sample for the response variable Y and
@@ -218,6 +237,12 @@ formula.GeDS <- function(x,...){
 #'
 #'
 #' @seealso \link{NGeDS}; \link{GGeDS}.
+#' 
+#' @note This function is intended to be used only as part of the
+#' \code{\link[=formula.GeDS]{formula}} in a GeDS regression via
+#' \code{\link{NGeDS}} or \code{\link{GGeDS}} and not to be called in other
+#' cases by the user.
+
 f <- function(x,xx=NULL,...) {
   if(!missing(...)) stop("Algorithm supports at most two variables in 'f'")
   cbind(x,xx)

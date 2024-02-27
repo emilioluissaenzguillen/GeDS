@@ -8,11 +8,10 @@ NGeDSgam(
   formula,
   data,
   weights = NULL,
-  offset = NULL,
   normalize_data = FALSE,
   family = "gaussian",
-  min_iterations = 0,
-  max_iterations = 100,
+  min_iterations = 0L,
+  max_iterations = 100L,
   phi_gam_exit = 0.995,
   q_gam = 2,
   beta = 0.5,
@@ -23,51 +22,78 @@ NGeDSgam(
 )
 }
 \arguments{
-\item{formula}{a formula specifying the model structure. It is expected to be in the
-format `Y ~ f(x1) + f(x2) + ...`.}
+\item{formula}{a description of the structure of the model to be fitted, including the
+dependent and independent variables. Unlike \code{\link{NGeDS}} and \code{\link{GGeDS}}, the formula specified
+allows for multiple additive GeD spline regression components (as well as linear components) to be included (e.g., \code{Y ~ f(X1) + f(X2) + X3}).
+See \code{\link[=formula.GeDS]{formula}} for further details.}
 
 \item{data}{a data frame containing the variables referenced in the formula.}
 
-\item{weights}{optional vector of weights for each observation.}
+\item{weights}{an optional vector of `prior weights' to be put on the observations during the fitting
+process. It should be \code{NULL} or a numeric vector of the same length as the response
+variable defined in the formula.}
 
-\item{offset}{optional offset to be added to the linear predictor during the backfitting.}
+\item{normalize_data}{a logical that defines whether the data should be normalized (standardized)
+before fitting the baseline linear model, i.e., before running the local-scoring algorithm. 
+Normalizing the data involves scaling the predictor variables to have a mean of 0 and a standard deviation of 1.
+This process alters the scale and interpretation of the knots and coefficients estimated.}
 
-\item{normalize_data}{a logical that defines whether the data is normalized before fitting the model or not.}
+\item{family}{a character string indicating the response variable distribution and link function to be used. Default is \code{"gaussian"}.
+This should be a character or a family object.}
 
-\item{family}{a character string indicating the response distribution and link function to be used. Default is "gaussian".
-This should be a character or a family object. Accepted characters are "gaussian" and "binomial".}
+\item{min_iterations}{Minimum number of iterations in the local-scoring algorithm. Default is \code{0L}.}
 
-\item{min_iterations}{Minimum number of iterations in the algorithm. Default is 0.}
+\item{max_iterations}{Maximum number of iterations in the local-scoring algorithm. Default is \code{100L}.}
 
-\item{max_iterations}{Maximum number of iterations in the algorithm. Default is 100.}
+\item{phi_gam_exit}{Convergence threshold for local-scoring and backfitting. Both algorithms stop when the relative change
+in the deviance is below this threshold. Default is \code{0.995}.}
 
-\item{phi_gam_exit}{Convergence threshold for local-scoring. The algorithm stops when the relative change in the deviance is below this threshold.
-Default is 1e-3.}
-
-\item{q_gam}{numeric parameter which allows to fine-tune the stopping rule of stage A of GeDS, by default equal to 2.}
+\item{q_gam}{numeric parameter which allows to fine-tune the stopping rule of local-scoring/backfitting, by default equal to \code{2L}.}
 
 \item{beta}{numeric parameter in the interval \eqn{[0,1]}
-tuning the knot placement in stage A of GeDS. See details.}
+tuning the knot placement in stage A of GeDS. Default is equal to \code{0.5}. See details in \code{\link{NGeDS}}.}
 
 \item{phi}{numeric parameter in the interval \eqn{[0,1]} specifying the threshold for
-the stopping rule  (model selector) in stage A of GeDS. See also \code{stoptype} and details below.}
+the stopping rule  (model selector) in stage A of GeDS. Default is equal to \code{0.99}. See details in \code{\link{NGeDS}}.}
 
-\item{internal_knots}{maximum number of internal knots to be added by the GeDS learners within the backfitting iterations. Default is 500.}
+\item{internal_knots}{The maximum number of internal knots that can be added by the GeDS 
+base-learners in each boosting iteration, effectively setting the value of \code{max.intknots} 
+in \code{\link{NGeDS}} at each backfitting iteration. Default is \code{500L}.}
 
-\item{q}{numeric parameter which allows to fine-tune the stopping rule of stage A of GeDS, by default equal to 2.}
+\item{q}{numeric parameter which allows to fine-tune the stopping rule of stage A of GeDS, by default equal to \code{2L}.
+See details in \code{\link{NGeDS}}.}
 
-\item{higher_order}{a logical that defines whether to compute the higher order fits (quadratic and cubic).}
+\item{higher_order}{a logical that defines whether to compute the higher order fits (quadratic and cubic) after the local-scoring algorithm is run.
+Default is \code{TRUE}.}
 }
 \value{
-A list of class "GeDSgam" containing:
-  * formula: The formula provided as input.
-  * args: List of arguments and relevant data used internally.
-  * final_model: The final fitted model after local scoring.
-  * predictions: Predictions for linear, quadratic, and cubic fits.
+\code{\link{GeDSgam-Class}} object, i.e. a list of items that summarizes the main details of the fitted GAM-GeDS model.
+See \code{\link{GeDSgam-Class}} for details. Some S3 methods are available in order to make these objects tractable, such as
+\code{\link[=coef.GeDSgam]{coef}}, \code{\link[=knots.GeDSgam]{knots}}, \code{\link[=print.GeDSgam]{print}} and \code{\link[=predict.GeDSgam]{predict}}.
 }
 \description{
 Implements the Local Scoring Algorithm (Hastie and Tibshirani (1986)),
-applying GeD splines to fit the targets within the backfitting iterations.
+applying normal GeD splines (i.e., \code{\link{NGeDS}} function) to fit the targets within the backfitting iterations.
+}
+\details{
+The  \code{NGeDSgam} function fits a GAM model through the local scoring algorithm,
+which iteratively fits weighted additive models by backfitting.
+Normal linear GeD splines are supported as function smoothers within the backfitting algorithm, also linear learners are allowed.
+The local-scoring algorithm yields a final linear fit. Higher order fits (quadratic and cubic) are then computed
+by calculating the Schoenberg’s variation diminishing spline (VDS) approximation of the linear fit.
+
+On the one hand, \code{NGeDSgam} includes all the parameters of \code{\link{NGeDS}},
+which in this case tune the smoother fit at each backfitting iteration. On the other hand,
+\code{NGeDSgam} includes some additional parameters proper to the local-scoring procedure. We describe
+the main ones as follows. 
+
+The \code{family} chosen determines the link function, adjusted dependent variable and weights to be used
+in the local-scoring algorithm. The number of local-scoring and backfitting iterations is controlled by
+a \emph{Ratio of Deviances} stopping rule similar to the one presented for \code{\link{GGeDS}}.
+In the same way \code{phi} and \code{q} tune the stopping rule of \code{\link{GGeDS}},
+\code{phi_boost_exit} and \code{q_boost} tune the stopping rule of \code{NGeDSgam}. The user
+can also manually control the number of local-scoring iterations through \code{min_iterations} and
+\code{max_iterations}.
 }
 \examples{
 # Load package
@@ -78,21 +104,52 @@ data = na.omit(airquality)
 data$Ozone <- data$Ozone^(1/3)
 
 formula = Ozone ~ f(Solar.R) + f(Wind, Temp)
-Gmod_gam <- NGeDSgam(formula = formula, data = data,
+Gmodgam <- NGeDSgam(formula = formula, data = data,
 phi_gam_exit = 0.995, phi = 0.995, q = 2)
-mse_ngedsgam1 <- mean((data$Ozone - Gmod_gam$predictions$pred_linear)^2)
-mse_ngedsgam2 <- mean((data$Ozone - Gmod_gam$predictions$pred_quadratic)^2)
-mse_ngedsgam3 <- mean((data$Ozone - Gmod_gam$predictions$pred_cubic)^2)
+MSE_Gmodgam_linear <- mean((data$Ozone - Gmodgam$predictions$pred_linear)^2)
+MSE_Gmodgam_quadratic <- mean((data$Ozone - Gmodgam$predictions$pred_quadratic)^2)
+MSE_Gmodgam_cubic <- mean((data$Ozone - Gmodgam$predictions$pred_cubic)^2)
 
 cat("\n", "MEAN SQUARED ERROR", "\n",
-"Linear NGeDSgam:", mse_ngedsgam1, "\n",
-"Quadratic NGeDSgam:", mse_ngedsgam2, "\n",
-"Cubic NGeDSgam:", mse_ngedsgam3, "\n")
+"Linear NGeDSgam:", MSE_Gmodgam_linear, "\n",
+"Quadratic NGeDSgam:", MSE_Gmodgam_quadratic, "\n",
+"Cubic NGeDSgam:", MSE_Gmodgam_cubic, "\n")
+
+## S3 methods for class 'GeDSboost'
+# Print 
+print(Gmodgam)
+# Knots
+knots(Gmodgam, n = 2L)
+knots(Gmodgam, n = 3L)
+knots(Gmodgam, n = 4L)
+# Coefficients
+coef(Gmodgam, n = 2L)
+coef(Gmodgam, n = 3L)
+coef(Gmodgam, n = 4L)
+# Deviances
+deviance(Gmodgam, n = 2L)
+deviance(Gmodgam, n = 3L)
+deviance(Gmodgam, n = 4L)
 
 }
 \references{
-Hastie, T., & Tibshirani, R. (1986). Generalized Additive Models. Statistical Science, 1(3), 297–310. http://www.jstor.org/stable/2245459
+Hastie, T. and Tibshirani, R. (1986). Generalized Additive Models. \emph{Statistical Science} \strong{1 (3)} 297 - 310. \cr
+DOI: \doi{10.1214/ss/1177013604}
+
+Kaishev, V.K., Dimitrova, D.S., Haberman, S. and Verrall, R.J. (2016).
+Geometrically designed, variable knot regression splines.
+\emph{Computational Statistics}, \strong{31}, 1079--1105. \cr
+DOI: \doi{10.1007/s00180-015-0621-7}
+
+Dimitrova, D. S., Kaishev, V. K., Lattuada, A. and Verrall, R. J.  (2023).
+Geometrically designed variable knot splines in generalized (non-)linear models.
+\emph{Applied Mathematics and Computation}, \strong{436}. \cr
+DOI: \doi{10.1016/j.amc.2022.127493}
 }
 \seealso{
+\code{\link{NGeDS}}; \code{\link{GGeDS}}; \code{\link{GeDSgam-Class}}; S3 methods such as
+\code{\link{knots.GeDSgam}}; \code{\link{coef.GeDSgam}};
+\code{\link{deviance.GeDSgam}}; \code{\link{predict.GeDSgam}}
+
 \link{gam}, \link{glm}
 }

@@ -2,7 +2,10 @@
 ################################# COEFFICIENTS #################################
 ################################################################################
 #' @noRd
-coef.GeDSboost_GeDSgam <- function(object, n = 3L, ...){
+coef.GeDSboost_GeDSgam <- function(object, n = 3L, ...)
+  {
+  # Handle additional arguments
+  if(!missing(...)) warning("Only 'object', 'n' and 'onlySpline' arguments will be considered")
   
   # Check if object is of class "GeDSboost" or "GeDSgam"
   if (!inherits(object, "GeDSboost") && !inherits(object, "GeDSgam")) {
@@ -15,9 +18,6 @@ coef.GeDSboost_GeDSgam <- function(object, n = 3L, ...){
     n <- 3L
     warning("'n' incorrectly specified. Set to 3.")
   }
-  
-  # Handle additional arguments
-  if(!missing(...)) warning("Only 'object', 'n' and 'onlySpline' arguments will be considered")
   
   model <- object$final_model
   base_learners <- object$args$base_learners
@@ -33,12 +33,16 @@ coef.GeDSboost_GeDSgam <- function(object, n = 3L, ...){
     
     # B-spline coefficients of bivariate learners
     bivariate_bl <- Filter(function(bl) length(bl$variables) == 2, base_learners)
-    biv_coeff <- lapply(model$base_learners[names(bivariate_bl)], 
-                        function(bl) lapply(bl$iterations, function(x) x$coef))
-    names(biv_coeff) <- names(bivariate_bl)
+    if (inherits(object, "GeDSboost")) {
+      biv_coeff <- lapply(model$base_learners[names(bivariate_bl)],
+                          function(bl) lapply(bl$iterations, function(x) x$coef))
+      names(biv_coeff) <- names(bivariate_bl)
+      } else if (inherits(object, "GeDSgam")) {
+        biv_coeff <- lapply(model$base_learners[names(bivariate_bl)],
+                            function(bl) bl$coefficients)
+      }
     
     coefficients <- c(univ_coeff, biv_coeff)
-    
   }
   if(n == 3L){
     coefficients <- model$Quadratic.Fit$Theta
@@ -50,48 +54,53 @@ coef.GeDSboost_GeDSgam <- function(object, n = 3L, ...){
   return(coefficients)
 }
 
-#' Coef method for GeDSboost and GeDSgam objects
+#' @title Coef method for GeDSboost, GeDSgam
+#' @name coef.GeDSboost,gam
+#' @description
+#' Methods for the functions \code{\link[stats]{coef}} and
+#' \code{\link[stats]{coefficients}} that allow to extract the estimated
+#' coefficients of \code{\link{GeDSboost-Class}} or \code{\link{GeDSgam-Class}}
+#' object.
+#' @param object the  \code{\link{GeDSboost-class}} or
+#' \code{\link{GeDSgam-Class}} object from which the coefficients should be
+#' extracted.
+#' @param n integer value (2, 3 or 4) specifying the order (\eqn{=} degree
+#' \eqn{+ 1}) of the FGB-GeDS/GAM-GeDS fit whose coefficients should be
+#' extracted. If \code{n = 2L} piecewise polynomial coefficients of the
+#' univariate GeDS base-learners are provided. In the case of bivariate GeDS
+#' base learners and \code{class(object) == "GeDSboost"}, the B-spline
+#' coefficients for each iteration where a particular base-learner was selected
+#' are provided. In the case of bivariate base learners and
+#' \code{class(object) == "GeDSgam"}, the final local-scoring B-spline
+#' coefficients for each base-learner are provided. If \code{n = 3L} or
+#' \code{n = 4L} B-spline coefficients are provided. By default equal to
+#' \code{3L}. Non-integer values will be passed to the function
+#' \code{\link{as.integer}}.
+#' @param ... potentially further arguments (required by the definition of the
+#' generic function). They will be ignored, but with a warning.
 #' 
-#' @description Methods for the functions \code{\link[stats]{coef}} and \code{\link[stats]{coefficients}}
-#'  that allow to extract the estimated coefficients of \code{\link{GeDSboost-Class}} 
-#'  or \code{\link{GeDSgam-Class}} object.
-#' @param object the  \code{\link{GeDSboost-class}} or \code{\link{GeDSgam-Class}} object from which
-#' the coefficients should be extracted.
-#' @param n integer value (2, 3 or 4) specifying the order (\eqn{=} degree \eqn{+ 1}) of the GeDS fit
-#' whose coefficients should be extracted. If \code{n = 2L} piecewise polynomial coefficients of univariate
-#' base-learners are provided. In the case of bivariate base learners,
-#' the B-spline coefficients for each iteration on which such base-learner was selected are provided.
-#' If \code{n = 3L} or \code{n = 4L} B-spline coefficients are provided.
-#' By default equal to \code{3L}.
-#' Non-integer values will be passed to the function \code{\link{as.integer}}.
-#' @param ... potentially further arguments (required by the definition of the generic function).
-#' They will be ignored, but with a warning.
-#'
-#' @details
-#' See \code{\link{coef.GeDS}} for details.
-#'
 #' @return
-#' A named vector containing the required coefficients of the fitted multivariate predictor model.
-#' The coefficient of linear base-learners is named as the base learner itself. The coefficients of GeDS
-#' base-learners are named as the base learners themselves, followed by the index of the corresponding B-spline.
-#'
-#' @seealso \code{\link[stats]{coef}} for the standard definition; \code{\link{NGeDSboost}}
-#' and \code{\link{NGeDSgam}} for examples.
+#' A named vector containing the required coefficients of the fitted
+#' multivariate predictor model.
+#' 
+#' @aliases coef.GeDSboost, coef.GeDSgam
+#' @seealso \code{\link[stats]{coef}} for the standard definition;
+#' \code{\link{NGeDSboost}} and \code{\link{NGeDSgam}} for examples.
 
-#' @rdname coef.GeDSboost_GeDSgam
 #' @export
+#' @rdname coef.GeDSboost_GeDSgam
 coef.GeDSboost <- coef.GeDSboost_GeDSgam
 
-#' @rdname coef.GeDSboost_GeDSgam
 #' @export
+#' @rdname coef.GeDSboost_GeDSgam
 coefficients.GeDSboost <- coef.GeDSboost_GeDSgam
 
-#' @rdname coef.GeDSboost_GeDSgam
 #' @export
+#' @rdname coef.GeDSboost_GeDSgam
 coef.GeDSgam <- coef.GeDSboost_GeDSgam
 
-#' @rdname coef.GeDSboost_GeDSgam
 #' @export
+#' @rdname coef.GeDSboost_GeDSgam
 coefficients.GeDSgam <- coef.GeDSboost_GeDSgam
 
 
@@ -99,7 +108,10 @@ coefficients.GeDSgam <- coef.GeDSboost_GeDSgam
 ################################### DEVIANCE ###################################
 ################################################################################
 #' @noRd
-deviance.GeDSboost_GeDSgam <- function(object, n = 3L, ...){
+deviance.GeDSboost_GeDSgam <- function(object, n = 3L, ...)
+  {
+  # Handle additional arguments
+  if(!missing(...)) warning("Only 'object','newdata', and 'n' arguments will be considered")
   
   # Check if object is of class "GeDSboost" or "GeDSgam"
   if (!inherits(object, "GeDSboost") && !inherits(object, "GeDSgam")) {
@@ -113,13 +125,10 @@ deviance.GeDSboost_GeDSgam <- function(object, n = 3L, ...){
     warning("'n' incorrectly specified. Set to 3.")
   }
   
-  # Handle additional arguments
-  if(!missing(...)) warning("Only 'object','newdata', and 'n' arguments will be considered")
-  
   model <- object$final_model
   
   if(n == 2L){
-    dev <- model$RSS
+    dev <- model$DEV
   }
   if(n == 3L){
     dev <- model$Quadratic.Fit$RSS
@@ -131,33 +140,12 @@ deviance.GeDSboost_GeDSgam <- function(object, n = 3L, ...){
   return(dev)
 }
 
-#' Deviance method for GeDSboost and GeDSgam objects
-#' @description Method for the function \code{\link[stats]{deviance}} that allows the user to extract the value
-#' of the deviance corresponding to a selected GeDSboost or GeDSgam fit from a
-#' \code{\link{GeDSboost-Class}} or \code{\link{GeDSgam-Class}} object.
-#' @param object the \code{\link{GeDSboost-class}} or \code{\link{GeDSgam-class}} object from which
-#' the deviance should be extracted.
-#' @param n integer value (2, 3 or 4) specifying the order (\eqn{=} degree \eqn{+ 1}) of the
-#' GeDSboost/GeDSgam fit whose deviance should be extracted.
-#' By default equal to \code{3L}.
-#' Non-integer values will be passed to the function \code{\link{as.integer}}.
-#' @param ... potentially further arguments (required by the definition of the generic function).
-#' They will be ignored, but with a warning.
-#'
-#' @details This is a method for the function \code{\link[stats]{deviance}}.
-#' As \code{\link{GeDSboost-class}} and \code{\link{GeDSgam-class}} objects contain three different
-#' fits (linear, quadratic and cubic), it is possible
-#' to specify the order of the GeDS fit for which the deviance is required via the input argument \code{n}.
-#'
-#' @seealso \code{\link[stats]{deviance}} for the standard definition;
-#' @return A numeric value corresponding to the  deviance of the selected GeDSboost/GeDSgam fit.
-
-#' @rdname deviance.GeDSboost_GeDSgam
 #' @export
+#' @rdname deviance.GeDS
 deviance.GeDSboost <- deviance.GeDSboost_GeDSgam
 
-#' @rdname deviance.GeDSboost_GeDSgam
 #' @export
+#' @rdname deviance.GeDS
 deviance.GeDSgam <- deviance.GeDSboost_GeDSgam
 
 
@@ -165,7 +153,11 @@ deviance.GeDSgam <- deviance.GeDSboost_GeDSgam
 ##################################### KNOTS ####################################
 ################################################################################
 #' @noRd
-knots.GeDSboost_GeDSgam <-  function(Fn, n = 3L, options = c("all","internal"), ...) {
+knots.GeDSboost_GeDSgam <-  function(Fn, n = 3L,
+                                     options = c("all","internal"), ...)
+  {
+  # Handle additional arguments
+  if(!missing(...)) warning("Only 'Fn','n', and 'options' arguments will be considered")
   
   # Check if Fn is of class "GeDSboost" or "GeDSgam"
   if (!inherits(Fn, "GeDSboost") && !inherits(Fn, "GeDSgam")) {
@@ -178,9 +170,6 @@ knots.GeDSboost_GeDSgam <-  function(Fn, n = 3L, options = c("all","internal"), 
     n <- 3L
     warning("'n' incorrectly specified. Set to 3.")
   }
-  
-  # Handle additional arguments
-  if(!missing(...)) warning("Only 'Fn','n', and 'options' arguments will be considered")
   
   # Ensure that the options argument is one of the allowed choices ("all" or "internal")
   options <- match.arg(options)
@@ -224,39 +213,12 @@ knots.GeDSboost_GeDSgam <-  function(Fn, n = 3L, options = c("all","internal"), 
   return(kn)
 }
 
-#' Knots method for GeDSboost and GeDSgam objects
-#' @description Method for the generic function \code{\link[stats]{knots}} that allows the user
-#' to extract vector of knots of a GeDSboost or GeDSgam fit of a specified order
-#' contained in a \code{\link{GeDSboost-class}} or \code{\link{GeDSgam-class}} object, respectively.
-#'
-#' @param Fn the \code{\link{GeDSboost-class}} or \code{\link{GeDSgam-class}} object from which the vector of knots for the
-#' specified FGB-GeDS or GAM-GeDS fit should be extracted.
-#' @param n integer value (2, 3 or 4) specifying the order (\eqn{=} degree \eqn{+ 1}) of the FGB-GeDS or GAM-GeDS fit
-#' whose knots should be extracted.
-#' By default equal to \code{3L}.
-#' Non-integer values will be passed to the function \code{\link{as.integer}}.
-#' @param options a character string specifying whether "\code{all}" knots, including
-#' the left-most and the right-most limits of the interval embedding the observations (the default) or
-#' only the "\code{internal}" knots should be extracted.
-#' @param ... potentially further arguments (required for compatibility with the definition of
-#' the generic function). Currently ignored, but with a warning.
-#' @details This is a method for the function \code{\link[stats]{knots}} in the \pkg{stats} package.
-#'
-#' As \code{\link{GeDSboost-class}} and \code{\link{GeDSgam-class}} objects contain three different
-#' fits (linear, quadratic and cubic), it is possible
-#' to specify the order of the GeDS fit for which the deviance is required via the input argument \code{n}.
-#'
-#'
-#' @seealso \code{\link[stats]{knots}} for the definition of the generic function; \code{\link{NGeDS}} and \code{\link{GGeDS}} for examples.
-#'
-#' @return A vector in which each element represents a knot of the FGB-GeDS/GAM-GeDS fit of the required order.
-
-#' @rdname knots.GeDSboost_GeDSgam
 #' @export
+#' @rdname knots
 knots.GeDSboost <- knots.GeDSboost_GeDSgam
 
-#' @rdname knots.GeDSboost_GeDSgam
 #' @export
+#' @rdname knots
 knots.GeDSgam <- knots.GeDSboost_GeDSgam
 
 
@@ -266,6 +228,8 @@ knots.GeDSgam <- knots.GeDSboost_GeDSgam
 #' @noRd
 predict.GeDSboost_GeDSgam <- function(object, newdata, n = 2L, ...)
 {
+  # Handle additional arguments
+  if(!missing(...)) warning("Only 'object','newdata', and 'n' arguments will be considered")
   
   # Check if object is of class "GeDSboost" or "GeDSgam"
   if (!inherits(object, "GeDSboost") && !inherits(object, "GeDSgam")) {
@@ -278,10 +242,6 @@ predict.GeDSboost_GeDSgam <- function(object, newdata, n = 2L, ...)
     n <- 3L
     warning("'n' incorrectly specified. Set to 3.")
   }
-  
-  # Handle additional arguments
-  if(!missing(...)) warning("Only 'object','newdata', and 'n' arguments will be considered")
-  
   
   newdata <- as.data.frame(newdata)
   # Check whether newdata includes all the necessary predictors
@@ -298,7 +258,7 @@ predict.GeDSboost_GeDSgam <- function(object, newdata, n = 2L, ...)
   ###############
   ## 1. LINEAR ##
   ###############
-  if (n==2) {
+  if (n == 2) {
     ####################
     ## 1.1. GeDSboost ##
     ####################
@@ -466,7 +426,7 @@ predict.GeDSboost_GeDSgam <- function(object, newdata, n = 2L, ...)
     }
     
     ##################
-    ## Higher Order ##
+    ## 2. Higher Order ##
     ##################
   } else if (n==3 || n==4) {
     
@@ -582,23 +542,29 @@ predict.GeDSboost_GeDSgam <- function(object, newdata, n = 2L, ...)
   }
 }
 
-#' Predict method for GeDSboost and GeDSgam objects
-#'
-#' @description This method computes predictions from GeDSboost and GeDSgam objects. 
-#' It is designed to be user-friendly and accommodate different orders of the GeDS fit.
-#' @param object The \code{\link{GeDSboost-class}} or \code{\link{GeDSgam-class}} object.
+#' @title Predict method for GeDSboost, GeDSgam
+#' @name predict.GeDSboost,gam
+#' @description 
+#' This method computes predictions from GeDSboost and GeDSgam objects. 
+#' It is designed to be user-friendly and accommodate different orders of the
+#' GeDSboost or GeDSgam fit.
+#' @param object The \code{\link{GeDSboost-class}} or
+#' \code{\link{GeDSgam-class}} object.
 #' @param newdata An optional data frame for prediction.
-#' @param n The order of the GeDS fit (2 for linear, 3 for quadratic, and 4 for cubic). 
+#' @param n The order of the GeDS fit (2 for linear, 3 for quadratic, and 4 for
+#' cubic). 
 #' Default is 2.
 #' @param ... potentially further arguments.
-#' @return Numeric vector of predictions.
+#' 
+#' @return Numeric vector of predictions (vector of means).
+#' @aliases predict.GeDSboost, predict.GeDSgam
 
-#' @rdname predict.GeDSboost_GeDSgam
 #' @export
+#' @rdname predict.GeDSboost_GeDSgam
 predict.GeDSboost <- predict.GeDSboost_GeDSgam
 
-#' @rdname predict.GeDSboost_GeDSgam
 #' @export
+#' @rdname predict.GeDSboost_GeDSgam
 predict.GeDSgam <- predict.GeDSboost_GeDSgam
 
 
@@ -606,7 +572,9 @@ predict.GeDSgam <- predict.GeDSboost_GeDSgam
 ##################################### PRINT ####################################
 ################################################################################
 #' @noRd 
-print.GeDSboost_GeDSgam <- function(x, digits = max(3L, getOption("digits") - 3L), ...) {
+print.GeDSboost_GeDSgam <- function(x, digits = max(3L, getOption("digits") - 3L),
+                                    ...)
+  {
   cat("\nCall:\n", paste(deparse(x$extcall), sep = "\n", collapse = "\n"),
       "\n\n", sep = "")
   kn <- knots(x,n=2,options="int")
@@ -620,17 +588,20 @@ print.GeDSboost_GeDSgam <- function(x, digits = max(3L, getOption("digits") - 3L
     
     # 1) No knots or linear base-learner
     if (is.null(int.knt)) {
-      cat(paste0("Number of internal knots of the second order spline for '", bl_name, "': 0\n"))
+      cat(paste0("Number of internal knots of the second order spline for '",
+                 bl_name, "': 0\n"))
     } else {
       # 2) Bivariate GeDS
       if (is.list(int.knt)) {
         for (component_name in names(int.knt)) {
           component <- int.knt[[component_name]]
-          cat(paste0("Number of internal knots of the second order spline for '", bl_name, "', ", component_name, ": ", length(component), "\n"))
+          cat(paste0("Number of internal knots of the second order spline for '",
+                     bl_name, "', ", component_name, ": ", length(component), "\n"))
         }
         # 3) Univariate GeDS
       } else { 
-        cat(paste0("Number of internal knots of the second order spline for '", bl_name, "': ", length(int.knt), "\n"))
+        cat(paste0("Number of internal knots of the second order spline for '",
+                   bl_name, "': ", length(int.knt), "\n"))
       }
     }
   }
@@ -648,49 +619,28 @@ print.GeDSboost_GeDSgam <- function(x, digits = max(3L, getOption("digits") - 3L
   invisible(x)
 }
 
-#' Print method for GeDS objects
-#' 
-#' @description Method for the generic function \code{\link[base]{print}} that allows to
-#' print on screen the main information related to the fitted predictor model that can be extracted
-#' from a \code{\link{GeDSboost-class}} or \code{\link{GeDSgam-class}} object.
-#' @param x the \code{\link{GeDSboost-class}} or \code{\link{GeDSgam-class}} object for which the main information should be printed on screen.
-#' @param digits number of digits to be printed.
-#' @param ... potentially further arguments (required by the definition of the generic function).
-#'
-#' @details This method allows to print on screen basic information related to the fitted predictor model such as the
-#' function \code{call}, the number of internal knots for the linear FGB-GeDS/GAM-GeDS fit and the deviances
-#' for the three (linear, quadratic and cubic) fitted predictor models embedded in the \code{\link{GeDSboost-class}}
-#' or \code{\link{GeDSgam-class}} object.
-#'
-#' @seealso \code{\link[base]{print}} for the standard definition.
-#' @return This function returns (invisibly) the same input object, but adding the slot \code{Print}
-#' that contains the three sub-slots:
-#' \item{Nknots}{ the number of internal knots for each base-learner of the linear FGB-GeDS/GAM-GeDS fit}
-#' \item{Deviances}{ the deviances of the three (linear, quadratic and cubic) FGB-GeDS/GAM-GeDS fits}
-#' \item{Call}{ the \code{call} to the function that produced the \code{x} object}
-
-#' @rdname print.GeDSboost_GeDSgam
+#' @rdname print.GeDS
 #' @export
 print.GeDSboost <- print.GeDSboost_GeDSgam
 
-#' @rdname print.GeDSboost_GeDSgam
+#' @rdname print.GeDS
 #' @export
 print.GeDSgam <- print.GeDSboost_GeDSgam
 
 
-
-#########################################################################################
-#########################################################################################
-############################ Visualization/Analysis functions ###########################
-#########################################################################################
-#########################################################################################
+################################################################################
+################################################################################
+######################## Visualization/Analysis functions ######################
+################################################################################
+################################################################################
 
 ######################################
 ##### Fitting process plotting #######
 ######################################
 
 # Helper function to split the text into lines
-split_into_lines <- function(text, max_length) {
+split_into_lines <- function(text, max_length)
+  {
   words <- strsplit(text, split = ", ")[[1]]
   lines <- character(0)
   current_line <- character(0)
@@ -709,15 +659,19 @@ split_into_lines <- function(text, max_length) {
   lines
 }
 
-#' Visualize Boosting Process
-#'
-#' @description This function presents  the fit over the data at the start of each boosting iteration and the subsequent fit on the residuals.
-#'
+#' @title Visualize Boosting Iterations
+#' @name visualize_boosting
+#' @description
+#' This function plots the \code{\link{NGeDSboost}} fit over data at the
+#' beginning of a given boosting iteration and then plots the subsequent
+#' \code{\link{NGeDS}} fit on the corresponding residual (negative gradient).
+#' Note: Applicable only for \code{\link{NGeDSboost}} models with one covariate
+#' and \code{family = mboost::Gaussian()}.
 #' @param M Numeric, specifies the iteration number.
-#' @param Gmodboost An object of class  \code{\link{GeDSboost-Class}}, containing the results of the GeDS boosting model.
-#' @importFrom graphics mtext
+#' @param object A \code{\link{GeDSboost-Class}} object.
+#' 
+#' @method visualize_boosting GeDSboost
 #' @examples
-#' \dontrun{
 #' # Load packages
 #' library(GeDS)
 #' 
@@ -733,16 +687,14 @@ split_into_lines <- function(text, max_length) {
 #' # Add (Normal) noise to the mean of Y
 #' Y <- rnorm(N, means, sd = 0.2)
 #' data = data.frame(X, Y)
-#' Gmodboost <- NGeDSboost(Y ~ f(X), data = data, initial_learner = "GeDS", int.knots_init = 2,
-#' internal_knots = 500, q_boost = 2, phi_boost_exit = 0.995, shrinkage = 1,
-#' phi = 0.99, normalize_data = TRUE, family = mboost::Gaussian())
+#' object <- NGeDSboost(Y ~ f(X), data = data, normalize_data = TRUE)
 #' 
 #' # Plot
 #' plot(X, Y, pch=20, col=c("darkgrey"))
 #' lines(X, sapply(X, f_1), col = "black", lwd = 2)
-#' lines(X, Gmodboost$predictions$pred_linear, col = "green4", lwd = 2)
-#' lines(X, Gmodboost$predictions$pred_quadratic, col="red", lwd=2)
-#' lines(X, Gmodboost$predictions$pred_cubic, col="purple", lwd=2)
+#' lines(X, object$predictions$pred_linear, col = "green4", lwd = 2)
+#' lines(X, object$predictions$pred_quadratic, col="red", lwd=2)
+#' lines(X, object$predictions$pred_cubic, col="purple", lwd=2)
 #' legend("topright",
 #' legend = c("Order 2 (degree=1)", "Order 3 (degree=2)", "Order 4 (degree=3)"),
 #' col = c("green4", "red", "purple"),
@@ -753,33 +705,35 @@ split_into_lines <- function(text, max_length) {
 #' bg = "white")
 #' # Visualize boosting iterations
 #' par(mfrow=c(2,2))
-#' visualize_boosting(0, Gmodboost)
-#' visualize_boosting(1, Gmodboost)
+#' visualize_boosting(0, object)
+#' visualize_boosting(1, object)
 #' par(mfrow=c(1,1))
-#' }
-#'
+#' 
 #' @export
+#' @aliases visualize_boosting visualize_boosting.GeDSboost
+#' @rdname visualize_boosting
+#' @importFrom graphics mtext
 
-visualize_boosting = function(M, Gmodboost) {
-  
-  # Check if Gmodboost is of class "GeDSboost"
-  if(!inherits(Gmodboost, "GeDSboost")) {
-    stop("The input 'Gmodboost' must be of class 'GeDSboost'")
+visualize_boosting.GeDSboost <- function(M, object)
+  {
+  # Check if object is of class "GeDSboost"
+  if(!inherits(object, "GeDSboost")) {
+    stop("The input 'object' must be of class 'GeDSboost'")
   }
-  # Check if Gmodboost has only one predictor
-  if(length(Gmodboost$args$predictors) > 1) {
+  # Check if object has only one predictor
+  if(length(object$args$predictors) > 1) {
     stop("Visualization only available for models with a single predictor")
   }
   # Check if family = Gaussian
-  if(Gmodboost$args$family@name != "Squared Error (Regression)") {
+  if(object$args$family@name != "Squared Error (Regression)") {
     stop("Visualization only available for family = 'Gaussian'")
   }
   
-  Y <- Gmodboost$args$outcome[[1]]; X <- Gmodboost$args$predictors[[1]]
+  Y <- object$args$response[[1]]; X <- object$args$predictors[[1]]
   
-  model <- Gmodboost$models[[paste0("model", M)]]
+  model <- object$models[[paste0("model", M)]]
   Y_hat <- model$Y_hat
-  next_model <- Gmodboost$models[[paste0("model", M+1)]]
+  next_model <- object$models[[paste0("model", M+1)]]
   
   # 1. Data plot
   # Plot range
@@ -789,7 +743,7 @@ visualize_boosting = function(M, Gmodboost) {
   y_range <- c(y_range[1] - diff(y_range) * 0.05, y_range[2] + diff(y_range) * 0.05)
   
   # Split int knots into lines
-  int.knots <- round(as.numeric(get_internal_knots(model$base_learners[[1]]$knots)), 2)
+  int.knots <- round(as.numeric(model$base_learners[[1]]$linear.int.knots), 2) 
   int.knots_lines <- split_into_lines(paste(int.knots, collapse=", "), 75)
   # Create the title
   title_text_1 <- bquote(atop(plain(Delta[.(M) * ",2"] == .(int.knots_lines[1]))))
@@ -822,7 +776,7 @@ visualize_boosting = function(M, Gmodboost) {
   }
   
   # 2. Residuals plot
-  if (M < length(Gmodboost$models) - 1){
+  if (M < length(object$models) - 1){
     
     residuals <- Y - model$Y_hat
     
@@ -866,116 +820,127 @@ visualize_boosting = function(M, Gmodboost) {
   }
 }
 
+#' @export
+visualize_boosting <- visualize_boosting.GeDSboost
 
-#' Variable Importance for GeDS Boosting Model
+
+################################################################################
+############################ BASE LEARNER IMPORTANCE ###########################
+################################################################################
+#' @title Base Learner Importance for GeDSboost objects
+#' @name bl_imp.GeDSboost
+#' @description
+#' This function calculates the in-bag mean squared error (MSE) reduction
+#' ascribable to each of the base-learners with regards to the final prediction
+#' of the component-wise gradient boosted model encapsulated in a
+#' \code{\link{GeDSboost-Class}} object. Essentially, it measures the decrease
+#' in MSE attributable to each base-learner for every time it is selected across
+#' the boosting iterations, and aggregates them. This provides a measure on how
+#' much each base-learner contributes to the overall improvement in the model's
+#' accuracy, as reflected by the decrease in MSE. This function is adapted from
+#' \code{\link[mboost]{varimp}} and is compatible with the available
+#' \code{\link[mboost]{mboost-package}} methods for \code{\link[mboost]{varimp}},
+#' including \code{plot}, \code{print} and \code{as.data.frame}.
+#' @param object An object of class \code{\link{GeDSboost-Class}}.
+#' @param ... potentially further arguments.
 #'
-#' This function calculates the importance of each base-learner in the final prediction of the 
-#' Functional Gradient Boosting model that uses Geometrically Designed splines (GeDS) as base-learners.
-#'
-#' @param object An object of class \code{\link{GeDSboost-Class}}, which contains the results of the GeDS boosting model.
-#' @param initial_model Logical, indicates whether to include the initial model in the importance calculation in the case of GeDS initial learner. 
-#'        If \code{TRUE}, it includes the initial model's risk difference; otherwise, it is set to 0. Default is \code{TRUE}.
-#'
-#' @return A numeric vector of variable importances for each base-learner, with class "varimp". 
-#'         Attributes include "selfreqs", which gives the proportion of models where the i-th learner was selected, 
-#'         and "variable_names", which provides the ordered names of the variables.
-#'
+#' @return An object of class \code{varimp} with available \code{plot},
+#' \code{print} and \code{as.data.frame} methods.
+#' @details
+#' See \code{\link[mboost]{varimp}} for details.
+#' @method bl_imp GeDSboost
 #' @examples
-#' \dontrun{
-#' # Load packages
 #' library(GeDS)
 #' library(TH.data)
 #' set.seed(290875)
 #' data("bodyfat", package = "TH.data")
 #' data = bodyfat
 #' Gmodboost <- NGeDSboost(formula = DEXfat ~ f(hipcirc) + f(kneebreadth) + f(anthro3a),
-#' data = data, initial_learner = NULL, internal_knots = 500,
-#' max_iterations = 100, q_boost = 2, phi_boost_exit = 0.995,
-#' shrinkage=1, phi=0.99, normalize_data = FALSE)
-#' mse_ngedsboost1 <- mean((data$DEXfat-Gmodboost$predictions$pred_linear)^2)
-#' mse_ngedsboost2 <- mean((data$DEXfat-Gmodboost$predictions$pred_quadratic)^2)
-#' mse_ngedsboost3 <- mean((data$DEXfat-Gmodboost$predictions$pred_cubic)^2)
-#' 
-#' # Print
-#' cat("\n", "MEAN SQUARED ERROR", "\n",
-#' "Linear NGeDSboost:", mse_ngedsboost1, "\n",
-#' "Quadratic NGeDSboost:", mse_ngedsboost2, "\n",
-#' "Cubic NGeDSboost:", mse_ngedsboost3, "\n")
-#' # Variable importance
-#' varimp <- varimp_GeDS(Gmodboost)
-#' print(varimp)
-#' plot(varimp)
-#' }
+#'                         data = data, initial_learner = FALSE)
+#' MSE_Gmodboost_linear <- mean((data$DEXfat - Gmodboost$predictions$pred_linear)^2)
+#' MSE_Gmodboost_quadratic <- mean((data$DEXfat - Gmodboost$predictions$pred_quadratic)^2)
+#' MSE_Gmodboost_cubic <- mean((data$DEXfat - Gmodboost$predictions$pred_cubic)^2)
 #'
+#' # Print MSE
+#' cat("\n", "MEAN SQUARED ERROR", "\n",
+#'     "Linear NGeDSboost:", MSE_Gmodboost_linear, "\n",
+#'     "Quadratic NGeDSboost:", MSE_Gmodboost_quadratic, "\n",
+#'     "Cubic NGeDSboost:", MSE_Gmodboost_cubic, "\n")
+#'
+#' # Base Learner Importance
+#' bl_imp <- bl_imp(Gmodboost)
+#' print(bl_imp)
+#' plot(bl_imp)
+#' 
 #' @export
-
-######################################
-############### varimp ###############
-######################################
-
-varimp_GeDS <- function (object, initial_model = TRUE)
-{
-  
-  # Check if Gmodboost is of class "GeDSboost"
+#' @aliases bl_imp bl_imp.GeDSboost
+#' @references
+#' Hothorn T., Buehlmann P., Kneib T., Schmid M. and Hofner B. (2022).
+#' mboost: Model-Based Boosting. R package version 2.9-7, \url{https://CRAN.R-project.org/package=mboost}.
+#' @rdname bl_imp
+bl_imp.GeDSboost <- function(object, ...)
+  {
+  # Check if object is of class "GeDSboost"
   if(!inherits(object, "GeDSboost")) {
-    stop("The input 'Gmodboost' must be of class 'NGeDS_boosted'")
+    stop("The input 'object' must be of class 'GeDSboost'")
   }
   
   # 1. Variables
   ## Response variable
-  response <- names(object$args$outcome)
-  ## Covariates
-  learner_names <- names(object$args$base_learners)
-  learner_selected <- sapply(object$models, function(model) model$best_bl$name)
-  learner_indices <- match(learner_selected, learner_names)
+  response <- names(object$args$response)
+  ## Base-learners
+  bl_names <- names(object$args$base_learners)
+  bl_selected <- sapply(object$models, function(model) model$best_bl$name)
+  bl_indices <- match(bl_selected, bl_names)
   
   # 2. In-bag risk
   # Calculate initial risk
-  initial_risk <- mean((object$args$outcome[[response]] - 0)^2)
+  initial_risk <- mean((object$args$response[[response]] - 0)^2)
   # Get the riskdiff of model0
-  initial_model_risk <- mean((object$args$outcome[[response]] - object$models[[paste0("model", 0)]]$Y_hat)^2)
-  first_riskdiff <- initial_risk - initial_model_risk
+  model0_risk <- mean((object$args$response[[response]] - object$models[[paste0("model", 0)]]$Y_hat)^2)
+  first_riskdiff <- initial_risk - model0_risk
   
   # Get the number of models
   n_models <- length(object$models)
+  if (!object$args$initial_learner) n_models <- n_models - 1
   # Initialize an empty vector to store the inbag risks
   inbag_risks <- vector(mode = "numeric", length = n_models)
-  
-  # Loop over each model
+  # Loop over each model from model1 onwards
   for (i in seq_len(n_models)) {
     # Extract the selected predictor for each model
-    Y_hat <- object$models[[paste0("model", i - 1)]]$Y_hat
+    Y_hat <- object$models[[paste0("model", i)]]$Y_hat
     # Calculate the inbag risk for this iteration
-    inbag_risks[i] <- mean((object$args$outcome[[response]] - Y_hat)^2)
+    inbag_risks[i] <- mean((object$args$response[[response]] - Y_hat)^2)
   }
+  inbag_risks <- c(model0_risk, inbag_risks)
   
   # 3. Calculate differences in inbag risk between consecutive boosting iterations
   riskdiff <- -1 * diff(inbag_risks)
   # Scale these differences by the number of observations
-  riskdiff <- riskdiff / length(object$args$outcome[[response]])
+  riskdiff <- riskdiff / length(object$args$response[[response]])
   # Prepend the first risk difference to the riskdiff vector
-  if (initial_model==FALSE){first_riskdiff = 0}
   riskdiff <- c(first_riskdiff, riskdiff)
   
-  # For offset initial-learner varimp is just measured within boosting iterations
-  if(is.null(object$args$initial_learner)){
+  # For offset initial-learner bl_imp is just measured within boosting iterations
+  if(!object$args$initial_learner){
     riskdiff <- riskdiff[-1]
-    learner_indices <- learner_indices[-1]
+    bl_selected$model0 <- NULL
+    bl_indices <- bl_indices[-1]
   }
   
   # 4. Sum up riskdiffs
-  explained <- sapply(seq_along(learner_names), FUN = function(i) {
-    sum(riskdiff[which(learner_indices == i)])
+  explained <- sapply(seq_along(bl_names), FUN = function(i) {
+    sum(riskdiff[which(bl_indices == i)])
   })
-  names(explained) <- learner_names
+  names(explained) <- bl_names
   class(explained) <- "varimp"
   # Calculate the proportion of models where the i-th learner was selected
-  attr(explained, "selfreqs") <- sapply(seq_along(learner_names), 
+  attr(explained, "selfreqs") <- sapply(seq_along(bl_names), 
                                         function(i) {
-                                          mean(learner_indices == i)
+                                          mean(bl_indices == i)
                                         })
-  
-  var_names <- learner_names
+  # To accomodate structure requirements:
+  var_names <- bl_names
   var_names <- sapply(strsplit(var_names, ", "), function(x) {
     do.call(function(...) paste(..., sep = ", "), as.list(x[order(x)]))
   })
@@ -986,3 +951,6 @@ varimp_GeDS <- function (object, initial_model = TRUE)
   
   return(explained)
 }
+
+#' @export
+bl_imp <- bl_imp.GeDSboost
