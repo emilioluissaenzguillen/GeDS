@@ -44,22 +44,21 @@ here includes an enhanced \R implementation of the original Normal GeDS
 exponential family.
 
 The \pkg{GeDS} package allows also to fit two dimensional response surfaces
-currently implemented only in the Normal case via the function
-\code{\link{NGeDS}}. It also allows to construct multivariate (predictor)
-models with a GeD spline component and a parametric component (see the
-functions \code{\link{f}}, \code{\link[=formula.GeDS]{formula}},
-\code{\link{NGeDS}} and \code{\link{GGeDS}} for details).
+and to construct multivariate (predictor) models with a GeD spline component
+and a parametric component (see the functions \code{\link{f}},
+\code{\link[=formula.GeDS]{formula}}, \code{\link{NGeDS}} and
+\code{\link{GGeDS}} for details).
 
 Dimitrova et al. (2024) have recently made significant enhancements to the
-\pkg{GeDS} methodology, extending it towards the benchmark of generalized
-additive models (GAM) and functional gradient boosting (FGB). On the one hand,
-generalized additive models are encompassed by implementing the
-\emph{local-scoring} algorithm using normal GeD splines (i.e., 
-\code{\link{NGeDS}}) as function smoothers within the \emph{backfitting}
-iterations. This is implemented via the function \code{\link{NGeDSgam}}. On
-the other hand, \pkg{GeDS} package incorporates functional gradient descent
-algorithm by utilizing normal GeD splines (i.e., \code{\link{NGeDS}}) as base
-learners. This is implemented via the function \code{\link{NGeDSboost}}.
+\pkg{GeDS} methodology, to incorporate generalized additive models (GAM) and
+functional gradient boosting (FGB). On the one hand, generalized additive
+models are encompassed by implementing the \emph{local-scoring} algorithm
+using normal GeD splines (i.e., \code{\link{NGeDS}}) as function smoothers
+within the \emph{backfitting} iterations. This is implemented via the function
+\code{\link{NGeDSgam}}. On the other hand, the \pkg{GeDS} package incorporates
+the functional gradient descent algorithm by utilizing normal GeD splines (i.e.,
+\code{\link{NGeDS}}) as base learners. This is implemented via the function
+\code{\link{NGeDSboost}}.
 
 The outputs of both \code{\link{NGeDS}} and \code{\link{GGeDS}} functions are
 \code{\link{GeDS-class}} objects, while the outputs of \code{\link{NGeDSgam}}
@@ -72,10 +71,10 @@ described in stage B of the algorithm. However, \code{\link{GeDS-class}},
 second, third and fourth order spline fits and the user has the possibility
 to choose among them.
 
-This package also includes some datasets where GeDS regression proves to be
-very efficient and some user friendly functions that are designed to easily
-extract required information. Several methods are also provided to handle
-GeDS, GAM-GeDS and FGB-GeDS output results (see \code{\link{GeDS-class}},
+The \pkg{GeDS} package also includes some datasets where GeDS regression
+proves to be very efficient and some user friendly functions that are designed
+to easily extract required information. Several methods are also provided to
+handle GeDS, GAM-GeDS and FGB-GeDS output results (see \code{\link{GeDS-class}},
 \code{\link{GeDSgam-class}} and \code{\link{GeDSboost-class}}, respectively).
 
 Throughout this document, we use the terms GeDS predictor model, GeDS
@@ -106,7 +105,15 @@ DOI: \doi{10.1016/j.amc.2022.127493}
 Dimitrova, D. S., Guillen, E. S. and Kaishev, V. K.  (2024).
 \pkg{GeDS}: An \proglang{R} Package for Regression, Generalized Additive
 Models and Functional Gradient Boosting, based on Geometrically Designed
-(GeD) Splines.
+(GeD) Splines. \emph{Manuscript submitted for publication.}
+}
+\seealso{
+Useful links:
+\itemize{
+  \item \url{https://github.com/emilioluissaenzguillen/GeDS}
+  \item Report bugs at \url{https://github.com/emilioluissaenzguillen/GeDS/issues}
+}
+
 }
 \author{
 Dimitrina S. Dimitrova <D.Dimitrova@city.ac.uk>,

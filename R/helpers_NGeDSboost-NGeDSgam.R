@@ -13,8 +13,23 @@ rescale_weights<- function (weights) {
   return(weights/sum(weights) * sum(weights > 0))
 }
 
+############################
+## 2. validate_iterations ##
+############################
+validate_iterations <- function(iterations, default, name) {
+  if (missing(iterations) || is.null(iterations)) {
+    iterations <- default
+  } else if (!is.numeric(iterations) || iterations %% 1 != 0 || iterations < 0) {
+    warning(sprintf("%s must be a non-negative integer; was set to %dL", name, default))
+    iterations <- default
+  } else {
+    iterations <- as.integer(iterations)
+  }
+  return(iterations)
+}
+
 ##########################
-## 2. get_mboost_family ##
+## 3. get_mboost_family ##
 #########################
 #' @import mboost
 #' @import stats
@@ -42,7 +57,7 @@ get_mboost_family <- function(family) {
 
 
 #######################################################################################################
-## 3. Function to get which is the last row with at least one non-NA in Coefficients/Stored matrices ##
+## 4. Function to get which is the last row with at least one non-NA in Coefficients/Stored matrices ##
 #######################################################################################################
 last_row_with_value <- function(matrix) {
   non_na_rows <- which(!apply(is.na(matrix), 1, all))
@@ -54,7 +69,7 @@ last_row_with_value <- function(matrix) {
 }
 
 ###########################################
-## 4. Function to get the internal knots ##
+## 5. Function to get the internal knots ##
 ###########################################
 get_internal_knots <- function(knots, depth = 1) {
   # Helper function to extract internal knots
@@ -82,7 +97,7 @@ get_internal_knots <- function(knots, depth = 1) {
 }
 
 ###################################################################################
-## 5. Function for computing GeDS-class object linear predictions (i.e. stage A) ##
+## 6. Function for computing GeDS-class object linear predictions (i.e. stage A) ##
 ###################################################################################
 #' @importFrom stats na.omit
 predict_GeDS_linear <- function(Gmod, X, Y, Z){
@@ -193,7 +208,7 @@ predict_GeDS_linear <- function(Gmod, X, Y, Z){
 }
 
 ############################################################################
-## 6. Function for computing piecewise multivariate additive linear model ##
+## 7. Function for computing piecewise multivariate additive linear model ##
 ############################################################################
 piecewise_multivar_linear_model <- function(X, model, base_learners = NULL) {
   
@@ -230,9 +245,9 @@ piecewise_multivar_linear_model <- function(X, model, base_learners = NULL) {
 }
 
 #####################################################
-## 7. Function for computing additive linear model ##
+## 8. Function for computing additive linear model ##
 #####################################################
-# 7.1. Univariate base-learners
+# 8.1. Univariate base-learners
 univariate_bl_linear_model <- function(pred_vars, model, shrinkage, base_learners = NULL) {
   
   # Initialize output vector
@@ -261,7 +276,7 @@ univariate_bl_linear_model <- function(pred_vars, model, shrinkage, base_learner
   return(Y_hat)
 }
 
-# 7.2. Bivariate base-learners
+# 8.2. Bivariate base-learners
 bivariate_bl_linear_model <- function(pred_vars, model, shrinkage, base_learners = NULL, type = "boost") {
   
   # Initialize output vector
@@ -307,7 +322,7 @@ bivariate_bl_linear_model <- function(pred_vars, model, shrinkage, base_learners
 
 
 ################################
-### 8. compute_avg_int.knots ###
+### 9. compute_avg_int.knots ###
 ################################
 # Function for computing the internal knots of base learners (averaging knot location, stage B.1.)
 compute_avg_int.knots <- function(final_model, base_learners = base_learners, X_sd, X_mean, normalize_data, n) {

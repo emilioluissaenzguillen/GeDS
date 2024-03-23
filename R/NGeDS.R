@@ -180,13 +180,22 @@
 #'  sin(2*x[,1])*sin(2*x[,2])
 #' }
 #'
-#' x <- (round(runif(400, min = 0, max = 3),2))
-#' y <- (round(runif(400, min = 0, max = 3),2))
-#' z <- doublesin(cbind(x,y))
-#' z <- z+rnorm(400, 0, sd = 0.1)
+#' X <- (round(runif(400, min = 0, max = 3),2))
+#' Y <- (round(runif(400, min = 0, max = 3),2))
+#' Z <- doublesin(cbind(X,Y))
+#' Z <- Z+rnorm(400, 0, sd = 0.1)
 #' # Fit a two dimensional GeDS model using NGeDS
-#' (BivGeDS <- NGeDS(z ~ f(x, y) , phi = 0.9, beta = 0.3,
+#' (BivGeDS <- NGeDS(Z ~ f(X, Y) , phi = 0.9, beta = 0.3,
 #' Xextr = c(0, 3), Yextr = c(0, 3)))
+#' 
+#' coef(BivGeDS, n = 3)
+#' knots(BivGeDS, n = 3)
+#' deviance(BivGeDS, n = 3)
+#' 
+#' # Surface plot of the generating function (doublesin)
+#' plot(BivGeDS, f = doublesin)
+#' # Surface plot of the fitted model
+#' plot(BivGeDS)
 #' 
 #' @seealso \link{GGeDS}; \link{GeDS-Class}; S3 methods such as \link{coef.GeDS},
 #' \link{deviance.GeDS}, \link{knots.GeDS}, \link{print.GeDS} and

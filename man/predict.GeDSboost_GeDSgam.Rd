@@ -29,5 +29,5 @@ Numeric vector of predictions (vector of means).
 \description{
 This method computes predictions from GeDSboost and GeDSgam objects. 
 It is designed to be user-friendly and accommodate different orders of the
-GeDSboost or GeDSgam fit.
+GeDSboost or GeDSgam fits.
 }

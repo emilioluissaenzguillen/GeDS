@@ -6,7 +6,7 @@
 #' @title Lines method for GeDS objects.
 #' @name lines,GeDS-method
 #' @description
-#' Lines method for GeDS objects. Adds a GeDS curve to an existing plot.#' 
+#' Lines method for GeDS objects. Adds a GeDS curve to an existing plot. 
 #' @param x a \code{\link{GeDS-Class}} object from which the GeDS fit should be
 #' extracted.
 #' @param n integer value (2, 3 or 4) specifying the order (\eqn{=} degree
@@ -72,13 +72,18 @@ setMethod("lines", signature(x = "GeDS"),  function(x , n=3L,
                                                     data = data.frame(), ...)
   {
   object <- x
-  if(object$Type== "LM - Biv") stop("Works only with univariate spline objects")
+  if(object$Type == "LM - Biv" || object$Type == "GLM - Biv") stop("Works only with univariate spline objects")
+  
   extr <- object$Args$extr
+  
+  # Check if order is correctly set
   n <- as.integer(n)
   if(!(n %in% 2L:4L)) {
     n <- 3L
     warning("'n' incorrectly specified. Set to 3.")
   }
+  
+  # Extract fit
   if(n == 3L){
     temp <- object$Quadratic
   }
@@ -88,43 +93,55 @@ setMethod("lines", signature(x = "GeDS"),  function(x , n=3L,
   if(n == 2L){
     temp <- object$Linear
   }
+  
   kn <- knots.GeDS(Fn = object, n = n, options= "internal")
   fitters <- F
   if(is.null(object$terms)) fitters <- T
-  if(fitters){
+  if (fitters) {
     Predicted <- temp$Predicted
     Xvalues <- object$Args$X
+    
   } else {
-    if(!missing(data)){
+    
+    if(!missing(data)) {
       dati2 <- read.formula(object$Formula,data)
       Xvalues <- dati2$X
-      mm <- splineDesign(knots=sort(c(kn,rep(extr,n))),
-                         derivs=rep(0,length(Xvalues)),x=Xvalues,ord=n,outer.ok = T)
-      if(!onlySpline & !is.null(object$Args$Z))
-        mm <- cbind(mm,dati2$Z)
-      offset <- if(!onlySpline & !is.null(object$Args$offset))
-        dati2$offset else
+      
+      mm <- splineDesign(knots = sort(c(kn,rep(extr,n))), derivs = rep(0,length(Xvalues)),
+                         x = Xvalues, ord = n, outer.ok = T)
+      if (!onlySpline && !is.null(object$Args$Z)) mm <- cbind(mm,dati2$Z)
+      
+      offset <- if(!onlySpline && !is.null(object$Args$offset)) {
+        dati2$offset
+        } else {
           rep(0,length(Xvalues))
+        }
+      
     } else {
       Xvalues <- object$Args$X
-      if(onlySpline & length(unique(Xvalues))<1000) {
-        step <- (range(extr)[2]-range(extr)[1])/(1000)
+      if(onlySpline && length(unique(Xvalues)) < 1000) {
+        step <- (range(extr)[2] - range(extr)[1])/(1000)
         step <- rep(step,(1000))
         Xvalues <- min(extr)+c(0,cumsum(step))
       }
-      mm <- splineDesign(knots=sort(c(kn,rep(extr,n))),
-                         derivs=rep(0,length(Xvalues)),x=Xvalues,ord=n,outer.ok = T)
-      if(!onlySpline & !is.null(object$Args$Z))
-        mm <- cbind(mm,object$Args$Z)
-      offset <- if(!onlySpline & !is.null(object$Args$offset))
-        object$Args$offset else
+      
+      mm <- splineDesign(knots = sort(c(kn,rep(extr,n))), derivs = rep(0,length(Xvalues)),
+                         x = Xvalues, ord = n, outer.ok = T)
+      if(!onlySpline && !is.null(object$Args$Z)) mm <- cbind(mm, object$Args$Z)
+      
+      offset <- if(!onlySpline && !is.null(object$Args$offset)) {
+        object$Args$offset
+        } else {
           rep(0,length(Xvalues))
+          }
     }
+    
     th <- coef.GeDS(object, n=n, onlySpline = onlySpline)
-    Predicted <- mm%*%th + offset}
-
+    Predicted <- mm%*%th + offset
+  }
+  
   Predicted <- transform(Predicted)
-  lines.default(Xvalues,Predicted,...)
+  lines.default(Xvalues, Predicted,...)
 }
 )
 

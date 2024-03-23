@@ -12,8 +12,8 @@ NGeDSboost(
   family = mboost::Gaussian(),
   initial_learner = TRUE,
   int.knots_init = 2L,
-  min_iterations = 0L,
-  max_iterations = 100L,
+  min_iterations,
+  max_iterations,
   shrinkage = 1,
   phi_boost_exit = 0.995,
   q_boost = 2L,
@@ -44,7 +44,7 @@ normalized (standardized) before fitting the baseline linear model, i.e.,
 before running the FGB algorithm. Normalizing the data involves scaling the
 predictor variables to have a mean of 0 and a standard deviation of 1. This
 process alters the scale and interpretation of the knots and coefficients
-estimated.}
+estimated. Default is equal to \code{FALSE}.}
 
 \item{family}{determines the loss function to be optimized by the boosting
 algorithm. In case \code{initial_learner = FALSE} it also determines the
@@ -62,11 +62,17 @@ to the specified family. Note that if \code{initial_learner = TRUE},
 maximum number of internal knots to be added by the initial GeDS learner in
 case \code{initial_learner = TRUE}. Default is equal to \code{2L}.}
 
-\item{min_iterations}{optional parameter allowing the user to set a minimum
-number of boosting iterations to be run.}
+\item{min_iterations}{optional parameter to manually set a minimum number of
+boosting iterations to be run. If not specified, it defaults to 0L.}
 
-\item{max_iterations}{optional parameter allowing the user to set a maximum
-number of boosting iterations to be run.}
+\item{max_iterations}{optional parameter to manually set the maximum number
+of boosting iterations to be run. If not specified, it defaults to 100L.
+This setting serves as a fallback when the stopping rule, based on
+consecutive deviances and tuned by \code{phi_boost_exit} and \code{q_boost},
+does not trigger an earlier termination (see Dimitrova et al. (2024)).
+Therefore, users can increase/decrease the number of boosting iterations,
+by increasing/decreasing the value \code{phi_boost_exit} and/or#
+\code{q_boost}, or directly specify \code{max_iterations}.}
 
 \item{shrinkage}{numeric parameter in the interval \eqn{[0,1]} defining the
 step size or shrinkage parameter. This controls the size of the steps taken
@@ -116,7 +122,7 @@ order to make these objects tractable, such as
 \description{
 \code{NGeDSboost} performs component-wise gradient boosting (Bühlmann and Yu
 (2003), Bühlmann and Hothorn (2007)) using normal GeD splines (i.e., fitted
-with \code{\link{NGeDS}} function) as base-learners.
+with \code{\link{NGeDS}} function) as base-learners (see Dimitrova et al. (2024)).
 }
 \details{
 The  \code{NGeDSboost} function implements functional gradient boosting
@@ -260,6 +266,11 @@ Geometrically designed variable knot splines in generalized (non-)linear
 models.
 \emph{Applied Mathematics and Computation}, \strong{436}. \cr
 DOI: \doi{10.1016/j.amc.2022.127493}
+
+Dimitrova, D. S., Guillen, E. S. and Kaishev, V. K.  (2024).
+\pkg{GeDS}: An \proglang{R} Package for Regression, Generalized Additive
+Models and Functional Gradient Boosting, based on Geometrically Designed
+(GeD) Splines. \emph{Manuscript submitted for publication.}
 }
 \seealso{
 \code{\link{NGeDS}}; \code{\link{GGeDS}}; \code{\link{GeDSboost-Class}};

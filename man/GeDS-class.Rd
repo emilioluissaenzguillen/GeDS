@@ -6,7 +6,7 @@
 \alias{GeDS-Class}
 \title{GeDS Class}
 \description{
-A fitted GeDS object returned by functions \code{\link{NGeDS}} or
+A fitted GeDS object returned by the functions \code{\link{NGeDS}} or
 \code{\link{GGeDS}} inheriting the methods from class \code{"GeDS"}. Methods
 for functions \code{coef}, \code{knots}, \code{print}, \code{predict},
 \code{plot}, and \code{lines} are available.
@@ -34,6 +34,9 @@ order GeDS spline fitted in stage B.}
 \item{\code{Dev.Quadratic}}{Deviance of the third order GeD spline fit of stage B.}
 
 \item{\code{Dev.Cubic}}{Deviance of the fourth order GeD spline fit of stage B.}
+
+\item{\code{RSS}}{Vector containing the deviances of the second order spline
+fits computed at each GeDS iteration in stage A.}
 
 \item{\code{Linear}}{List containing the results from running a \code{\link{SplineReg}}
 function used to fit the second order spline of stage A.}

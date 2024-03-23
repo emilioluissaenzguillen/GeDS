@@ -41,7 +41,7 @@ object \code{x} itself.}
 \code{\link[graphics]{lines}} function.}
 }
 \description{
-Lines method for GeDS objects. Adds a GeDS curve to an existing plot.#'
+Lines method for GeDS objects. Adds a GeDS curve to an existing plot.
 }
 \details{
 This method can be used to add a curve corresponding to a particular GeDS fit

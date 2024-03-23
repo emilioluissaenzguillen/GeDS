@@ -13,7 +13,7 @@
 \item{object}{A \code{\link{GeDSboost-Class}} object.}
 }
 \description{
-This function plots the \code{\link{NGeDSboost}} fit over data at the
+This function plots the \code{\link{NGeDSboost}} fit to the data at the
 beginning of a given boosting iteration and then plots the subsequent
 \code{\link{NGeDS}} fit on the corresponding residual (negative gradient).
 Note: Applicable only for \code{\link{NGeDSboost}} models with one covariate

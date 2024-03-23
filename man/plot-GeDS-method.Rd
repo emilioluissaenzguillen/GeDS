@@ -7,6 +7,7 @@
 \usage{
 \S4method{plot}{GeDS}(
   x,
+  f = NULL,
   which,
   DEV = FALSE,
   ask = FALSE,
@@ -15,13 +16,17 @@
   new.window = FALSE,
   wait = 0.5,
   n = 3L,
-  type = c("Polygon", "NCI", "ACI", "none"),
+  type = c("none", "Polygon", "NCI", "ACI"),
   ...
 )
 }
 \arguments{
 \item{x}{a \code{\link{GeDS-Class}} object from which the GeDS fit(s) should
 be extracted.}
+
+\item{f}{(optional) specifies the underlying function or generating process
+to which the model was fit. This parameter is useful if the user wishes to
+plot the specified function/process alongside the model fit and the data}
 
 \item{which}{a numeric vector specifying the iterations of stage A for which
 the corresponding GeDS fits should be plotted.

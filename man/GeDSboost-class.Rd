@@ -6,7 +6,7 @@
 \alias{GeDSboost-Class}
 \title{GeDSboost Class}
 \description{
-A fitted GeDSboost object returned by function \code{\link{NGeDSboost}}
+A fitted GeDSboost object returned by the function \code{\link{NGeDSboost}}
 inheriting the methods from class \code{"GeDSboost"}. Methods for functions
 \code{coef}, \code{knots}, \code{print}, \code{predict},
 \code{visualize_boosting}, and \code{bl_imp} are available.
@@ -16,17 +16,41 @@ inheriting the methods from class \code{"GeDSboost"}. Methods for functions
 \describe{
 \item{\code{extcall}}{call to the \code{\link{NGeDSboost}} function.}
 
-\item{\code{formula}}{A formula object representing the model to be fit.}
+\item{\code{formula}}{A formula object representing the model to be fitted.}
 
 \item{\code{args}}{A list containing the arguments passed to the \code{\link{NGeDSboost}}
 function. This list includes:
 \itemize{
-  \item \code{response}: \code{data.frame} containing the response variable.
-  \item \code{predictors}: \code{data.frame} containing the predictor
-  variables included in the model.
+  \item \code{response}: \code{data.frame} containing observations of the
+  response variable.
+  \item \code{predictors}: \code{data.frame} containing observations of the
+  vector of predictor variables included in the model.
   \item \code{base_learners}: description of model's base learners.
-  \item \code{family}: the statistical family (e.g., \code{mboost:Gaussian()},
-  \code{mboost:Binomial()},...).
+  \item \code{family}: the statistical family. The possible options are
+  \itemize{
+  \item \code{mboost::AdaExp()}
+  \item \code{mboost::AUC()}
+  \item \code{mboost::Binomial(type = c("adaboost", "glm"),
+  link = c("logit", "probit", "cloglog", "cauchit", "log"), ...)}
+  \item \code{mboost::Gaussian()}
+  \item \code{mboost::Huber(d = NULL)}
+  \item \code{mboost::Laplace()}
+  \item \code{mboost::Poisson()}
+  \item \code{mboost::GammaReg(nuirange = c(0, 100))}
+  \item \code{mboost::CoxPH()}
+  \item \code{mboost::QuantReg(tau = 0.5, qoffset = 0.5)}
+  \item \code{mboost::ExpectReg(tau = 0.5)}
+  \item \code{mboost::NBinomial(nuirange = c(0, 100))}
+  \item \code{mboost::PropOdds(nuirange = c(-0.5, -1), offrange = c(-5, 5))}
+  \item \code{mboost::Weibull(nuirange = c(0, 100))}
+  \item \code{mboost::Loglog(nuirange = c(0, 100))}
+  \item \code{mboost::Lognormal(nuirange = c(0, 100))}
+  \item \code{mboost::Gehan()}
+  \item \code{mboost::Hurdle(nuirange = c(0, 100))}
+  \item \code{mboost::Multinomial()}
+  \item \code{mboost::Cindex(sigma = 0.1, ipcw = 1)}
+  \item \code{mboost::RCG(nuirange = c(0, 1), offrange = c(-5, 5))}   
+  }   
   \item \code{initial_learner}: if \code{TRUE} a \code{\link{NGeDS}} fit was
   used as initial learner; otherwise, the empirical risk minimizer
   corresponding to the selected \code{family} was employed.
@@ -65,13 +89,13 @@ model it includes the quadratic and cubic fits obtained through Schoenberg
 variation diminishing spline approximation. These include the same elements
 as \code{Quadratic} and \code{Cubic} in a \code{\link{GeDS-class}} object
 (see \code{\link{SplineReg}} for details). \code{best_bl} is eliminated to
-simplify the output.#'}
+simplify the output.}
 
 \item{\code{predictions}}{A list containing the predicted values obtained (linear,
 quadratic, and cubic).}
 
-\item{\code{internal_knots}}{A list detailing the internal knots obtained for the
-different fit types (linear, quadratic, and cubic).}
+\item{\code{internal_knots}}{A list detailing the internal knots obtained for the fits
+of different order (linear, quadratic, and cubic).}
 }}
 
 \references{
@@ -80,4 +104,9 @@ Geometrically designed variable knot splines in generalized (non-)linear
 models.
 \emph{Applied Mathematics and Computation}, \strong{436}. \cr
 DOI: \doi{10.1016/j.amc.2022.127493}
+
+Dimitrova, D. S., Guillen, E. S. and Kaishev, V. K.  (2024).
+\pkg{GeDS}: An \proglang{R} Package for Regression, Generalized Additive
+Models and Functional Gradient Boosting, based on Geometrically Designed
+(GeD) Splines. \emph{Manuscript submitted for publication.}
 }

@@ -716,7 +716,7 @@ GenBivariateFitter <- function(X, Y, Z, W, family = family, weights = rep(1,leng
                                n = 4, family = family, mustart = guess_sq)
       }
     
-  out <- list("Type" = "GLM - biv","Linear.Knots"=list("Xk" = llX,"Yk" = llY),"Quadratic.Knots"=list("Xk" = qqX,"Yk" = qqY),
+  out <- list("Type" = "GLM - Biv","Linear.Knots"=list("Xk" = llX,"Yk" = llY),"Quadratic.Knots"=list("Xk" = qqX,"Yk" = qqY),
               "Cubic.Knots"=list("Xk" = ccX,"Yk" = ccY),"Dev.Linear" = lin$RSS, "Dev.Quadratic" = squ$RSS,"Dev.Cubic" = cub$RSS,
               "RSS" = RSSnew, "Linear" = lin, "Quadratic" = squ, "Cubic" = cub, "Stored" = previousX, "Args"= args,
               "Call"= save, "Nintknots"= list("X"= length(llX), "Y"= length(llY)),"iters" = j, "Guesses" = NULL,

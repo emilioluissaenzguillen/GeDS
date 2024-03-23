@@ -273,6 +273,41 @@ plot(Age, quasibinomial()$linkfun(Rate), ylab = expression(logit(q[x])), xlab = 
 lines(M2, n = 3, lwd = 1, col = "red")
 par(op)
 
+#########################################
+# bivariate example
+set.seed(123)
+doublesin <- function(x) {
+# Adjusting the output to ensure it's positive
+exp(sin(2*x[,1]) + sin(2*x[,2]))
+}
+X <- round(runif(400, min = 0, max = 3), 2)
+Y <- round(runif(400, min = 0, max = 3), 2)
+# Calculate lambda for Poisson distribution
+lambda <- doublesin(cbind(X,Y))
+# Generate Z from Poisson distribution
+Z <- rpois(400, lambda)
+data <- data.frame(X, Y, Z)
+
+# Fit a Poisson GeDS regression using GGeDS
+BivGeDS <- GGeDS(Z ~ f(X,Y), beta = 0.3, phi = 0.9, family = "poisson",
+Xextr = c(0, 3), Yextr = c(0, 3))
+
+# MSEs w.r.t data
+mean((Z-BivGeDS$Linear$Predicted)^2)
+mean((Z-BivGeDS$Quadratic$Predicted)^2)
+mean((Z-BivGeDS$Cubic$Predicted)^2)
+
+# MSEs w.r.t true function
+f_XY <- apply(cbind(X, Y), 1, function(row) doublesin(matrix(row, ncol = 2)))
+mean((f_XY - BivGeDS$Linear$Predicted)^2)
+mean((f_XY - BivGeDS$Quadratic$Predicted)^2)
+mean((f_XY - BivGeDS$Cubic$Predicted)^2)
+
+# Surface plot of the generating function (doublesin)
+plot(BivGeDS, f = doublesin)
+# Surface plot of the fitted model
+plot(BivGeDS)
+
 }
 \references{
 Kaishev, V.K., Dimitrova, D.S., Haberman, S. and Verrall, R.J. (2016).

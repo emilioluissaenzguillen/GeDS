@@ -8,7 +8,7 @@
 #' @description
 #' \code{NGeDSboost} performs component-wise gradient boosting (Bühlmann and Yu
 #' (2003), Bühlmann and Hothorn (2007)) using normal GeD splines (i.e., fitted
-#' with \code{\link{NGeDS}} function) as base-learners.
+#' with \code{\link{NGeDS}} function) as base-learners (see Dimitrova et al. (2024)).
 #' @param formula a description of the structure of the model to be fitted,
 #' including the dependent and independent variables. Unlike \code{\link{NGeDS}}
 #' and \code{\link{GGeDS}}, the formula specified allows for multiple additive
@@ -25,7 +25,7 @@
 #' before running the FGB algorithm. Normalizing the data involves scaling the
 #' predictor variables to have a mean of 0 and a standard deviation of 1. This
 #' process alters the scale and interpretation of the knots and coefficients
-#' estimated.
+#' estimated. Default is equal to \code{FALSE}.
 #' @param family determines the loss function to be optimized by the boosting
 #' algorithm. In case \code{initial_learner = FALSE} it also determines the
 #' corresponding empirical risk minimizer to be used as offset initial learner.
@@ -39,10 +39,16 @@
 #' @param int.knots_init optional parameter allowing the user to set a
 #' maximum number of internal knots to be added by the initial GeDS learner in
 #' case \code{initial_learner = TRUE}. Default is equal to \code{2L}.
-#' @param min_iterations optional parameter allowing the user to set a minimum
-#' number of boosting iterations to be run. 
-#' @param max_iterations optional parameter allowing the user to set a maximum
-#' number of boosting iterations to be run.
+#' @param min_iterations optional parameter to manually set a minimum number of
+#' boosting iterations to be run. If not specified, it defaults to 0L.
+#' @param max_iterations optional parameter to manually set the maximum number
+#' of boosting iterations to be run. If not specified, it defaults to 100L.
+#' This setting serves as a fallback when the stopping rule, based on
+#' consecutive deviances and tuned by \code{phi_boost_exit} and \code{q_boost},
+#' does not trigger an earlier termination (see Dimitrova et al. (2024)).
+#' Therefore, users can increase/decrease the number of boosting iterations,
+#' by increasing/decreasing the value \code{phi_boost_exit} and/or#
+#' \code{q_boost}, or directly specify \code{max_iterations}.
 #' @param shrinkage numeric parameter in the interval \eqn{[0,1]} defining the
 #' step size or shrinkage parameter. This controls the size of the steps taken
 #' in the direction of the gradient of the loss function. In other words, the
@@ -235,14 +241,19 @@
 #' models.
 #' \emph{Applied Mathematics and Computation}, \strong{436}. \cr
 #' DOI: \doi{10.1016/j.amc.2022.127493}
+#' 
+#' Dimitrova, D. S., Guillen, E. S. and Kaishev, V. K.  (2024).
+#' \pkg{GeDS}: An \proglang{R} Package for Regression, Generalized Additive
+#' Models and Functional Gradient Boosting, based on Geometrically Designed
+#' (GeD) Splines. \emph{Manuscript submitted for publication.}
 
 ##################
 ### NGeDSboost ###
 ##################
 NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE,
                        family = mboost::Gaussian(), initial_learner = TRUE,
-                       int.knots_init = 2L, min_iterations = 0L,
-                       max_iterations = 100L, shrinkage = 1,
+                       int.knots_init = 2L, min_iterations,
+                       max_iterations, shrinkage = 1,
                        phi_boost_exit = 0.995, q_boost = 2L, beta = 0.5,
                        phi = 0.99, internal_knots = 500L, q = 2L,
                        higher_order = TRUE)
@@ -281,6 +292,10 @@ NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE,
   risk <- family@risk
   offset <- family@offset
   check_y_family <- family@check_y
+  
+  # Min/max iterations
+  min_iterations <- validate_iterations(min_iterations, 0L, "min_iterations")
+  max_iterations <- validate_iterations(max_iterations, 100L, "max_iterations")
   
   # Save arguments
   args <- list(

@@ -76,18 +76,19 @@ SplineReg_fast_weighted_zed <- function(X, Y, Z, offset,
                                         weights = rep(1, length(X)), InterKnots,
                                         n, extr = range(X))
 {
-  matrice <- splineDesign(knots=sort(c(InterKnots,rep(extr,n))),derivs=rep(0,length(X)),x=X,ord=n,outer.ok = T)
+  matrice <- splineDesign(knots = sort(c(InterKnots, rep(extr,n))),
+                          derivs = rep(0,length(X)), x = X, ord = n, outer.ok = TRUE)
   matrice2 <- cbind(matrice,Z)
   
   Y0 <- Y-offset
-  tmp <-  if(all(weights==1)) .lm.fit(matrice2, Y0) else lm.wfit.light(matrice2, Y0,weights)
+  tmp <-  if(all(weights==1)) .lm.fit(matrice2, Y0) else lm.wfit.light(matrice2, Y0, weights)
   theta <- coef(tmp)
-  predicted <- matrice2%*%theta+offset
+  predicted <- matrice2 %*% theta + offset
   resid <- Y - predicted
-  out <- list("Theta"=theta,"Predicted"=predicted,
-              "Residuals"=resid,"RSS"=t(resid)%*%resid,
-              "Basis"= matrice2,
-              "temporary"=tmp)
+  out <- list("Theta" = theta,"Predicted" = predicted,
+              "Residuals" = resid, "RSS" = t(resid)%*%resid,
+              "Basis" = matrice2,
+              "temporary" = tmp)
   return(out)
 }
 
@@ -98,13 +99,13 @@ SplineReg_fast_biv <- function(X, Y, Z, W=NULL, weights = rep(1, length(X)),
                                Yextr = range(Y), flag=TRUE, 
                                center = c(sum(Xextr)/2,sum(Yextr)/2))
   {
-  matriceX <- splineDesign(knots=sort(c(InterKnotsX,rep(Xextr,n))),derivs=rep(0,length(X)),
-                           x=X,ord=n,outer.ok = T)
-  matriceY <- splineDesign(knots=sort(c(InterKnotsY,rep(Yextr,n))),derivs=rep(0,length(Y)),
-                           x=Y,ord=n,outer.ok = T)
+  matriceX <- splineDesign(knots = sort(c(InterKnotsX, rep(Xextr,n))), derivs = rep(0,length(X)),
+                           x = X, ord = n, outer.ok = TRUE)
+  matriceY <- splineDesign(knots = sort(c(InterKnotsY, rep(Yextr,n))), derivs = rep(0,length(Y)),
+                           x = Y, ord = n, outer.ok = T)
   matriceY_noint <- cut_int(matriceY)
-  matricebiv <- tensorProd(matriceX,matriceY_noint)
-  matricebiv2 <- cbind(matricebiv,W)
+  matricebiv <- tensorProd(matriceX, matriceY_noint)
+  matricebiv2 <- cbind(matricebiv, W)
   
   
   #fff <- !rankMatrix(matricebiv)==8
@@ -129,10 +130,10 @@ SplineReg_fast_biv <- function(X, Y, Z, W=NULL, weights = rep(1, length(X)),
   }
   theta <- as.numeric(coef(tmp))
   #  theta[is.na(theta)] <- 0
-  out <- list("Theta"=theta,"Predicted"=matricebiv2%*%theta,
-              "Residuals"=resid,"RSS"=t(resid)%*%resid,
-              "XBasis"= matriceX, "YBasis"= matriceY_noint,#"Poly"=poly,
-              "temporary"=tmp)
+  out <- list("Theta" = theta, "Predicted" = matricebiv2%*%theta,
+              "Residuals" = resid, "RSS" = t(resid)%*%resid,
+              "XBasis" = matriceX, "YBasis" = matriceY_noint, #"Poly"=poly,
+              "temporary" = tmp)
   return(out)
 }
 

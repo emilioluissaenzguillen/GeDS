@@ -94,7 +94,7 @@ coef.GeDS <- function(object, n = 3L, onlySpline = TRUE, ...)
     theta <- object$Linear$Theta
     if (object$Type == "LM - Univ" || object$Type == "GLM - Univ") {
       nth <- length(object$Linear$Polygon$Kn)
-      } else if (object$Type == "LM - Biv") {
+      } else if (object$Type == "LM - Biv" || object$Type == "GLM - Biv") {
         nth <- NCOL(object$Linear$XBasis) * NCOL(object$Linear$YBasis)
         }
   # 2. Quadratic
@@ -102,7 +102,7 @@ coef.GeDS <- function(object, n = 3L, onlySpline = TRUE, ...)
       theta <- object$Quadratic$Theta
       if (object$Type == "LM - Univ" || object$Type == "GLM - Univ") {
         nth <- length(object$Quadratic$Polygon$Kn)
-        } else if (object$Type == "LM - Biv") {
+        } else if (object$Type == "LM - Biv" || object$Type == "GLM - Biv") {
           nth <- NCOL(object$Quadratic$XBasis) * NCOL(object$Quadratic$YBasis)
           }
   # 3. Cubic
@@ -110,12 +110,12 @@ coef.GeDS <- function(object, n = 3L, onlySpline = TRUE, ...)
         theta <- object$Cubic$Theta
         if (object$Type == "LM - Univ" || object$Type == "GLM - Univ") {
           nth <- length(object$Cubic$Polygon$Kn)
-          } else if (object$Type == "LM - Biv") {
+          } else if (object$Type == "LM - Biv" || object$Type == "GLM - Biv") {
             nth <- NCOL(object$Cubic$XBasis) * NCOL(object$Cubic$YBasis)
           }
       }
   
-  if(!is.null(object$Args$Z) & !onlySpline){
+  if(!is.null(object$Args$Z) && !onlySpline){
     znames <- attr(object$terms,"term.labels")[-1]
     names(theta) <- c(paste0("N",1:nth),znames)
   } else {
@@ -268,7 +268,7 @@ knots.GeDS <- function(Fn, n = 3L, options = c("all","internal"), ...)
   if (options == "all") {
     if(Fn$Type == "LM - Univ" || Fn$Type == "GLM - Univ"){
       kn <- sort(c(rep(Fn$Args$extr,n), kn))
-    } else if (Fn$Type =="LM - Biv") {
+    } else if (Fn$Type =="LM - Biv" || Fn$Type =="GLM - Biv") {
       kn$Xk <- sort(c(rep(Fn$Args$Xextr,n), kn$Xk))
       kn$Yk <- sort(c(rep(Fn$Args$Yextr,n), kn$Yk))
     }
@@ -379,10 +379,10 @@ predict.GeDS <- function(object, newdata,
       }
     
     # Knots
-    kn <- knots(object, n = n, options="all")
-    if(min(X)<min(kn) | max(X)>max(kn)) warning("Input values out of the boundary knots")
+    kn <- knots(object, n = n, options = "internal")
+    if (min(X) < object$Args$extr[1] || object$Args$extr[2] > max(kn)) warning("Input values out of the boundary knots")
     # Design matrix
-    matrice <- splineDesign(knots = kn, derivs = rep(0,length(X)), x = X, ord = n, outer.ok = T)
+    matrice <- splineDesign(knots = sort(c(kn, rep(range(X), n))), derivs = rep(0,length(X)), x = X, ord = n, outer.ok = T)
     
     type <- match.arg(type)
     
@@ -416,7 +416,7 @@ predict.GeDS <- function(object, newdata,
       }
     
   # 2. Bivariate
-  } else if (object$Type == "LM - Biv") {
+  } else if (object$Type == "LM - Biv" || object$Type == "GLM - Biv") {
     
     # If newdata was not provided
     if (missing(newdata) || is.null(newdata)) {
@@ -566,7 +566,7 @@ print.GeDS <- function(x, digits = max(3L, getOption("digits") - 3L), ...)
     
     
   # 2) Bivariate
-  } else if (x$Type == "LM - Biv") {
+  } else if (x$Type == "LM - Biv" || x$Type == "GLM - Biv") {
     
     if(length(kn[[1]])||length(kn[[2]])) {
       

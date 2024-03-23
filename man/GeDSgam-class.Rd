@@ -6,7 +6,7 @@
 \alias{GeDSgam-Class}
 \title{GeDSgam Class}
 \description{
-A fitted GeDSgam object returned by function \code{\link{NGeDSgam}}
+A fitted GeDSgam object returned by the function \code{\link{NGeDSgam}}
 inheriting the methods from class \code{"GeDSgam"}. Methods for functions
 \code{coef}, \code{knots}, \code{print} and \code{predict}.
 }
@@ -15,18 +15,28 @@ inheriting the methods from class \code{"GeDSgam"}. Methods for functions
 \describe{
 \item{\code{extcall}}{call to the \code{\link{NGeDSgam}} function.}
 
-\item{\code{formula}}{A formula object representing the model to be fit.#'}
+\item{\code{formula}}{A formula object representing the model to be fitted.}
 
 \item{\code{args}}{A list containing the arguments passed to the \code{\link{NGeDSgam}}
 function. This list includes:
 \itemize{
-  \item \code{response}: \code{data.frame} containing the response variable.
-  \item \code{predictors}: \code{data.frame} containing the predictor
-  variables included in the model.
+  \item \code{response}: \code{data.frame} containing observations of the
+  response variable.
+  \item \code{predictors}: \code{data.frame} containing observations of the
+  vector of predictor variables included in the model.
   \item \code{base_learners}: description of the model's base learners
   ('smooth functions').
-  \item \code{family}: the statistical family (e.g., \code{"gaussian"},
-  \code{"binomial"},...).
+  \item \code{family}: the statistical family. The possible options are
+  \itemize{
+  \item \code{binomial(link = "logit", "probit", "cauchit", "log", "cloglog")}
+  \item \code{gaussian(link = "identity", "log", "inverse")}
+  \item \code{Gamma(link = "inverse", "identity", "log")}
+  \item \code{inverse.gaussian(link = "1/mu^2", "inverse", "identity", "log")}
+  \item \code{poisson(link = "log", "identity", "sqrt")}
+  \item \code{quasi(link = "identity", variance = "constant")}
+  \item \code{quasibinomial(link = "logit", "probit", "cloglog", "identity", "inverse", "log", "1/mu^2", "sqrt")}
+  \item \code{quasipoisson(llink = "logit", "probit", "cloglog", "identity", "inverse", "log", "1/mu^2", "sqrt")}   
+  }
   \item \code{normalize_data}: if \code{TRUE}, then response and predictors
   were standardized before running the local-scoring algorithm.
   \item \code{X_mean}: mean of the predictor variables (only if
@@ -70,8 +80,8 @@ includes:
 quadratic, and cubic). Each of the predictions contains both the additive
 predictor \code{eta} and the vector of means \code{mu}.}
 
-\item{\code{internal_knots}}{A list detailing the internal knots obtained for the
-different fit types (linear, quadratic, and cubic).}
+\item{\code{internal_knots}}{A list detailing the internal knots obtained for the fits
+of different order (linear, quadratic, and cubic).}
 }}
 
 \references{
@@ -80,4 +90,9 @@ Geometrically designed variable knot splines in generalized (non-)linear
 models.
 \emph{Applied Mathematics and Computation}, \strong{436}. \cr
 DOI: \doi{10.1016/j.amc.2022.127493}
+
+Dimitrova, D. S., Guillen, E. S. and Kaishev, V. K.  (2024).
+\pkg{GeDS}: An \proglang{R} Package for Regression, Generalized Additive
+Models and Functional Gradient Boosting, based on Geometrically Designed
+(GeD) Splines. \emph{Manuscript submitted for publication.}
 }

@@ -9,6 +9,9 @@
 #' Plot method for GeDS objects. Plots GeDS fits.
 #' @param x a \code{\link{GeDS-Class}} object from which the GeDS fit(s) should
 #' be extracted.
+#' @param f (optional) specifies the underlying function or generating process
+#' to which the model was fit. This parameter is useful if the user wishes to
+#' plot the specified function/process alongside the model fit and the data 
 #' @param which a numeric vector specifying the iterations of stage A for which
 #' the corresponding GeDS fits should be plotted.
 #' It has to be a subset of  \code{1:nrow(x$stored)}. See details.
@@ -128,332 +131,453 @@
 #' @seealso \code{\link{NGeDS}} and \code{\link{GGeDS}};
 #' \code{\link[graphics]{plot}}.
 #' 
-#' @export
+#' @export 
+#' @importFrom plot3D persp3D points3D
 #' 
 #' @aliases plot.GeDS
 
-setMethod("plot", signature(x = "GeDS"),  function(x, which, DEV = FALSE,
-                                                   ask = FALSE, main,
-                                                   legend.pos = "topright",
-                                                   new.window = FALSE,
-                                                   wait = 0.5, n=3L,
-                                                   type=c("Polygon", "NCI", "ACI", "none"),...)
-  {
-  if(length(DEV)!= 1 || length(ask)!= 1 || length(new.window)!= 1 || length(wait)!= 1  )
-    stop("Please, check the length of the parameters")
-
-  draw.legend <- !(is.na(legend.pos))
-
+setMethod("plot", signature(x = "GeDS"),  function(x, f = NULL, which, DEV = FALSE, ask = FALSE,
+                                                   main, legend.pos = "topright",
+                                                   new.window = FALSE, wait = 0.5,
+                                                   n=3L, type = c("none", "Polygon", "NCI", "ACI"), ...)
+{
   results <- list()
   results$terms <- x$terms
-
+  
+  # Position of the legend within the panel
+  draw.legend <- !(is.na(legend.pos))
+  
+  # Check length of DEV/ask/new.window/wait
+  if(length(DEV)!= 1 || length(ask)!= 1 || length(new.window)!= 1 || length(wait)!= 1 )
+    stop("Please, check the length of the parameters")
+  # Logical variable specifying whether a plot representing the deviance at each iteration of stage A should be produced or not
   DEV <- as.logical(DEV)
+  # Logical variable specifying whether the user should be prompted before changing the plot page
   ask <- as.logical(ask)
+  # Logical variable specifying whether the plot should be shown in a new window or in the active one
   new.window <- as.logical(new.window)
+  # Time, in seconds, the system should wait before plotting a new page
   wait <- as.numeric(wait)
+  
   if (ask) {
+    # Prompt before new page
     oask <- devAskNewPage(TRUE)
+    # Restore the original setting
     on.exit(devAskNewPage(oask))
+    # Since the plot waits for user input, set the sleep/wait time to 0
     slp <- 0
   } else {
     slp <- wait
   }
-  X <- x$Args$X
-  Y <- x$Args$Y
-  Z <- x$Args$Z
-  q <- x$Args$q
-  offset <- x$Args$offset
-  weights <- x$Args$weights
+  
+  # Extract arguments
+  X <- x$Args$X; Y <- x$Args$Y; Z <- x$Args$Z
+  weights <- x$Args$weights; q <- x$Args$q; offset <- x$Args$offset 
+  
+  # Check if order is correctly set
   n <- as.integer(n)
   if(!(n %in% 2L:4L)) {
     n <- 3L
-    warning("'n' wrongly specified. Set to 3.")}
-  if(n==2L) toprint = "Linear"
-  if(n==3L) toprint = "Quadratic"
-  if(n==4L) toprint = "Cubic"
-
-  maxim <- nrow(x$Stored)
-  others <- list(...)
-
-
-
-  #dare opzione linear quadratic cubic e stamparle assieme al ctrl polygon
-  #bisogna vedere come la vede il persp...
-  if(x$Type == "LM - biv") {
-    W <- x$Args$W
-    newX <- seq(from=range(X)[1],to=range(X)[2],length=100)
-    newY <- seq(from=range(Y)[1],to=range(Y)[2],length=100)
-    grid.data <- expand.grid(newX,newY)#expand.grid(X,Y)#
-
-    if(n == 2L) obj <- x$Linear
-    if(n == 3L) obj <- x$Quadratic
-    if(n == 4L) obj <- x$Cubic
-    matriceX <- splineDesign(knots=obj$Xknots,derivs=rep(0,length(grid.data[,1])),
-                             x=grid.data[,1],ord=n,outer.ok = T)
-    matriceY <- splineDesign(knots=obj$Yknots,derivs=rep(0,length(grid.data[,2])),
-                             x=grid.data[,2],ord=n,outer.ok = T)
-    matricebiv <- GeDS:::tensorProd(matriceX,matriceY)
-    if(!is.null(W)){
-      Z <- Z - W%*%x$Linear$Theta[-(1:dim(matricebiv)[2])]
-    }
-    z <- matricebiv%*%x$Quadratic$Theta[1:dim(matricebiv)[2]]
-    z <- matrix(z,100,100)
-    res<-persp(newX, newY, z,
-               theta = 60, phi = 30, expand = 0.5,border=NULL,xlab="X",ylab="Y",zlab="Z", main=paste0( x$Nintknots$X, " X internal knots and ", x$Nintknots$Y ," Y internal knots" ),
-               ...)
-    tmp <- (obj$Predicted-Z>0)
-    points(trans3d(X[tmp],Y[tmp] ,Z[tmp], pmat = res), col = "red", pch = 16, cex=.1)
-    points(trans3d(X[!tmp],Y[!tmp] ,Z[!tmp], pmat = res), col = "green", pch = 16, cex=.1)
-  } else {
-
-
-    col <- if("col" %in% names(others)) others$col else "red"
-    others$col = NULL
-
-    if(missing(which)) which <- x$Nintknots+1
-    if(length(which)==1) if(which== "all") which <- 1:(maxim)
-
+    warning("'n' incorrectly specified. Set to 3.")
+  }
+  
+  # Set toprint
+  if (n == 2L) {
+    toprint = "Linear"
+  } else if (n==3L){
+    toprint = "Quadratic"
+  } else if (n==4L) {
+    toprint = "Cubic"
+  }
+  
+  maxim <- nrow(x$Stored) # number of iterations in stage A
+  others <- list(...) # other arguments passed to the function
+  
+  ########################
+  ## 1. Univariate GeDS ##
+  ########################
+  if (x$Type == "LM - Univ" || x$Type == "GLM - Univ") {
+    
+    # Set plot color, default to "red" if not specified in additional arguments
+    col <- if ("col" %in% names(others)) others$col else "red"
+    others$col = NULL # remove 'col' from additional arguments to prevent conflicts
+    
+    # Set default iteration(s) to plot to k + 1 if not specified
+    if (missing(which)) which <- x$Nintknots + 1
+    # If which == "all", plot all stage A iterations
+    if (length(which) == 1) if (which == "all") which <- 1:(maxim)
+    # Independent variable extremes
     extr <- x$Args$extr
-    if(x$Type == "LM - Univ"){
-      type <- match.arg(type)
-      xname <- attr(x$terms,"specials")$f-1
-      xname <- attr(x$terms,"term.labels")[xname]
-      xname <- substr(xname,3,(nchar(xname)-1))
-      yname <- rownames(attr(x$terms,"factors"))[1]
-      maxim <- nrow(x$Stored)
-      if (!(is.numeric(which) || is.null(which)) || any(which < 1) || any(which > maxim)) {
-        stop(sprintf("'which' must be between 1 and %d", maxim),domain=NA)}
-      if(!is.null(which)){
-        which <- as.integer(which)
-        last <- max(which)} else {
-          last <-  0
-        }
-
-
-      if(any(which > maxim - q)) {
-        warning("Plotting also iterations discarded by the algorithm")
+    
+    # Validate ("Polygon", "NCI" or "ACI") and set plot type
+    type <- match.arg(type)
+    # Format independent variable name for plotting
+    xname <- attr(x$terms,"specials")$f-1
+    xname <- attr(x$terms,"term.labels")[xname]
+    xname <- substr(xname,3,(nchar(xname)-1))
+    # Extract dependent variable name for plotting
+    yname <- rownames(attr(x$terms,"factors"))[1]
+    # Set y-axis limits
+    yylim <- range(c(Y, x$Linear$Predicted)) + 0.05 * c(-1, 1) *  range(c(Y, x$Linear$Predicted))
+    
+    # Determine the maximum number of iterations
+    maxim <- nrow(x$Stored)
+    
+    # Validate 'which' parameter
+    if ((!is.numeric(which) && !is.null(which)) || any(which < 1) || any(which > maxim)) {
+      stop(sprintf("'which' must be between 1 and %d", maxim), domain = NA)
+    }
+    if (!is.null(which)) {
+      which <- as.integer(which)
+      last <- max(which)
+    } else {
+      last <-  0
+    }
+    # Warn if plotting iterations discarded by the algorithm
+    if (any(which > maxim - q)) {
+      warning("Plotting also iterations discarded by the algorithm")
+    }
+    
+    # If generating function is also to be plotted
+    if (!is.null(f)) {
+      if (!is.function(f)) {
+        stop("f must be a function")
       }
-
-      for(i in which){
+      # Check the number of arguments that f takes
+      num_args <- length(formals(f))
+      # If the function takes more than one argument, display a message
+      if (num_args > 1) {
+        stop("The function f should take only one argument. Instead of f(X, Y), you should provide f(X), with X having two columns.")
+      }
+      
+      f_legend <- "f"; f_lty <- 1; f_col <- "black"; f_pch <- NA; f_lwd <- 2
+      
+    } else {
+      f_legend <- f_lty <- f_col <- f_pch <- f_lwd <- NA
+    }
+    
+    ###########################
+    ## 1.1. Univariate NGeDS ##
+    ###########################
+    if (x$Type == "LM - Univ") {
+      
+      # Loop over specified iterations for plotting
+      for (i in which) {
+        
+        # Logical variable specifying whether the plot should be shown in a new window or in the active one
         if(new.window) dev.new()
-        if(slp >0) {
+        if(slp > 0) {
           Sys.sleep(slp)
         }
+        
+        # Set main plot title
         main0 <- if(missing(main)) paste0( i-1, " internal knots") else main
-        plot(X,Y,main = main0,xlab=xname,ylab=yname,...)
-        ik <- x$Stored[i,-c(1,2,(i+2),(i+3))]
-        knt <- makenewknots(ik,n)
-
-        temp<-SplineReg_LM(X=X,Y=Y,Z=Z,offset = offset,weights=weights,extr=NULL,
-                           InterKnots=sort(c(knt,rep(extr,n))),n=n)
-        if(length(unique(X))<15*length(knt) || length(X)< 100) {
-          step <- (range(extr)[2]-range(extr)[1])/(8*length(knt))
-          step <- rep(step,(15*length(knt)))
-          XtoPlot <- min(extr)+c(0,cumsum(step))
-          matrice <- splineDesign(knots=sort(c(knt,rep(extr,n))),derivs=rep(0,length(XtoPlot)),x=XtoPlot,ord=n,outer.ok = T)
-
-          temp$Predicted <- cbind(matrice,Z)%*%temp$Theta
-
-
-          X <- XtoPlot
-        }
+        plot(X, Y, main = main0, xlab = xname, ylab = yname, ylim = yylim, ...)
+        if (!is.null(f)) lines(X, f(X), col = "black", lwd = 2)
+        
+        # Obtain stage A knots and perform spline regression
+        ik <- na.omit(x$Stored[i,-c(1,2,(i+2),(i+3))])
+        # Stage B.1 (averaging knot location)
+        knt <- makenewknots(ik, n)
+        # Stage B.2
+        temp <- SplineReg_LM(X = X, Y = Y, Z = Z, offset = offset, weights = weights, extr = extr,
+                             InterKnots = knt, n = n)
+        
+        # Update results with predicted values
         results$X <- X
         results$predicted <- temp$Predicted
-
-
-        lines(X,temp$Predicted,col=col)
-        rug(c(knt,rep(extr,n)))
-        if(type=="Polygon"){
+        
+        # Plot the spline
+        lines(X, temp$Predicted, col = col)
+        rug(c(knt, rep(extr,n))) # add a rug plot for knots
+        
+        ## Each branch now adds specific elements to the plot based on the selected type
+        # 1) Polygon
+        if (type == "Polygon") {
           results$Polykn <- temp$Poly$Kn
           results$Polyth <- temp$Poly$Thetas
-
-          lines(temp$Poly$Kn,temp$Poly$Thetas,col="blue",lty=2)
-          points(temp$Poly$Kn,temp$Poly$Thetas,col="blue")
-          if(draw.legend) legend(legend.pos,c("Data",toprint,"Polygon"),lty=c(NA,1,2),col=c("black","red","blue"),pch=c(1,NA,1))
+          
+          lines(temp$Poly$Kn,temp$Poly$Thetas, col = "blue",lty=2)
+          points(temp$Poly$Kn,temp$Poly$Thetas, col = "blue")
+          
+          if(draw.legend) legend(legend.pos, c("Data", toprint, "Polygon", f_legend), lty = c(NA, 1, 2, f_lty),
+                                 col = c("black", col, "blue", f_col), pch = c(1, NA, 1, f_pch),
+                                 lwd = c(NA, 1, 1, f_lwd))
+          
+          # 2) Normal Confidence Intervals
+        } else if(type == "NCI") {
+          lines(X,temp$NCI$Upp, col = "darkgrey", lty = 2)
+          lines(X,temp$NCI$Low, col = "darkgrey", lty = 2)
+          
+          results$CIupp <- temp$NCI$Upp
+          results$CIlow <- temp$NCI$Low
+          
+          if(draw.legend) legend(legend.pos,c("Data", toprint, "CI", f_legend), lty = c(NA, 1, 2, f_lty),
+                                 col = c("black", col,"darkgrey", f_col), pch = c(1, NA, NA, f_pch),
+                                 lwd = c(NA, 1, 1, f_lwd))
+          
+          # 3) Asymptotic Confidence Intervals
+        } else if (type == "ACI") {
+          lines(X,temp$ACI$Upp, col = "darkgrey", lty = 2)
+          lines(X,temp$ACI$Low, col = "darkgrey", lty = 2)
+          
+          results$CIupp <- temp$ACI$Upp
+          results$CIlow <- temp$ACI$Low
+          
+          if(draw.legend) legend(legend.pos, c("Data", toprint, "CI", f_legend), lty = c(NA, 1, 2, f_lty),
+                                 col = c("black", col, "darkgrey", f_col), pch = c(1, NA, NA, f_pch),
+                                 lwd = c(NA, 1, 1, f_lwd))
+          
         } else {
-          if(type=="NCI"){
-            lines(X,temp$NCI$Upp,col="grey",lty=2)
-            lines(X,temp$NCI$Low,col="grey",lty=2)
-            results$CIupp <- temp$NCI$Upp
-            results$CIlow <- temp$NCI$Low
-            if(draw.legend) legend(legend.pos,c("Data",toprint,"CI"),lty=c(NA,1,2),col=c("black","red","grey"),pch=c(1,NA,NA))
+          if (draw.legend) legend(legend.pos, c("Data", toprint, f_legend), lty = c(NA, 1, f_lty),
+                                  col = c("black", col, f_col), pch = c(1, NA, f_pch),
+                                  lwd = c(NA, 1, f_lwd))
+        }
+        
+      }
+      
+      ###########################
+      ## 1.2. Univariate GGeDS ##
+      ###########################
+    } else if (x$Type == "GLM - Univ") {
+      
+      # Extract GLM family from model arguments
+      family <- x$Args$family
+      
+      # Restrict plotting to linear spline in case which does not correspond to the final model's iteration
+      if (n != 2L && which != maxim - q) {
+        which <- maxim - q
+        warning("Stage A iterations can be plotted only for the linear spline")
+      }
+      
+      # Loop over specified iterations for plotting
+      for(i in which) {
+        
+        # Logical variable specifying whether the plot should be shown in a new window or in the active one
+        if(new.window) dev.new()
+        if(slp > 0) {
+          Sys.sleep(slp)
+        }
+        
+        # Set main plot title
+        main0 <- if(missing(main)) paste0(i-1, " internal knots") else main
+        plot(X, Y, main = main0, xlab = xname, ylab = yname, ylim = yylim, ...)
+        if (!is.null(f)) lines(X, f(X), col = "black", lwd = 2)
+        
+        # Obtain stage A knots and perform spline regression
+        ik <- na.omit(x$Stored[i,-c(1,2,(i+2),(i+3))])
+        # Stage B.1 (averaging knot location)
+        knt <- makenewknots(ik, n)
+        # Stage B.2
+        temp <- SplineReg_GLM(X = X, Y = Y, Z = Z, offset = offset, weights = weights, extr = extr,
+                              InterKnots = knt, n = n, family = family, mustart = x$Linear$Predicted)
+        
+        # Update results with predicted values
+        results$X <- X
+        results$pred <- temp$Predicted
+        
+        # Plot the spline
+        lines(X, temp$Predicted, col = col)
+        rug(c(knt, rep(extr,n))) # add a rug plot for knots
+        
+        ## Each branch now adds specific elements to the plot based on the selected type
+        # 1) Polygon
+        if (type == "Polygon") {
+          results$Polykn <- temp$Poly$Kn
+          results$Polyth <- family$linkinv(temp$Poly$Thetas)
+          lines(results$Polykn, results$Polyth, col = "blue", lty = 2)
+          points(results$Polykn, results$Polyth, col = "blue")
+          if(draw.legend) legend(legend.pos, c("Data", toprint, "Polygon", f_legend), lty = c(NA, 1, 2, f_lty),
+                                 col = c("black", col, "blue", f_col), pch = c(1, NA, 1, f_pch),
+                                 lwd = c(NA, 1, 1, f_lwd))
+          
+          # 2) Normal Confidence Intervals
+        } else if(type=="NCI") {
+          yy <- Y
+          xx <- if(n!=2L) {
+            temp$Basis
           } else {
-            if (type=="ACI"){
-              lines(X,temp$ACI$Upp,col="grey",lty=2)
-              lines(X,temp$ACI$Low,col="grey",lty=2)
-              results$CIupp <- temp$ACI$Upp
-              results$CIlow <- temp$ACI$Low
-              if(draw.legend) legend(legend.pos,c("Data",toprint,"CI"),lty=c(NA,1,2),col=c("black","red","grey"),pch=c(1,NA,NA))
-            } else
-              if(draw.legend) legend(legend.pos,c("Data",toprint),lty=c(NA,1),col=c("black","red"),pch=c(1,NA))
+            x$Linear$Basis
           }
+          
+          matrice <- splineDesign(knots = sort(c(knt,rep(extr,2))), derivs = rep(0,length(X)),
+                                  x = X, ord = n, outer.ok = TRUE)
+          
+          temp_nci <- glm(yy ~ -1+xx, offset = offset, weights = weights, family = family, start = temp$Thetas)
+          pred <- predict.glm(temp_nci, newdata = data.frame(xx = matrice, offset = 0), se.fit = T, type = "response")
+          CIupp <- pred$fit + qnorm(.975)*pred$se.fit
+          CIlow <- pred$fit - qnorm(.975)*pred$se.fit
+          
+          lines(X, CIupp, col = "darkgrey", lty = 2)
+          lines(X, CIlow, col = "darkgrey", lty = 2)
+          
+          results$CIupp <- CIupp
+          results$CIlow <- CIlow
+          
+          if(draw.legend) legend(legend.pos, c("Data", toprint, "CI", f_legend), lty = c(NA, 1, 2, f_lty),
+                                 col = c("black", col, "darkgrey", f_col), pch = c(1, NA, NA, f_pch),
+                                 lwd = c(NA, 1, 1, f_lwd))
+          
+          # 3) Asymptotic Confidence Intervals
+        } else if (type=="ACI") {
+          CI <- confint.GeDS(object = x, n = n)
+          CIupp <- CI[,2]
+          CIlow <- CI[,1]
+          results$CIupp <- CIupp
+          results$CIlow <- CIlow
+          
+          lines(X, CIupp, col="darkgrey", lty = 2)
+          lines(X, CIlow, col="darkgrey", lty = 2)
+          
+          if(draw.legend) legend(legend.pos, c("Data", toprint, "CI", f_legend), lty = c(NA, 1, 2, f_lty),
+                                 col = c("black", col, "darkgrey", f_col), pch = c(1, NA, NA, f_pch),
+                                 lwd = c(NA, 1, 1, f_lwd))
+        } else {
+          if (draw.legend) legend(legend.pos, c("Data", toprint, f_legend), lty = c(NA, 1, f_lty),
+                                  col = c("black", col, f_col), pch = c(1, NA, f_pch),
+                                  lwd = c(NA, 1, f_lwd))
+          
         }
       }
-
-      if(DEV){
-        main0 <- if(missing(main)) "RSS" else main
-        plot(1:x$iters+3,x$RSS/length(X), main = main0,xlab="Knots", ylab = "",...)
-        if(slp >0) {
-          Sys.sleep(slp)
-        }
-        main0 <- if(missing(main)) expression(sqrt(RSS)) else main
-        plot(1:x$iters+3,(x$RSS/length(X))^.5, main = main0,xlab="Knots", ylab = "",...)
-        if(slp >0) {
-          Sys.sleep(slp)
-
-        }
-        main0 <- if(missing(main)) expression(phi) else main
-        plot(1:(x$iters-q)+3,(x$RSS[(1+q):x$iters]/x$RSS[(1):(x$iters-q)]), main = main0,xlab="Knots", ylab = "",...)
-        if(slp >0) {
-          Sys.sleep(slp)
-
-        }
-        main0 <- if(missing(main)) expression(sqrt(phi)) else main
-        plot(1:(x$iters-q)+3,(x$RSS[(1+q):x$iters]/x$RSS[(1):(x$iters-q)])^.5, main = main0,xlab="Knots", ylab = "",...)
-        if(slp >0) {
-          Sys.sleep(slp)
-
-        }
+    }
+    
+    ## If DEV = TRUE, produce plot representing the deviance at each iteration of stage A
+    if (x$Type == "LM - Univ") {
+      print <- "RSS"
+    } else if (x$Type == "GLM - Univ") {
+      print <- "DEV"
+    }
+    
+    if (DEV) {
+      # i. RSS/DEV
+      main0 <- if(missing(main)) print else main
+      plot(seq(0, x$iters-1), x$RSS/length(X), main = main0, xlab = "Internal knots", ylab = "", ...)
+      rug(seq(1, x$iters-1 - q))
+      if (slp > 0) {
+        Sys.sleep(slp)
       }
+      # ii. \sqrt{RSS} / \sqrt{DEV}
+      main0 <- if(missing(main)) bquote(sqrt(.(print))) else main
+      plot(seq(0, x$iters-1), (x$RSS/length(X))^.5, main = main0, xlab = "Knots", ylab = "", ...)
+      rug(seq(1, x$iters-1 - q))
+      if(slp > 0) {
+        Sys.sleep(slp)
+      }
+      # iii. \phi
+      main0 <- if(missing(main)) expression(phi) else main
+      plot(seq(q, x$iters-1), (x$RSS[(1+q):x$iters]/x$RSS[(1):(x$iters-q)]), main = main0, xlab="Knots", ylab = "", ...)
+      rug(seq(2, x$iters-1 - q))
+      if(slp > 0) {
+        Sys.sleep(slp)
+      }
+      # iv. \sqrt{\phi}
+      main0 <- if(missing(main)) expression(sqrt(phi)) else main
+      plot(seq(q, x$iters-1), (x$RSS[(1+q):x$iters]/x$RSS[(1):(x$iters-q)])^.5, main = main0, xlab="Knots", ylab = "", ...)
+      rug(seq(2, x$iters-1 - q))
+      if(slp > 0) {
+        Sys.sleep(slp)
+      }
+    }
+    
+    ##############################
+    ## 2. Bivariate NGeDS/GGeDS ##
+    ##############################
+  } else if (x$Type == "LM - Biv" || x$Type == "GLM - Biv") {
+    
+    if(n == 2L) {
+      obj <- x$Linear
+    } else if (n == 3L) {
+      obj <- x$Quadratic
+    } else if (n == 4L) {
+      obj <- x$Cubic
+    }
+    
+    # Extract parametric component of the predictor model + X, Y extremes
+    W <- x$Args$W; Xextr <- x$Args$Yextr; Yextr <- x$Args$Yextr
+    
+    if (!is.null(f)) {
+      if (!is.function(f)) {
+        stop("f must be a function")
+      }
+      # Check the number of arguments that f takes
+      num_args <- length(formals(f))
+      # If the function takes more than one argument, display a message
+      if (num_args > 1) {
+        stop("The function f should take only one argument. Instead of f(X, Y), you should provide f(X), with X having two columns.")
+      }
+      
+      # Create a grid of x, y values
+      seq_valX <- seq(Xextr[1], Xextr[2], length.out = sqrt(length(X)))
+      seq_valY <- seq(Xextr[1], Xextr[2], length.out = sqrt(length(Y)))
+      grid_val <- expand.grid(x = seq_valX, y = seq_valY)
+      # Compute z for each x, y in the grid
+      f_XY_val <- matrix(f(grid_val), nrow = sqrt(length(X)))
+      # Title based on the number of internal knots in X and Y
+      title <- paste(x$Nintknots$X, "linear internal knots on X,",
+                     x$Nintknots$Y, "linear internal knots on Y")
+      
+      # Plot
+      persp3D(x = seq_valX, y = seq_valY, z = f_XY_val, main = title, phi = 25, theta = 50,
+              xlab = 'X', ylab = 'Y', zlab = "f(X,Y)", zlim = range(f_XY_val),
+              ticktype = "detailed", expand = 0.5, colkey = FALSE, border = "black", ...)
+      # Add the data and predicted points to the plot
+      points3D(x = X, y = Y, z = Z, col = "black", pch = 19, add = TRUE)
+      points3D(x = X, y = Y, z = obj$Predicted, col = "red", pch = 19, add = TRUE)
+      legend("topright",
+             legend = c("Data", "Quadratic Fit"),
+             col = c("black", "red"),
+             pch = 19,
+             bg = 'white')
+      
     } else {
-      if(x$Type == "GLM - Univ") {
-        family <- x$Args$family
-
-        xname <- attr(x$terms,"specials")$f-1
-        xname <- attr(x$terms,"term.labels")[xname]
-        xname <- substr(xname,3,(nchar(xname)-1))
-
-        type <- match.arg(type)
-        maxim <- nrow(x$Stored)
-        if (!is.numeric(which) || any(which < 1) || any(which > maxim)) {
-          stop(sprintf("'which' must be between 1 and %d", maxim),domain=NA)}
-        which <- as.integer(which)
-        yylim <- if(length(which)>1) range(x$Linear$Predicted) else NULL
-        last <- max(which)
-        if(any(which > maxim - q)) {
-          warning("Plotting also iterations discarded by the algorithm")
-        }
-
-        if(n!=2L && which != maxim - q) {
-          which <- maxim - q
-          warning("Stage A iterations can be plotted only for the linear spline")
-        }
-        for(i in which){
-          if(new.window) dev.new()
-          if(slp >0) {
-            Sys.sleep(slp)
-          }
-          ik <- x$Stored[i,-c(1,2,(i+2),(i+3))]
-          knt <- makenewknots(ik,n)#quad
-
-
-          if(n!=2L){
-            temp <- if(n==3L) x$Quadratic else x$Cubic
-            temp2 <- temp
-
-            if((length(unique(X))<8*length(knt) || length(X)< 100) & is.null(offset) & is.null(weights)) {
-              step <- (range(extr)[2]-range(extr)[1])/(8*length(knt))
-              step <- rep(step,(8*length(knt)))
-              XtoPlot <- min(extr)+c(0,cumsum(step))
-
-
-              X <- XtoPlot
-            }
-            matrice <- splineDesign(knots=sort(c(knt,rep(extr,n))),
-                                    derivs=rep(0,length(X)),x=X,ord=n,outer.ok = T)
-
-            temp$Predicted <- matrice%*%temp$Theta[1:ncol(matrice)]
-
-          } else {
-
-            temp <- list("Poly"=list())
-            matrice <- splineDesign(knots=sort(c(knt,rep(extr,2))),
-                                    derivs=rep(0,length(X)),x=X,ord=2,outer.ok = T)
-            temp$Predicted <- matrice %*% x$Coefficients[i,1:(i+1)]
-            temp$Poly$Kn <- sort(c(knt,extr))
-            temp$Poly$Thetas <- x$Coefficients[i,1:(i+1)]
-            temp2 <- temp
-
-          }
-          main0 <- if(missing(main)) paste0( i-1, " internal knots") else main
-
-          results$X <- X
-          results$pred <- temp$Predicted
-          others2 <- c(list(x=X,"y"=temp$Predicted,type="l",main = main0,
-                            col=col,xlab=xname,ylab="Predictor",ylim = yylim),others)
-          do.call(plot.default, others2)
-          rug(x$Stored[i,1:(i+3)])
-          if(type=="Polygon"){
-            results$Polykn <- temp$Poly$Kn
-            results$Polyth <- temp$Poly$Thetas
-            lines(temp$Poly$Kn,temp$Poly$Thetas,col="black",lty=2)
-            points(temp$Poly$Kn,temp$Poly$Thetas,col="black")
-          } else {
-            if(type=="NCI"){
-              yy <- Y
-              xx <- if(n!=2L) temp$Basis else {
-                x$Linear$Basis
-              }
-              temp3 <- glm(yy ~ -1+xx,offset=offset,weights=weights,family=x$Args$family, start= temp$Thetas)
-              pred <- predict.glm(temp3,newdata=data.frame(xx=matrice,offset=0),se.fit=T,type="link")
-              CIupp <- pred$fit+qnorm(.975)*pred$se.fit
-              CIlow <- pred$fit-qnorm(.975)*pred$se.fit
-              results$CIupp <- CIupp
-              results$CIlow <- CIlow
-
-              lines(X,CIupp,col="grey",lty=2)
-
-              lines(X,CIlow,col="grey",lty=2)
-
-            } else {
-              if (type=="ACI"){
-
-                CI <- confint.GeDS(object=x,n=n)
-                CIupp <- CI[,2]
-                CIlow <- CI[,1]
-                results$CIupp <- CIupp
-                results$CIlow <- CIlow
-
-                lines(X,CIupp,col="grey",lty=2)
-
-                lines(X,CIlow,col="grey",lty=2)
-                #                  stop("'ACI' type confidence bands not available in the GLM framework")
-              } else
-
-                if(draw.legend) legend(legend.pos,c(toprint),lty=c(1),col=col,pch=c(NA))
-            }
-          }
-        }
-
-        if(DEV){
-          main0 <- if(missing(main)) "DEV" else main
-          plot(1:x$iters+3,x$RSS/length(X), main = main0,xlab="Knots", ylab = "",...)
-          if(slp >0) {
-            Sys.sleep(slp)
-          }
-          main0 <- if(missing(main)) expression(sqrt(DEV)) else main
-          plot(1:x$iters+3,(x$RSS/length(X))^.5, main = main0,xlab="Knots", ylab = "",...)
-          if(slp >0) {
-            Sys.sleep(slp)
-          }
-          main0 <- if(missing(main)) expression(phi) else main
-          plot(1:(x$iters-q)+3,(x$RSS[(1+q):x$iters]/x$RSS[(1):(x$iters-q)]), main = main0,xlab="Knots", ylab = "",...)
-          if(slp >0) {
-            Sys.sleep(slp)
-          }
-          main0 <- if(missing(main)) expression(sqrt(phi)) else main
-          plot(1:(x$iters-q)+3,(x$RSS[(1+q):x$iters]/x$RSS[(1):(x$iters-q)])^.5, main = main0,xlab="Knots", ylab = "",...)
-          if(slp >0) {
-            Sys.sleep(slp)
-          }
-        }
-      } else stop("Type not recognized")}
+      
+      # Create a sequence of sqrt(obs) evenly spaced numbers over the range of X/Y
+      newX <- seq(from = Xextr[1], to = Xextr[2], length.out = sqrt(length(X)))
+      newY <- seq(from = Yextr[1], to = Yextr[2], length.out = sqrt(length(Y)))
+      # Create a grid data frame from all combinations of newX and newY
+      grid.data <- expand.grid(newX, newY)
+      
+      # Generate spline basis matrix for X and Y dimensions using object knots and given order
+      matriceX <- splineDesign(knots = obj$Xknots, derivs = rep(0,length(grid.data[,1])),
+                               x = grid.data[,1], ord = n, outer.ok = T)
+      matriceY <- splineDesign(knots = obj$Yknots, derivs = rep(0,length(grid.data[,2])),
+                               x = grid.data[,2], ord = n, outer.ok = T)
+      # Calculate the tensor product of X and Y spline matrices to create a bivariate spline basis
+      matricebiv <- tensorProd(matriceX, matriceY)
+      # Multiply the bivariate spline basis by model coefficients to get fitted values
+      f_hat_XY_val <- matricebiv %*% obj$Theta[1:dim(matricebiv)[2]]
+      # Reshape the fitted values to a square matrix for plotting
+      f_hat_XY_val <- matrix(f_hat_XY_val, nrow = sqrt(length(X)))
+      if (x$Type == "GLM - Biv") f_hat_XY_val <- x$Args$family$linkinv(f_hat_XY_val)
+      # Title based on the number of internal knots in X and Y
+      title <- paste0(x$Nintknots$X, " X internal knots and ", x$Nintknots$Y ," Y internal knots" )
+      
+      # Plot the perspective 3D surface defined by newX, newY, and the fitted values
+      persp3D(x = newX, y = newY, z = f_hat_XY_val, main = title, phi = 25, theta = 50,
+              xlab = 'X', ylab = 'Y', zlab = "f_hat(X,Y)", zlim = range(f_hat_XY_val),
+              ticktype = "detailed", expand = 0.5, colkey = FALSE, border = "black", ...)
+      
+      # Adjust Z by subtracting the parametric component of the predictor model if it exists
+      if (!is.null(W)) {
+        Z <- Z - W %*% x$Linear$Theta[-(1:dim(matricebiv)[2])]
+      }
+      # Identify points where Z is greater/smaller than the model predicted value
+      tmp <- (obj$Predicted - Z > 0)
+      points3D(x = X[!tmp], y = Y[!tmp], z = Z[!tmp], col = "red", pch = 19, add = TRUE)
+      points3D(x = X[tmp], y = Y[tmp], z = Z[tmp], col = "blue", pch = 19, add = TRUE)
+      legend("topright",
+             legend = c("Z >= f_hat(X,Y)", "Z  <  f_hat(X,Y)"),
+             col = c("red", "blue"),
+             pch = 19,
+             bg = 'white')
+    }
+    
+  } else {
+    stop("Type not recognized")
   }
+  
   x$Plotinfo <- results
   invisible(x)
 }
 )
-
-
-
 

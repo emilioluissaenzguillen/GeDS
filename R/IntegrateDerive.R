@@ -97,8 +97,8 @@ Integrate <- function(object, to, from, n = 3L)
   for(i in 2:(length(thetas))){
     newtheta[i] <- newtheta[i-1]+thetas[i]*knnew[i]
   }
-  resTo <- sapply(to, gedsint, knts = kn, coefs = newtheta, n=n)
-  resFrom <- sapply(from, gedsint, knts = kn, coefs = newtheta, n=n)
+  resTo <- sapply(to, gedsint, knts = kn, coefs = newtheta, n = n)
+  resFrom <- sapply(from, gedsint, knts = kn, coefs = newtheta, n = n)
 
   res <- rowSums(cbind(resTo,-resFrom))
   return(res)
@@ -165,17 +165,17 @@ Integrate <- function(object, to, from, n = 3L)
 Derive <- function(object, order = 1L, x, n = 3L)
   {
   if (!inherits(object, "GeDS")) stop("incorrect object class")
-  if(!(object$Type %in% c("LM - Univ","GLM - Univ"))) stop("Implemented only for the univariate case")
+  if (!(object$Type %in% c("LM - Univ","GLM - Univ"))) stop("Implemented only for the univariate case")
   x <- as.numeric(x)
   l <- length(x)
-  if(order >= n) stop("'order' must be less than 'n'")
-  if(length(n)!=1) stop("'n' must have length 1")
+  if (order >= n) stop("'order' must be less than 'n'")
+  if (length(n)!=1) stop("'n' must have length 1")
   n <- as.integer(n)
-  if(length(order)!=1) stop("'order' must have length 1")
+  if (length(order)!=1) stop("'order' must have length 1")
   order <- as.integer(order)
   kn <- knots(object , options = "all", n = n)
   thetas <- coef(object, n = n)
-  basis <- splines::splineDesign(knots=kn, x=x, ord = n, derivs = rep(order,l), outer.ok = TRUE)
+  basis <- splines::splineDesign(knots = kn, x = x, ord = n, derivs = rep(order,l), outer.ok = TRUE)
   der <- as.numeric(basis%*%thetas)
   der
 }

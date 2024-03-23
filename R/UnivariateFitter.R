@@ -311,13 +311,13 @@ UnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0,NROW(Y)),
   ################################## STAGE B ###################################
   ##############################################################################
   if (j == max.intknots + 1) warning("Maximum number of iterations exceeded")
-  if (j < max.intknots) {
+  if (j <= max.intknots) {
     # Eliminate NAs in previous
     previous <- previous[-((j+1):(max.intknots+1)), ] # eliminate all the NA rows
     previous <- previous[ ,-((j+4):(max.intknots+4))] #  k = j - 1 internal knots (i.e. k + 4 = j + 3 knots) in the last iteration
     # Eliminate NAs in oldcoef
-    oldcoef <- oldcoef[-((j+1):(max.intknots+1)), ]  # eliminate all the NA rows
-    oldcoef <- oldcoef[ ,1:(j+1+nz)]                 # p = n + k = j + 1  B-splines
+    oldcoef  <- oldcoef[-((j+1):(max.intknots+1)), ]  # eliminate all the NA rows
+    oldcoef  <- oldcoef[ ,1:(j+1+nz)]                 # p = n + k = j + 1  B-splines
   }
   
   # 1. LINEAR
@@ -611,12 +611,14 @@ GenUnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)),
   ##############################################################################
   ################################## STAGE B ###################################
   ##############################################################################
-  if (j == max.intknots) warning("Maximum number of iterations exceeded")
-  if (j < max.intknots) {
-    previous <- previous[-((j+1):(max.intknots+1)),] #delete also last two$
-    previous <- previous[,-((j+4):(max.intknots+4))]
-    oldcoef  <- oldcoef[-((j+1):(max.intknots+1)),]
-    oldcoef  <- oldcoef[,1:(j+1+nz)]
+  if (j == max.intknots + 1) warning("Maximum number of iterations exceeded")
+  if (j <= max.intknots) {
+    # Eliminate NAs in previous
+    previous <- previous[-((j+1):(max.intknots+1)), ] # eliminate all the NA rows
+    previous <- previous[ ,-((j+4):(max.intknots+4))] #  k = j - 1 internal knots (i.e. k + 4 = j + 3 knots) in the last iteration
+    # Eliminate NAs in oldcoef
+    oldcoef  <- oldcoef[-((j+1):(max.intknots+1)), ]  # eliminate all the NA rows
+    oldcoef  <- oldcoef[ ,1:(j+1+nz)]                 # p = n + k = j + 1  B-splines
   }
   
   # 1. LINEAR

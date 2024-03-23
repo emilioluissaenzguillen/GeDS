@@ -14,6 +14,7 @@ buildbasis <- function(parm, object, n){
   return(mat)
 }
 
+#' @export
 confint.GeDS <- function(object, parm, level = 0.95, n = 3L, ...){
   n <- as.integer(n)
   if(!(n %in% 2L:4L) ) stop("Please set the order between 2 and 4") else str <- NULL

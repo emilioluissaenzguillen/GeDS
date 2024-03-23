@@ -73,8 +73,8 @@ coef.GeDSboost_GeDSgam <- function(object, n = 3L, ...)
 #' are provided. In the case of bivariate base learners and
 #' \code{class(object) == "GeDSgam"}, the final local-scoring B-spline
 #' coefficients for each base-learner are provided. If \code{n = 3L} or
-#' \code{n = 4L} B-spline coefficients are provided. By default equal to
-#' \code{3L}. Non-integer values will be passed to the function
+#' \code{n = 4L} B-spline coefficients are provided. By default \code{n} is
+#' equal to \code{3L}. Non-integer values will be passed to the function
 #' \code{\link{as.integer}}.
 #' @param ... potentially further arguments (required by the definition of the
 #' generic function). They will be ignored, but with a warning.
@@ -547,7 +547,7 @@ predict.GeDSboost_GeDSgam <- function(object, newdata, n = 2L, ...)
 #' @description 
 #' This method computes predictions from GeDSboost and GeDSgam objects. 
 #' It is designed to be user-friendly and accommodate different orders of the
-#' GeDSboost or GeDSgam fit.
+#' GeDSboost or GeDSgam fits.
 #' @param object The \code{\link{GeDSboost-class}} or
 #' \code{\link{GeDSgam-class}} object.
 #' @param newdata An optional data frame for prediction.
@@ -662,7 +662,7 @@ split_into_lines <- function(text, max_length)
 #' @title Visualize Boosting Iterations
 #' @name visualize_boosting
 #' @description
-#' This function plots the \code{\link{NGeDSboost}} fit over data at the
+#' This function plots the \code{\link{NGeDSboost}} fit to the data at the
 #' beginning of a given boosting iteration and then plots the subsequent
 #' \code{\link{NGeDS}} fit on the corresponding residual (negative gradient).
 #' Note: Applicable only for \code{\link{NGeDSboost}} models with one covariate

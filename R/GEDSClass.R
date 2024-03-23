@@ -6,7 +6,7 @@
 #' @title GeDS Class
 #' @name GeDS-class
 #' @description
-#' A fitted GeDS object returned by functions \code{\link{NGeDS}} or
+#' A fitted GeDS object returned by the functions \code{\link{NGeDS}} or
 #' \code{\link{GGeDS}} inheriting the methods from class \code{"GeDS"}. Methods
 #' for functions \code{coef}, \code{knots}, \code{print}, \code{predict},
 #' \code{plot}, and \code{lines} are available.
@@ -25,6 +25,8 @@
 #' @slot Dev.Linear Deviance of the second order GeD spline fit of stage A.
 #' @slot Dev.Quadratic Deviance of the third order GeD spline fit of stage B.
 #' @slot Dev.Cubic Deviance of the fourth order GeD spline fit of stage B.
+#' @slot RSS Vector containing the deviances of the second order spline
+#' fits computed at each GeDS iteration in stage A.
 #' @slot Linear List containing the results from running a \code{\link{SplineReg}}
 #' function used to fit the second order spline of stage A.
 #' @slot Quadratic List containing the results from running \code{\link{SplineReg}}
@@ -102,23 +104,47 @@ setClass(
 #' @title GeDSboost Class
 #' @name GeDSboost-class
 #' @description
-#' A fitted GeDSboost object returned by function \code{\link{NGeDSboost}}
+#' A fitted GeDSboost object returned by the function \code{\link{NGeDSboost}}
 #' inheriting the methods from class \code{"GeDSboost"}. Methods for functions
 #' \code{coef}, \code{knots}, \code{print}, \code{predict},
 #' \code{visualize_boosting}, and \code{bl_imp} are available.
 #' 
 #' @slot extcall call to the \code{\link{NGeDSboost}} function.
-#' @slot formula A formula object representing the model to be fit.
+#' @slot formula A formula object representing the model to be fitted.
 #' @slot args 
 #' A list containing the arguments passed to the \code{\link{NGeDSboost}}
 #' function. This list includes:
 #' \itemize{
-#'   \item \code{response}: \code{data.frame} containing the response variable.
-#'   \item \code{predictors}: \code{data.frame} containing the predictor
-#'   variables included in the model.
+#'   \item \code{response}: \code{data.frame} containing observations of the
+#'   response variable.
+#'   \item \code{predictors}: \code{data.frame} containing observations of the
+#'   vector of predictor variables included in the model.
 #'   \item \code{base_learners}: description of model's base learners.
-#'   \item \code{family}: the statistical family (e.g., \code{mboost:Gaussian()},
-#'   \code{mboost:Binomial()},...).
+#'   \item \code{family}: the statistical family. The possible options are
+#'   \itemize{
+#'   \item \code{mboost::AdaExp()}
+#'   \item \code{mboost::AUC()}
+#'   \item \code{mboost::Binomial(type = c("adaboost", "glm"),
+#'   link = c("logit", "probit", "cloglog", "cauchit", "log"), ...)}
+#'   \item \code{mboost::Gaussian()}
+#'   \item \code{mboost::Huber(d = NULL)}
+#'   \item \code{mboost::Laplace()}
+#'   \item \code{mboost::Poisson()}
+#'   \item \code{mboost::GammaReg(nuirange = c(0, 100))}
+#'   \item \code{mboost::CoxPH()}
+#'   \item \code{mboost::QuantReg(tau = 0.5, qoffset = 0.5)}
+#'   \item \code{mboost::ExpectReg(tau = 0.5)}
+#'   \item \code{mboost::NBinomial(nuirange = c(0, 100))}
+#'   \item \code{mboost::PropOdds(nuirange = c(-0.5, -1), offrange = c(-5, 5))}
+#'   \item \code{mboost::Weibull(nuirange = c(0, 100))}
+#'   \item \code{mboost::Loglog(nuirange = c(0, 100))}
+#'   \item \code{mboost::Lognormal(nuirange = c(0, 100))}
+#'   \item \code{mboost::Gehan()}
+#'   \item \code{mboost::Hurdle(nuirange = c(0, 100))}
+#'   \item \code{mboost::Multinomial()}
+#'   \item \code{mboost::Cindex(sigma = 0.1, ipcw = 1)}
+#'   \item \code{mboost::RCG(nuirange = c(0, 1), offrange = c(-5, 5))}   
+#'   }   
 #'   \item \code{initial_learner}: if \code{TRUE} a \code{\link{NGeDS}} fit was
 #'   used as initial learner; otherwise, the empirical risk minimizer
 #'   corresponding to the selected \code{family} was employed.
@@ -155,22 +181,27 @@ setClass(
 #' variation diminishing spline approximation. These include the same elements
 #' as \code{Quadratic} and \code{Cubic} in a \code{\link{GeDS-class}} object
 #' (see \code{\link{SplineReg}} for details). \code{best_bl} is eliminated to
-#' simplify the output.#' 
+#' simplify the output. 
 #' @slot predictions A list containing the predicted values obtained (linear,
 #' quadratic, and cubic).
 #'
-#' @slot internal_knots A list detailing the internal knots obtained for the
-#' different fit types (linear, quadratic, and cubic).
+#' @slot internal_knots A list detailing the internal knots obtained for the fits
+#' of different order (linear, quadratic, and cubic).
 #'
 #' @aliases GeDSboost-Class GeDSboost-class
 #' @rdname GeDSboost-class
 #' 
-#' @references 
+#' @references
 #' Dimitrova, D. S., Kaishev, V. K., Lattuada, A. and Verrall, R. J.  (2023).
 #' Geometrically designed variable knot splines in generalized (non-)linear
 #' models.
 #' \emph{Applied Mathematics and Computation}, \strong{436}. \cr
 #' DOI: \doi{10.1016/j.amc.2022.127493}
+#' 
+#' Dimitrova, D. S., Guillen, E. S. and Kaishev, V. K.  (2024).
+#' \pkg{GeDS}: An \proglang{R} Package for Regression, Generalized Additive
+#' Models and Functional Gradient Boosting, based on Geometrically Designed
+#' (GeD) Splines. \emph{Manuscript submitted for publication.}
 
 setClass(
   "GeDSboost",
@@ -193,23 +224,33 @@ setClass(
 #' @title GeDSgam Class
 #' @name GeDSgam-class
 #' @description
-#' A fitted GeDSgam object returned by function \code{\link{NGeDSgam}}
+#' A fitted GeDSgam object returned by the function \code{\link{NGeDSgam}}
 #' inheriting the methods from class \code{"GeDSgam"}. Methods for functions
 #' \code{coef}, \code{knots}, \code{print} and \code{predict}.
 #' 
 #' @slot extcall call to the \code{\link{NGeDSgam}} function.
-#' @slot formula A formula object representing the model to be fit.#'
+#' @slot formula A formula object representing the model to be fitted.
 #' @slot args 
 #' A list containing the arguments passed to the \code{\link{NGeDSgam}}
 #' function. This list includes:
 #' \itemize{
-#'   \item \code{response}: \code{data.frame} containing the response variable.
-#'   \item \code{predictors}: \code{data.frame} containing the predictor
-#'   variables included in the model.
+#'   \item \code{response}: \code{data.frame} containing observations of the
+#'   response variable.
+#'   \item \code{predictors}: \code{data.frame} containing observations of the
+#'   vector of predictor variables included in the model.
 #'   \item \code{base_learners}: description of the model's base learners
 #'   ('smooth functions').
-#'   \item \code{family}: the statistical family (e.g., \code{"gaussian"},
-#'   \code{"binomial"},...).
+#'   \item \code{family}: the statistical family. The possible options are
+#'   \itemize{
+#'   \item \code{binomial(link = "logit", "probit", "cauchit", "log", "cloglog")}
+#'   \item \code{gaussian(link = "identity", "log", "inverse")}
+#'   \item \code{Gamma(link = "inverse", "identity", "log")}
+#'   \item \code{inverse.gaussian(link = "1/mu^2", "inverse", "identity", "log")}
+#'   \item \code{poisson(link = "log", "identity", "sqrt")}
+#'   \item \code{quasi(link = "identity", variance = "constant")}
+#'   \item \code{quasibinomial(link = "logit", "probit", "cloglog", "identity", "inverse", "log", "1/mu^2", "sqrt")}
+#'   \item \code{quasipoisson(llink = "logit", "probit", "cloglog", "identity", "inverse", "log", "1/mu^2", "sqrt")}   
+#'   }
 #'   \item \code{normalize_data}: if \code{TRUE}, then response and predictors
 #'   were standardized before running the local-scoring algorithm.
 #'   \item \code{X_mean}: mean of the predictor variables (only if
@@ -251,8 +292,8 @@ setClass(
 #' quadratic, and cubic). Each of the predictions contains both the additive
 #' predictor \code{eta} and the vector of means \code{mu}.
 #'
-#' @slot internal_knots A list detailing the internal knots obtained for the
-#' different fit types (linear, quadratic, and cubic).
+#' @slot internal_knots A list detailing the internal knots obtained for the fits
+#' of different order (linear, quadratic, and cubic).
 #'
 #' @aliases GeDSgam-Class GeDSgam-class
 #' @rdname GeDSgam-class
@@ -263,6 +304,11 @@ setClass(
 #' models.
 #' \emph{Applied Mathematics and Computation}, \strong{436}. \cr
 #' DOI: \doi{10.1016/j.amc.2022.127493}
+#' 
+#' Dimitrova, D. S., Guillen, E. S. and Kaishev, V. K.  (2024).
+#' \pkg{GeDS}: An \proglang{R} Package for Regression, Generalized Additive
+#' Models and Functional Gradient Boosting, based on Geometrically Designed
+#' (GeD) Splines. \emph{Manuscript submitted for publication.}
 
 setClass(
   "GeDSgam",

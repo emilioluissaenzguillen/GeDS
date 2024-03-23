@@ -31,8 +31,8 @@ coefficients for each iteration where a particular base-learner was selected
 are provided. In the case of bivariate base learners and
 \code{class(object) == "GeDSgam"}, the final local-scoring B-spline
 coefficients for each base-learner are provided. If \code{n = 3L} or
-\code{n = 4L} B-spline coefficients are provided. By default equal to
-\code{3L}. Non-integer values will be passed to the function
+\code{n = 4L} B-spline coefficients are provided. By default \code{n} is
+equal to \code{3L}. Non-integer values will be passed to the function
 \code{\link{as.integer}}.}
 
 \item{...}{potentially further arguments (required by the definition of the
