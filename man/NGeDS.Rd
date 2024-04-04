@@ -199,7 +199,7 @@ plot(Gmod2)
 
 #########################################
 # bivariate example
-# See Dimitrova et al. (2017), section 5
+# See Dimitrova et al. (2023), section 5
 
 # Generate a data sample for the response variable
 # Z and the covariates X and Y assuming Normal noise

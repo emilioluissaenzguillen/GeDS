@@ -9,13 +9,13 @@ Author: Dimitrina S. Dimitrova <D.Dimitrova@city.ac.uk>,
   Andrea Lattuada <andrea.lattuada@hotmail.com> and
   Richard J. Verrall <R.J.Verrall@city.ac.uk>
 Maintainer: Emilio S. Guillen <Emilio.Saenz-Guillen@bayes.city.ac.uk>
-Description: GeDS is a comprehensive package for Spline Regression, Generalized Additive
-  Models, and Component-wise Gradient Boosting, utilizing Geometrically Designed (GeD)
-  Splines. Inspired by geometric principles, GeDS regression is a non-parametric method
-  for fitting spline regression models with variable knots in one or two independent variables.
-  It efficiently estimates the number of knots and their positions, as well as the spline order,
-  assuming the response variable follows a distribution from the exponential family. GeDS
-  models integrate the broader category of Generalized (Non-)Linear Models, offering a flexible
+Description: Spline Regression, Generalized Additive Models, and Component-wise Gradient
+  Boosting, utilizing Geometrically Designed (GeD) Splines. GeDS regression is a
+  non-parametric method inspired by geometric principles, for fitting spline regression
+  models with variable knots in one or two independent variables. It efficiently estimates
+  the number of knots and their positions, as well as the spline order, assuming the
+  response variable follows a distribution from the exponential family. GeDS models
+  integrate the broader category of Generalized (Non-)Linear Models, offering a flexible
   approach to modeling complex relationships. A description of the method can be found in
   Kaishev et al. (2016) <doi:10.1007/s00180-015-0621-7> and Dimitrova et al. (2023)
   <doi:10.1016/j.amc.2022.127493>. Further extending its capabilities, GeDS's implementation

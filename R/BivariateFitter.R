@@ -384,7 +384,7 @@ GenBivariateFitter <- function(X, Y, Z, W, family = family, weights = rep(1,leng
   # Initialize internal knots
   Xintknots <- Yintknots <- NULL
   # Initial values for the coefficients used at each iteration of stage A in order to estimate the spline coefficients
-  oldguess <- matrix(nrow = max.intknots, ncol = NROW(Z))
+  oldguess <- matrix(nrow = max.intknots + 1, ncol = NROW(Z))
   # oldguess <- matrix(nrow = max.intknots + 1,
   #                    ncol = round((max.intknots/2 + 2)^2)) # max number of coef; comes from maximizing f(x) = (x + 2)(max.intknots - x + 2)
   # Matrix for X, Y and residuals
@@ -674,9 +674,10 @@ GenBivariateFitter <- function(X, Y, Z, W, family = family, weights = rep(1,leng
   
   # 1. LINEAR
   if(iter < 2) {
-    warning("Too few internal knots found: Linear spline will not be computed. Try to set a different value for 'q' or a different treshold")
+    warning("Too few internal knots found: Linear spline will be computed with NULL internal knots. Try to set a different value for 'q' or a different treshold")
     llX <- llY <- NULL
-    lin <- NULL
+    lin <- SplineReg_biv_GLM(X = X, Y = Y, Z = Z, InterKnotsX = llX, InterKnotsY = llY, Xextr = Xextr, Yextr = Yextr,
+                             n = 2, family = family, mustart = oldguess[iter,])
     } else {
       ikX <- previousX[iter, 3:(lastXknots-2)]
       ikY <- previousY[iter, 3:(lastYknots-2)]
@@ -684,14 +685,16 @@ GenBivariateFitter <- function(X, Y, Z, W, family = family, weights = rep(1,leng
       llX <- if (length(ikX) < 1) NULL else makenewknots(ikX, 2)
       llY <- if (length(ikY) < 1) NULL else makenewknots(ikY, 2)
       # Stage B.2
-      lin <- SplineReg_biv_GLM(X = X, Y = Y, Z = Z, InterKnotsX = ikX, InterKnotsY = ikY, Xextr = Xextr, Yextr = Yextr,
+      lin <- SplineReg_biv_GLM(X = X, Y = Y, Z = Z, InterKnotsX = llX, InterKnotsY = llY, Xextr = Xextr, Yextr = Yextr,
                                n = 2, family = family, mustart = oldguess[iter,])
     }
   # 2. QUADRATIC
   if (iter < 3) {
-    warning("Too few internal knots found: Quadratic spline will not be computed. Try to set a different value for 'q' or a different treshold")
+    warning("Too few internal knots found: Quadratic spline will be computed with NULL internal knots. Try to set a different value for 'q' or a different treshold")
     qqX <- qqY <- NULL
-    squ <- NULL
+    guess_lin <- lin$Predicted
+    squ <- SplineReg_biv_GLM(X = X, Y = Y, Z = Z, InterKnotsX = qqX, InterKnotsY = qqY, Xextr = Xextr, Yextr = Yextr,
+                             n = 3, family = family, mustart = guess_lin)
     } else {
       # Stage B.1 (averaging knot location)
       qqX <- if (length(ikX) < 2) NULL else makenewknots(ikX, 3)
@@ -703,9 +706,11 @@ GenBivariateFitter <- function(X, Y, Z, W, family = family, weights = rep(1,leng
     }
   # 3. CUBIC
   if (iter < 4) {
-    warning("Too few internal knots found: Cubic spline will not be computed. Try to set a different value for 'q' or a different treshold")
+    warning("Too few internal knots found: Cubic spline will be computed with NULL internal knots. Try to set a different value for 'q' or a different treshold")
     ccX <- ccY <- NULL
-    cub <- NULL
+    guess_sq <- squ$Predicted
+    cub <- SplineReg_biv_GLM(X = X, Y = Y, Z = Z, InterKnotsX = ccX, InterKnotsY = ccY, Xextr = Xextr, Yextr = Yextr,
+                             n = 4, family = family, mustart = guess_sq)
     } else {
       # Stage B.1 (averaging knot location)
       ccX <- if (length(ikX) < 3) NULL else makenewknots(ikX, 4)

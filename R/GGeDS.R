@@ -74,7 +74,7 @@
 #' constructed, thus simultaneously producing spline fits of order 2, 3 and 4,
 #' all of which are included in the output, a \code{\link{GeDS-Class}} object.
 #' A detailed description of the underlying algorithm can be found in
-#' Dimitrova et al. (2017).
+#' Dimitrova et al. (2023).
 #' 
 #' As noted in \code{\link[=formula.GeDS]{formula}}, the argument \code{formula}
 #' allows the user to specify predictor models with two components, a spline
@@ -142,7 +142,7 @@
 #' ######################################################################
 #' # Generate a data sample for the response variable Y and the covariate
 #' # X assuming Poisson distributed error and log link function
-#' # See section 4.1 in Dimitrova et al. (2017)
+#' # See section 4.1 in Dimitrova et al. (2023)
 #' set.seed(123)
 #' N <- 500
 #' f_1 <- function(x) (10*x/(1+100*x^2))*4+4
@@ -184,7 +184,7 @@
 #'
 #' ##########################################
 #' # A real data example
-#' # See Dimitrova et al. (2017), Section 4.2
+#' # See Dimitrova et al. (2023), Section 4.2
 #'
 #' data("coalMining")
 #' (Gmod2 <- GGeDS(formula = accidents ~ f(years), beta = 0.1, phi = 0.98,
@@ -203,7 +203,7 @@
 #' ##########################################
 #' # The same regression in the example of GeDS
 #' # but assuming Gamma and Poisson responses
-#' # See Dimitrova et al. (2017), Section 4.2
+#' # See Dimitrova et al. (2023), Section 4.2
 #'
 #' data('BaFe2As2')
 #' (Gmod4 <- GGeDS(intensity ~ f(angle), data = BaFe2As2, beta = 0.6, phi = 0.995, q = 3,
@@ -217,7 +217,7 @@
 #'
 #' ##########################################
 #' # Life tables
-#' # See Dimitrova et al. (2017), Section 4.2
+#' # See Dimitrova et al. (2023), Section 4.2
 #'
 #' data(EWmortality)
 #' attach(EWmortality)
@@ -294,7 +294,8 @@
 #' 
 #' Dimitrova, D. S., Kaishev, V. K., Lattuada, A. and Verrall, R. J.  (2023).
 #' Geometrically designed variable knot splines in generalized (non-)linear
-#' models. \emph{Applied Mathematics and Computation}, \strong{436}. \cr
+#' models.
+#' \emph{Applied Mathematics and Computation}, \strong{436}. \cr
 #' DOI: \doi{10.1016/j.amc.2022.127493}
 
 GGeDS <- function(formula, data, family = gaussian(), weights, beta, phi = 0.99,

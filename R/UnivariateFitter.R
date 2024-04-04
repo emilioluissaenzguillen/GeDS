@@ -322,8 +322,9 @@ UnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0,NROW(Y)),
   
   # 1. LINEAR
   if(j - q < 2) {
-    warning("Too few internal knots found: Linear spline will not be computed. Try to set a different value for 'q' or a different treshold")
-    ll <- lin <- NULL
+    warning("Too few internal knots found: Linear spline will be computed with NULL internal knots. Try to set a different value for 'q' or a different treshold")
+    ll <- NULL
+    lin <- SplineReg_LM(X = X, Y = Y, Z = Z, offset = offset, weights = weights, extr = extr, InterKnots = ll, n = 2)
     } else {
       ik <- previous[j-q, -c(1, 2, (j + 2 - q):(j + 3))] # keep the internal knots in the "j-q"th row
       # Stage B.1 (averaging knot location)
@@ -333,8 +334,9 @@ UnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0,NROW(Y)),
     }
   # 2. QUADRATIC
   if(j - q < 3) {
-    warning("Too few internal knots found: Quadratic spline will not be computed. Try to set a different value for 'q' or a different treshold")
-    qq <- squ <- NULL
+    warning("Too few internal knots found: Quadratic spline will be computed with NULL internal knots. Try to set a different value for 'q' or a different treshold")
+    qq <- NULL
+    squ <- SplineReg_LM(X = X, Y = Y, Z = Z, offset = offset, weights = weights, extr = extr, InterKnots = qq, n = 3)
     } else {
       # Stage B.1 (averaging knot location)
       qq <- makenewknots(ik, 3)
@@ -343,8 +345,9 @@ UnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0,NROW(Y)),
     }
   # 3. CUBIC
   if(j-q < 4) {
-    warning("Too few internal knots found: Cubic spline will not be computed. Try to set a different value for 'q' or a different treshold")
-    cc <- cub <- NULL
+    warning("Too few internal knots found: Cubic spline will be computed with NULL internal knots. Try to set a different value for 'q' or a different treshold")
+    cc <- NULL
+    cub <- SplineReg_LM(X = X, Y = Y, Z = Z, offset = offset, weights = weights, extr = extr, InterKnots = cc, n = 4)
     } else {
       # Stage B.1 (averaging knot location)
       cc <- makenewknots(ik, 4)
@@ -623,8 +626,11 @@ GenUnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)),
   
   # 1. LINEAR
   if (j - q < 2) {
-    warning("Too few internal knots found: Linear spline will not be computed. Try to set a different value for 'q' or a different treshold")
-    ll <- lin <- NULL
+    warning("Too few internal knots found: Linear spline will be computed with NULL internal knots. Try to set a different value for 'q' or a different treshold")
+    ll <- NULL
+    lin <- SplineReg_GLM(X = X, Y = Y, Z = Z, offset = offset, weights = weights,
+                         extr = extr, InterKnots = ll, n = 2, family = family,
+                         inits = c(oldguess[j-q, 1:(j-q+1)], guess_z))
   } else {
     ik <- previous[j-q,-c(1,2,(j+2-q):(j+3))]
     # Stage B.1 (averaging knot location)
@@ -636,8 +642,11 @@ GenUnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)),
   }
   # 2. QUADRATIC
   if (j - q < 3) {
-    warning("Too few internal knots found: Quadratic spline will not be computed. Try to set a different value for 'q' or a different treshold")
-    qq <- squ <- NULL
+    warning("Too few internal knots found: Quadratic spline will be computed with NULL internal knots. Try to set a different value for 'q' or a different treshold")
+    qq <- NULL
+    squ <- SplineReg_GLM(X = X, Y = Y, Z = Z, offset = offset, weights = weights,
+                         extr = extr, InterKnots = qq, n = 3, family = family,
+                         mustart = lin$Predicted)
   } else {
     # Stage B.1 (averaging knot location)
     qq <- makenewknots(ik, 3)
@@ -648,8 +657,11 @@ GenUnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)),
   }
   # 3. CUBIC
   if (j - q < 4) {
-    warning("Too few internal knots found: Cubic spline will not be computed. Try to set a different value for 'q' or a different treshold")
-    cc <- cub <- NULL
+    warning("Too few internal knots found: Cubic spline will be computed with NULL internal knots. Try to set a different value for 'q' or a different treshold")
+    cc <- NULL
+    cub <- SplineReg_GLM(X = X, Y = Y, Z = Z, offset = offset, weights = weights,
+                         extr = extr, InterKnots = cc, n = 4, family = family,
+                         mustart = squ$Predicted)
   } else {
     # Stage B.1 (averaging knot location)
     cc <- makenewknots(ik, 4)
