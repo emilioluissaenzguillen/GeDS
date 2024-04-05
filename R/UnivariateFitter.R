@@ -355,7 +355,7 @@ UnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0,NROW(Y)),
       cub <- SplineReg_LM(X = X, Y = Y, Z = Z, offset = offset, weights = weights, extr = extr, InterKnots = cc, n = 4)
     }
   
-  out <- list("Type" = "LM - Univ", "Linear.Knots" = ll, "Quadratic.Knots" = qq, "Cubic.Knots" = cc,
+  out <- list("Type" = "LM - Univ", "Linear.IntKnots" = ll, "Quadratic.IntKnots" = qq, "Cubic.IntKnots" = cc,
               "Dev.Linear" = lin$RSS, "Dev.Quadratic" = squ$RSS, "Dev.Cubic" = cub$RSS,
               "RSS" = RSSnew, "Linear" = lin, "Quadratic" = squ, "Cubic" = cub, "Stored" = previous,
               "Args"= args, "Call"= save, "Nintknots" = j - q - 1, "iters" = j, "Guesses" = NULL,
@@ -671,7 +671,7 @@ GenUnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)),
                          mustart = squ$Predicted)
   }
   
-  out <- list("Type" = "GLM - Univ", "Linear.Knots" = ll, "Quadratic.Knots" = qq, "Cubic.Knots" = cc,
+  out <- list("Type" = "GLM - Univ", "Linear.IntKnots" = ll, "Quadratic.IntKnots" = qq, "Cubic.IntKnots" = cc,
               "Dev.Linear" = lin$RSS, "Dev.Quadratic" = squ$RSS, "Dev.Cubic" = cub$RSS, "Knots" = intknots,
               "RSS" = RSSnew, "Linear" = lin, "Quadratic" = squ, "Cubic" = cub, "Stored" = previous,
               "Args" = args, "Call" = save, "Nintknots" = j - q - 1, "iters" = j, "Guesses" = oldguess,

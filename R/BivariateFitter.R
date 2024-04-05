@@ -340,8 +340,8 @@ BivariateFitter <- function(X, Y, Z, W, weights=rep(1,length(X)), Indicator,
       cub <- SplineReg_biv(X = X, Y = Y, Z = Z, InterKnotsX = ccX, InterKnotsY = ccY, Xextr = Xextr, Yextr = Yextr, n = 4)
       }
   
-  out <- list("Type" = "LM - Biv", "Linear.Knots" = list("Xk" = llX, "Yk" = llY), "Quadratic.Knots" = list("Xk" = qqX, "Yk" = qqY),
-              "Cubic.Knots" = list("Xk" = ccX,"Yk" = ccY),"Dev.Linear" = lin$RSS, "Dev.Quadratic" = squ$RSS, "Dev.Cubic" = cub$RSS,
+  out <- list("Type" = "LM - Biv", "Linear.IntKnots" = list("Xk" = llX, "Yk" = llY), "Quadratic.IntKnots" = list("Xk" = qqX, "Yk" = qqY),
+              "Cubic.IntKnots" = list("Xk" = ccX,"Yk" = ccY),"Dev.Linear" = lin$RSS, "Dev.Quadratic" = squ$RSS, "Dev.Cubic" = cub$RSS,
               "RSS" = RSSnew, "Linear" = lin, "Quadratic" = squ, "Cubic" = cub, "Stored" = list("previousX" = previousX, "previousY" = previousY),
               "Args"= args, "Call"= save, "Nintknots"= list("X"= length(llX), "Y"= length(llY)), "iters" = j, "Guesses" = NULL,
               "Coefficients" = oldcoef)
@@ -721,8 +721,8 @@ GenBivariateFitter <- function(X, Y, Z, W, family = family, weights = rep(1,leng
                                n = 4, family = family, mustart = guess_sq)
       }
     
-  out <- list("Type" = "GLM - Biv","Linear.Knots"=list("Xk" = llX,"Yk" = llY),"Quadratic.Knots"=list("Xk" = qqX,"Yk" = qqY),
-              "Cubic.Knots"=list("Xk" = ccX,"Yk" = ccY),"Dev.Linear" = lin$RSS, "Dev.Quadratic" = squ$RSS,"Dev.Cubic" = cub$RSS,
+  out <- list("Type" = "GLM - Biv","Linear.IntKnots"=list("Xk" = llX,"Yk" = llY),"Quadratic.IntKnots"=list("Xk" = qqX,"Yk" = qqY),
+              "Cubic.IntKnots"=list("Xk" = ccX,"Yk" = ccY),"Dev.Linear" = lin$RSS, "Dev.Quadratic" = squ$RSS,"Dev.Cubic" = cub$RSS,
               "RSS" = RSSnew, "Linear" = lin, "Quadratic" = squ, "Cubic" = cub, "Stored" = previousX, "Args"= args,
               "Call"= save, "Nintknots"= list("X"= length(llX), "Y"= length(llY)),"iters" = j, "Guesses" = NULL,
               "Coefficients" = oldcoef)

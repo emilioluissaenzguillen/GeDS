@@ -256,13 +256,13 @@ knots.GeDS <- function(Fn, n = 3L, options = c("all","internal"), ...)
   
   # 1. Linear
   if(n == 2L) {
-    kn <- Fn$Linear.Knots
+    kn <- Fn$Linear.IntKnots
   # 2. Quadratic
     } else if (n == 3L) {
-      kn <- Fn$Quadratic.Knots
+      kn <- Fn$Quadratic.IntKnots
   # 3. Cubic
       } else if (n == 4L) {
-        kn <- Fn$Cubic.Knots
+        kn <- Fn$Cubic.IntKnots
       }
   
   if (options == "all") {
