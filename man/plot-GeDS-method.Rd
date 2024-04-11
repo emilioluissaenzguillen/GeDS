@@ -6,7 +6,7 @@
 \alias{plot,GeDS,ANY-method}
 \title{Plot method for GeDS objects.}
 \usage{
-\S4method{plot}{GeDS,ANY}(
+\S4method{plot}{GeDS}(
   x,
   f = NULL,
   which,
