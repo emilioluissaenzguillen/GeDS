@@ -154,13 +154,13 @@ UnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0,NROW(Y)),
   RSSnew <- numeric()
   phis <- NULL
   # Initialize \hat{\phi}_\kappa, \hat{\gamma}_0 and \hat{\gamma}_\1 (stoptype = "SR"; see eq. 9 in Dimitrova et al. (2023))
-  phis_star <- NULL; oldintc <- NULL;  oldslp <- NULL
+  phis_star <- NULL; oldintc <- NULL; oldslp <- NULL
   
   # Stop type, Indicator, distinctX
   stoptype <- match.arg(stoptype)
   Indicator <- table(X)
   distinctX <- unique(X)
- 
+  
   # Initialize knots and coefficients matrices and internal knots
   previous <- matrix(nrow = max.intknots + 1,     # maximum number of GeDS iterations (if max.intknots + 1 =< length(Y) - 2, max j = max.intknots + 1
                                                   #                                    o.w. max j = length(Y) - 2 < max.intknots + 1 )
@@ -192,44 +192,48 @@ UnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0,NROW(Y)),
     res.tmp <- first.deg$Residuals
     RSSnew <- c(RSSnew, first.deg$RSS)
     
-    ###########################
+    ############################
     ## STEP 10: Stopping Rule ##
     ############################
-    # (I) Smoothed Ratio of deviances
-    if(stoptype == "SR") {
-      if(j > q  && length(phis) >= 3) {
-        phis <- c(phis, RSSnew[j]/RSSnew[j-q])
-        if(j - q > min.intknots){
-          phismod <- log(1-phis)
-          ccc <- .lm.fit(cbind(1, (q+1):j), phismod)$coef
-          phis_star <- c(phis_star, 1-exp(ccc[1])*exp(ccc[2]*j))
-          oldintc <- c(oldintc, ccc[1])
-          oldslp <- c(oldslp, ccc[2])
-          prnt <- paste0(", phi_hat = ",round(1-exp(ccc[1])*exp(ccc[2]*j),3))
-
-          if(1-exp(ccc[1])*exp(ccc[2]*j) >= phi) {
-            break
-          }
-        }
+    if (j > q) {
+      
+      if (RSSnew[j]/RSSnew[j-q] > 1) break
+      
+      # Adding the current ratio of deviances to the 'phis' vector
+      phis <- if (stoptype == "LR") {
+        c(phis, RSSnew[j-q]-RSSnew[j])
+      } else {
+        c(phis, RSSnew[j]/RSSnew[j-q])
       }
-    }
-    # (II) Ratio of Deviances
-    if(stoptype == "RD" | (stoptype == "SR" & length(phis) < 3)) {
-      phis <- c(phis, RSSnew[j]/RSSnew[j-q])
-      if(j > q && (j-q > min.intknots)) {
-        prnt <- paste0(", phi = ", round(RSSnew[j]/RSSnew[j-q],3))
-        if(RSSnew[j] / RSSnew[j-q] >= phi) {
-          break
-        }
-      }
-    }
-    # (III) Likelihood Ratio
-    if(stoptype == "LR") {
-      phis <- c(phis,RSSnew[j-q]-RSSnew[j])
-      if(j > q && (j-q > min.intknots)) {
-        prnt <- paste0(", p = ",round(pchisq(-(RSSnew[j]-RSSnew[j-q]), df = q),3))
-        if(-(RSSnew[j]-RSSnew[j-q]) < qchisq(phi,df=q)) {     
-          break
+      
+      if (j - q > min.intknots) {
+        # (I) Smoothed Ratio of deviances
+        if(stoptype == "SR") {
+          # \hat{φ}_κ = 1 − exp{\hat{γ}_0 + \hat{γ}_1*κ}
+          # 1-\hat{φ}_κ = exp{\hat{γ}_0 + \hat{γ}_1*κ}
+          # ln(1-\hat{φ}_κ) = \hat{γ}_0 + \hat{γ}_1*κ
+          # Fit a linear model ln(1-φ) ~ \hat{γ}_0 + \hat{γ}_1*κ to the sample {φ_h, h}^κ_{h=q}
+          phismod <- log(1-phis); kappa <- length(intknots)
+          gamma <- .lm.fit(cbind(1, q:kappa), phismod)$coef
+          # Calculate \hat{φ}_κ based on the estimated coefficients
+          phi_kappa <- 1 - exp(gamma[1])*exp(gamma[2]*kappa)
+          # Store \hat{φ}_κ and the estimated coefficients \hat{γ}_0 and \hat{γ}_1
+          phis_star <- c(phis_star, phi_kappa)
+          oldintc <- c(oldintc, gamma[1]); oldslp <- c(oldslp, gamma[2])
+          # Creating a print statement that shows the current adjusted phi value
+          prnt <- paste0(", phi_hat = ", round(phi_kappa, 3))
+          # Check if \hat{φ}_κ ≥ φ_{exit}
+          if (phi_kappa >= phi) break
+          
+          # (II) Ratio of Deviances
+        } else if (stoptype == "RD") {
+          prnt <- paste0(", phi = ", round(RSSnew[j]/RSSnew[j-q],3))
+          if(RSSnew[j]/RSSnew[j-q] >= phi) break
+          
+          # (III) Likelihood Ratio
+        } else if (stoptype == "LR") {
+          prnt <- paste0(", p = ", round(pchisq(-(RSSnew[j]-RSSnew[j-q]), df=q), 3))
+          if(-(RSSnew[j]-RSSnew[j-q]) < qchisq(phi, df=q)) break
         }
       }
     }
@@ -310,30 +314,33 @@ UnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0,NROW(Y)),
   ##############################################################################
   ################################## STAGE B ###################################
   ##############################################################################
-  if (j == max.intknots + 1) warning("Maximum number of iterations exceeded")
-  if (j <= max.intknots) {
-    # Eliminate NAs in previous
-    previous <- previous[-((j+1):(max.intknots+1)), ] # eliminate all the NA rows
-    previous <- previous[ ,-((j+4):(max.intknots+4))] #  k = j - 1 internal knots (i.e. k + 4 = j + 3 knots) in the last iteration
-    # Eliminate NAs in oldcoef
-    oldcoef  <- oldcoef[-((j+1):(max.intknots+1)), ]  # eliminate all the NA rows
-    oldcoef  <- oldcoef[ ,1:(j+1+nz)]                 # p = n + k = j + 1  B-splines
-  }
+  if (j == max.intknots + 1) {
+    warning("Maximum number of iterations exceeded")
+    iter <- j
+    } else if (j <= max.intknots) {
+      # Eliminate NAs in previous
+      previous <- previous[-((j+1):(max.intknots+1)), ] # eliminate all the NA rows
+      previous <- previous[ ,-((j+4):(max.intknots+4))] #  k = j - 1 internal knots (i.e. k + 4 = j + 3 knots) in the last iteration
+      # Eliminate NAs in oldcoef
+      oldcoef  <- oldcoef[-((j+1):(max.intknots+1)), ]  # eliminate all the NA rows
+      oldcoef  <- oldcoef[ ,1:(j+1+nz)]                 # p = n + k = j + 1  B-splines
+      iter <- j - q
+    }
   
   # 1. LINEAR
-  if(j - q < 2) {
+  if (iter < 2) {
     warning("Too few internal knots found: Linear spline will be computed with NULL internal knots. Try to set a different value for 'q' or a different treshold")
     ll <- NULL
     lin <- SplineReg_LM(X = X, Y = Y, Z = Z, offset = offset, weights = weights, extr = extr, InterKnots = ll, n = 2)
     } else {
-      ik <- previous[j-q, -c(1, 2, (j + 2 - q):(j + 3))] # keep the internal knots in the "j-q"th row
+      ik <- as.numeric(na.omit(previous[iter, -c(1, 2, iter + 2, iter + 3)])) # keep the internal knots in the "iter"th row
       # Stage B.1 (averaging knot location)
       ll <- makenewknots(ik, 2)
       # Stage B.2
       lin <- SplineReg_LM(X = X, Y = Y, Z = Z, offset = offset, weights = weights, extr = extr, InterKnots = ll, n = 2)
     }
   # 2. QUADRATIC
-  if(j - q < 3) {
+  if (iter < 3) {
     warning("Too few internal knots found: Quadratic spline will be computed with NULL internal knots. Try to set a different value for 'q' or a different treshold")
     qq <- NULL
     squ <- SplineReg_LM(X = X, Y = Y, Z = Z, offset = offset, weights = weights, extr = extr, InterKnots = qq, n = 3)
@@ -344,7 +351,7 @@ UnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0,NROW(Y)),
       squ <- SplineReg_LM(X = X, Y = Y, Z = Z, offset = offset, weights = weights, extr = extr, InterKnots = qq, n = 3)
     }
   # 3. CUBIC
-  if(j-q < 4) {
+  if (iter < 4) {
     warning("Too few internal knots found: Cubic spline will be computed with NULL internal knots. Try to set a different value for 'q' or a different treshold")
     cc <- NULL
     cub <- SplineReg_LM(X = X, Y = Y, Z = Z, offset = offset, weights = weights, extr = extr, InterKnots = cc, n = 4)
@@ -358,7 +365,7 @@ UnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0,NROW(Y)),
   out <- list("Type" = "LM - Univ", "Linear.IntKnots" = ll, "Quadratic.IntKnots" = qq, "Cubic.IntKnots" = cc,
               "Dev.Linear" = lin$RSS, "Dev.Quadratic" = squ$RSS, "Dev.Cubic" = cub$RSS,
               "RSS" = RSSnew, "Linear" = lin, "Quadratic" = squ, "Cubic" = cub, "Stored" = previous,
-              "Args"= args, "Call"= save, "Nintknots" = j - q - 1, "iters" = j, "Guesses" = NULL,
+              "Args"= args, "Call"= save, "Nintknots" = iter - 1, "iters" = j, "Guesses" = NULL,
               "Coefficients" = oldcoef, stopinfo = list("phis" = phis, "phis_star" = phis_star, "oldintc" = oldintc, "oldslp" = oldslp))
 
   class(out) <- "GeDS"
@@ -391,6 +398,11 @@ GenUnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)),
   # Initialize \hat{\phi}_\kappa, \hat{\gamma}_0 and \hat{\gamma}_\1 (stoptype = "SR"; see eq. 9 in Dimitrova et al. (2023))
   phis_star <- NULL; oldintc <- NULL; oldslp <- NULL
   
+  # Stop type, Indicator, distinctX
+  stoptype <- match.arg(stoptype)
+  Indicator <- table(X)
+  distinctX <- unique(X)
+  
   # Initialize knots and coefficients matrices and internal knots
   previous <- matrix(nrow = max.intknots + 1,     # maximum number of GeDS iterations (if max.intknots + 1 =< length(Y) - 2, max j = max.intknots + 1
                                                   # o.w. max j = length(Y) - 2 < max.intknots + 1 )
@@ -407,11 +419,6 @@ GenUnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)),
   irlsAccumIterCount <- devianceTracking <- NULL
   # Control basis matrix singularity
   flag <- FALSE
-  
-  # Stop type, Indicator, distinctX
-  stoptype <- match.arg(stoptype)
-  Indicator <- table(X)
-  distinctX <- unique(X)
   
   ##############################################################################
   ################################## STAGE A ###################################
@@ -456,7 +463,7 @@ GenUnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)),
         guess <- guess[1:length(first.deg$Theta)][-check]
         toprint <- paste0("Basis Matrix singular, deleting one knot")
         print(toprint)
-        flag  <- T 
+        flag  <- TRUE 
         # (c) Check if the number of knots equals the number of unique X values and issue a warning if true
         if(cols == length(distinctX)) {
           warning("Number of knots equal to number of unique Xs. Breaking the loop.")
@@ -488,7 +495,7 @@ GenUnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)),
     
     # Store residuals and deviance 
     res.tmp <- first.deg$Residuals
-    RSS.tmp <- first.deg$temporary$lastdev
+    RSS.tmp <- first.deg$temporary$lastdeviance
     RSSnew <- c(RSSnew, RSS.tmp)
     # Working weights (weights in the final iteration of the IRLS fit)
     working.weights <- first.deg$temporary$weights  
@@ -496,40 +503,45 @@ GenUnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)),
     ###########################
     ## STEP 2: Stopping Rule ##
     ###########################
-    # (I) Smoothed Ratio of deviances
-    if(stoptype =="SR") {
-      if(j > q  && length(phis) >= 3) {
-        phis <- c(phis, RSSnew[j]/RSSnew[j-q])
-        if (j - q > min.intknots) {
-          phismod <- log(1-phis)
-          ccc <- .lm.fit(cbind(1,(q+1):j), phismod)$coef
-          phis_star <- c(phis_star, 1-exp(ccc[1])*exp(ccc[2]*j))
-          oldintc <- c(oldintc, ccc[1])
-          oldslp <- c(oldslp, ccc[2])
-          prnt <- paste0(", phi_hat = ", round(1-exp(ccc[1])*exp(ccc[2]*j),3))
-          if(1-exp(ccc[1])*exp(ccc[2]*j) >= phi) {
-            break
-          }
-        }
+    if (j > q) {
+      
+      if (RSSnew[j]/RSSnew[j-q] > 1) break
+      
+      # Adding the current ratio of deviances to the 'phis' vector
+      phis <- if (stoptype == "LR") {
+        c(phis, RSSnew[j-q]-RSSnew[j])
+      } else {
+        c(phis, RSSnew[j]/RSSnew[j-q])
       }
-    }
-    # (II) Ratio of Deviances
-    if(stoptype == "RD" | (stoptype == "SR" & length(phis) < 3)) {
-      phis <- c(phis, RSSnew[j]/RSSnew[j-q])
-      if(j > q && (j - q > min.intknots)) {
-        prnt <- paste0(", phi = ", round(RSSnew[j]/RSSnew[j-q],3))
-        if(RSSnew[j]/RSSnew[j-q] >= phi) {
-          break
-        }
-      }
-    }
-    # (III) Likelihood Ratio
-    if(stoptype=="LR"){
-      if(j > q && (j-q > min.intknots)) {
-        phis <- c(phis, RSSnew[j-q]-RSSnew[j])
-        prnt <- paste0(", p = ", round(pchisq(-(RSSnew[j]-RSSnew[j-q]), df=q),3))
-        if(-(RSSnew[j]-RSSnew[j-q]) < qchisq(phi,df=q)) {
-          break
+      
+      if (j - q > min.intknots) {
+        # (I) Smoothed Ratio of deviances
+        if(stoptype == "SR") {
+          # \hat{φ}_κ = 1 − exp{\hat{γ}_0 + \hat{γ}_1*κ}
+          # 1-\hat{φ}_κ = exp{\hat{γ}_0 + \hat{γ}_1*κ}
+          # ln(1-\hat{φ}_κ) = \hat{γ}_0 + \hat{γ}_1*κ
+          # Fit a linear model ln(1-φ) ~ \hat{γ}_0 + \hat{γ}_1*κ to the sample {φ_h, h}^κ_{h=q}
+          phismod <- log(1-phis); kappa <- length(intknots)
+          gamma <- .lm.fit(cbind(1, q:kappa), phismod)$coef
+          # Calculate \hat{φ}_κ based on the estimated coefficients
+          phi_kappa <- 1 - exp(gamma[1])*exp(gamma[2]*kappa)
+          # Store \hat{φ}_κ and the estimated coefficients \hat{γ}_0 and \hat{γ}_1
+          phis_star <- c(phis_star, phi_kappa)
+          oldintc <- c(oldintc, gamma[1]); oldslp <- c(oldslp, gamma[2])
+          # Creating a print statement that shows the current adjusted phi value
+          prnt <- paste0(", phi_hat = ", round(phi_kappa, 3))
+          # Check if \hat{φ}_κ ≥ φ_{exit}
+          if (phi_kappa >= phi) break
+          
+        # (II) Ratio of Deviances
+        } else if (stoptype == "RD") {
+          prnt <- paste0(", phi = ", round(RSSnew[j]/RSSnew[j-q],3))
+          if(RSSnew[j]/RSSnew[j-q] >= phi) break
+          
+        # (III) Likelihood Ratio
+        } else if (stoptype == "LR") {
+          prnt <- paste0(", p = ", round(pchisq(-(RSSnew[j]-RSSnew[j-q]), df=q), 3))
+          if(-(RSSnew[j]-RSSnew[j-q]) < qchisq(phi, df=q)) break
         }
       }
     }
@@ -614,34 +626,44 @@ GenUnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)),
   ##############################################################################
   ################################## STAGE B ###################################
   ##############################################################################
-  if (j == max.intknots + 1) warning("Maximum number of iterations exceeded")
-  if (j <= max.intknots) {
+  if (j == max.intknots + 1) {
+    warning("Maximum number of iterations exceeded")
+    iter <- j
+  } else if (j <= max.intknots) {
     # Eliminate NAs in previous
     previous <- previous[-((j+1):(max.intknots+1)), ] # eliminate all the NA rows
     previous <- previous[ ,-((j+4):(max.intknots+4))] #  k = j - 1 internal knots (i.e. k + 4 = j + 3 knots) in the last iteration
     # Eliminate NAs in oldcoef
     oldcoef  <- oldcoef[-((j+1):(max.intknots+1)), ]  # eliminate all the NA rows
     oldcoef  <- oldcoef[ ,1:(j+1+nz)]                 # p = n + k = j + 1  B-splines
+    iter <- j - q
+  }
+  
+  # If model selected is from first iteration
+  if (iter == 1) {
+    mustart <- NULL
+  } else {
+    mustart <- oldguess[iter, 1:(iter+1)]
   }
   
   # 1. LINEAR
-  if (j - q < 2) {
+  if (iter < 2) {
     warning("Too few internal knots found: Linear spline will be computed with NULL internal knots. Try to set a different value for 'q' or a different treshold")
     ll <- NULL
     lin <- SplineReg_GLM(X = X, Y = Y, Z = Z, offset = offset, weights = weights,
                          extr = extr, InterKnots = ll, n = 2, family = family,
-                         inits = c(oldguess[j-q, 1:(j-q+1)], guess_z))
+                         inits = c(mustart, guess_z))
   } else {
-    ik <- previous[j-q,-c(1,2,(j+2-q):(j+3))]
+    ik <- as.numeric(na.omit(previous[iter,-c(1,2,iter+2,iter+3)]))
     # Stage B.1 (averaging knot location)
     ll <- makenewknots(ik, 2)
     # Stage B.2
     lin <- SplineReg_GLM(X = X, Y = Y, Z = Z, offset = offset, weights = weights,
                          extr = extr, InterKnots = ll, n = 2, family = family,
-                         inits = c(oldguess[j-q, 1:(j-q+1)], guess_z))
+                         inits = c(mustart, guess_z))
   }
   # 2. QUADRATIC
-  if (j - q < 3) {
+  if (iter < 3) {
     warning("Too few internal knots found: Quadratic spline will be computed with NULL internal knots. Try to set a different value for 'q' or a different treshold")
     qq <- NULL
     squ <- SplineReg_GLM(X = X, Y = Y, Z = Z, offset = offset, weights = weights,
@@ -656,7 +678,7 @@ GenUnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)),
                          mustart = lin$Predicted)
   }
   # 3. CUBIC
-  if (j - q < 4) {
+  if (iter < 4) {
     warning("Too few internal knots found: Cubic spline will be computed with NULL internal knots. Try to set a different value for 'q' or a different treshold")
     cc <- NULL
     cub <- SplineReg_GLM(X = X, Y = Y, Z = Z, offset = offset, weights = weights,
@@ -674,7 +696,7 @@ GenUnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)),
   out <- list("Type" = "GLM - Univ", "Linear.IntKnots" = ll, "Quadratic.IntKnots" = qq, "Cubic.IntKnots" = cc,
               "Dev.Linear" = lin$RSS, "Dev.Quadratic" = squ$RSS, "Dev.Cubic" = cub$RSS, "Knots" = intknots,
               "RSS" = RSSnew, "Linear" = lin, "Quadratic" = squ, "Cubic" = cub, "Stored" = previous,
-              "Args" = args, "Call" = save, "Nintknots" = j - q - 1, "iters" = j, "Guesses" = oldguess,
+              "Args" = args, "Call" = save, "Nintknots" = iter - 1, "iters" = j, "Guesses" = oldguess,
               "Coefficients" = oldcoef, "deviance" = devianceTracking, "iterIrls" = irlsAccumIterCount,
               stopinfo = list("phis" = phis,"phis_star" = phis_star, "oldintc" = oldintc, "oldslp" = oldslp))
   

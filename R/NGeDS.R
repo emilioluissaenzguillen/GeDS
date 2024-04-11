@@ -188,6 +188,7 @@
 #' (BivGeDS <- NGeDS(Z ~ f(X, Y) , phi = 0.9, beta = 0.3,
 #' Xextr = c(0, 3), Yextr = c(0, 3)))
 #' 
+#' # Extract quadratic coefficients/knots/deviance
 #' coef(BivGeDS, n = 3)
 #' knots(BivGeDS, n = 3)
 #' deviance(BivGeDS, n = 3)
@@ -329,7 +330,8 @@ NGeDS <- function(formula, data, weights, beta = 0.5, phi = 0.99, min.intknots =
     out <- BivariateFitter(X = X[,1], Y = X[,2], W = Z, Z = Y, weights = weights,
                            Indicator = Indicator, beta=beta, phi = phi,
                            min.intknots = min.intknots, max.intknots = max.intknots,
-                           q = q, Xextr = Xextr, Yextr = Yextr, show.iters = show.iters)
+                           q = q, Xextr = Xextr, Yextr = Yextr, show.iters = show.iters,
+                           stoptype = stoptype)
     
   } else {
     stop("Incorrect number of columns of the independent variable")

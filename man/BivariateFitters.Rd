@@ -21,7 +21,8 @@ BivariateFitter(
   Xextr = range(X),
   Yextr = range(Y),
   show.iters = TRUE,
-  tol = as.double(1e-12)
+  tol = as.double(1e-12),
+  stoptype = c("SR", "RD", "LR")
 )
 
 GenBivariateFitter(
@@ -41,7 +42,7 @@ GenBivariateFitter(
   Yextr = range(Y),
   show.iters = TRUE,
   tol = as.double(1e-12),
-  stoptype = "RD"
+  stoptype = c("SR", "RD", "LR")
 )
 }
 \arguments{
@@ -101,17 +102,17 @@ information at each step. By default equal to \code{FALSE}.}
 whether two knots should be considered different during the knot placement
 steps in stage A.}
 
+\item{stoptype}{a character string indicating the type of GeDS stopping rule
+to be used. It should be either \code{"SR"}, \code{"RD"} or \code{"LR"},
+partial match allowed. See details of \code{\link{NGeDS}} or
+\code{\link{GGeDS}}.}
+
 \item{family}{a description of the error distribution and link function to be
 used in the model. This can be a character string naming a family function
 (e.g. \code{"gaussian"}), the family function itself (e.g.
 \code{\link[stats]{gaussian}}) or the result of a call to a family function
 (e.g. \code{gaussian()}). See \link[stats]{family} for details on family
 functions.}
-
-\item{stoptype}{a character string indicating the type of GeDS stopping rule
-to be used. It should be either \code{"SR"}, \code{"RD"} or \code{"LR"},
-partial match allowed. See details of \code{\link{NGeDS}} or
-\code{\link{GGeDS}}.}
 }
 \value{
 A \code{\link{GeDS-Class}} object, but without the \code{Formula},

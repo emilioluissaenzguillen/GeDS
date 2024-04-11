@@ -134,12 +134,12 @@
 #' @export 
 #' @importFrom plot3D persp3D points3D
 #' 
-#' @aliases plot.GeDS
+#' @aliases plot.GeDS plot,GeDS-method plot,GeDS,ANY-method
 
-setMethod("plot", signature(x = "GeDS"),  plot_GeDSdebug <- function(x, f = NULL, which, DEV = FALSE, ask = FALSE,
-                                                                     main, legend.pos = "topright",
-                                                                     new.window = FALSE, wait = 0.5,
-                                                                     n=3L, type = c("none", "Polygon", "NCI", "ACI"), ...)
+setMethod("plot", signature(x = "GeDS"), function(x, f = NULL, which, DEV = FALSE, ask = FALSE,
+                                                  main, legend.pos = "topright",
+                                                  new.window = FALSE, wait = 0.5,
+                                                  n=3L, type = c("none", "Polygon", "NCI", "ACI"), ...)
 {
   results <- list()
   results$terms <- x$terms
@@ -192,6 +192,10 @@ setMethod("plot", signature(x = "GeDS"),  plot_GeDSdebug <- function(x, f = NULL
   
   maxim <- nrow(x$Stored) # number of iterations in stage A
   others <- list(...) # other arguments passed to the function
+  
+  # Data arguments
+  col_data <- if (is.null(others$col)) "black" else others$col
+  pch_data <- if (is.null(others$pch)) 1 else others$pch
   
   ########################
   ## 1. Univariate GeDS ##
@@ -301,8 +305,8 @@ setMethod("plot", signature(x = "GeDS"),  plot_GeDSdebug <- function(x, f = NULL
           points(temp$Poly$Kn,temp$Poly$Thetas, col = "blue")
           
           if(draw.legend) legend(legend.pos, c("Data", toprint, "Polygon", f_legend), lty = c(NA, 1, 2, f_lty),
-                                 col = c("black", col_lines, "blue", f_col), pch = c(1, NA, 1, f_pch),
-                                 lwd = c(NA, 1, 1, f_lwd))
+                                 col = c(col_data, col_lines, "blue", f_col), pch = c(pch_data, NA, 1, f_pch),
+                                 lwd = c(NA, 1, 1, f_lwd), bty = "n")
           
           # 2) Normal Confidence Intervals
         } else if(type == "NCI") {
@@ -313,8 +317,8 @@ setMethod("plot", signature(x = "GeDS"),  plot_GeDSdebug <- function(x, f = NULL
           results$CIlow <- temp$NCI$Low
           
           if(draw.legend) legend(legend.pos,c("Data", toprint, "CI", f_legend), lty = c(NA, 1, 2, f_lty),
-                                 col = c("black", col_lines,"darkgrey", f_col), pch = c(1, NA, NA, f_pch),
-                                 lwd = c(NA, 1, 1, f_lwd))
+                                 col = c(col_data, col_lines,"darkgrey", f_col), pch = c(pch_data, NA, NA, f_pch),
+                                 lwd = c(NA, 1, 1, f_lwd), bty = "n")
           
           # 3) Asymptotic Confidence Intervals
         } else if (type == "ACI") {
@@ -325,13 +329,13 @@ setMethod("plot", signature(x = "GeDS"),  plot_GeDSdebug <- function(x, f = NULL
           results$CIlow <- temp$ACI$Low
           
           if(draw.legend) legend(legend.pos, c("Data", toprint, "CI", f_legend), lty = c(NA, 1, 2, f_lty),
-                                 col = c("black", col_lines, "darkgrey", f_col), pch = c(1, NA, NA, f_pch),
-                                 lwd = c(NA, 1, 1, f_lwd))
+                                 col = c(col_data, col_lines, "darkgrey", f_col), pch = c(pch_data, NA, NA, f_pch),
+                                 lwd = c(NA, 1, 1, f_lwd), bty = "n")
           
         } else {
           if (draw.legend) legend(legend.pos, c("Data", toprint, f_legend), lty = c(NA, 1, f_lty),
-                                  col = c("black", col_lines, f_col), pch = c(1, NA, f_pch),
-                                  lwd = c(NA, 1, f_lwd))
+                                  col = c(col_data, col_lines, f_col), pch = c(pch_data, NA, f_pch),
+                                  lwd = c(NA, 1, f_lwd), bty = "n")
         }
         
       }
@@ -388,8 +392,8 @@ setMethod("plot", signature(x = "GeDS"),  plot_GeDSdebug <- function(x, f = NULL
           lines(results$Polykn, results$Polyth, col = "blue", lty = 2)
           points(results$Polykn, results$Polyth, col = "blue")
           if(draw.legend) legend(legend.pos, c("Data", toprint, "Polygon", f_legend), lty = c(NA, 1, 2, f_lty),
-                                 col = c("black", col_lines, "blue", f_col), pch = c(1, NA, 1, f_pch),
-                                 lwd = c(NA, 1, 1, f_lwd))
+                                 col = c(col_data, col_lines, "blue", f_col), pch = c(pch_data, NA, 1, f_pch),
+                                 lwd = c(NA, 1, 1, f_lwd), bty = "n")
           
           # 2) Normal Confidence Intervals
         } else if(type=="NCI") {
@@ -415,8 +419,8 @@ setMethod("plot", signature(x = "GeDS"),  plot_GeDSdebug <- function(x, f = NULL
           results$CIlow <- CIlow
           
           if(draw.legend) legend(legend.pos, c("Data", toprint, "CI", f_legend), lty = c(NA, 1, 2, f_lty),
-                                 col = c("black", col_lines, "darkgrey", f_col), pch = c(1, NA, NA, f_pch),
-                                 lwd = c(NA, 1, 1, f_lwd))
+                                 col = c(col_data, col_lines, "darkgrey", f_col), pch = c(pch_data, NA, NA, f_pch),
+                                 lwd = c(NA, 1, 1, f_lwd), bty = "n")
           
           # 3) Asymptotic Confidence Intervals
         } else if (type=="ACI") {
@@ -430,12 +434,12 @@ setMethod("plot", signature(x = "GeDS"),  plot_GeDSdebug <- function(x, f = NULL
           lines(X, CIlow, col="darkgrey", lty = 2)
           
           if(draw.legend) legend(legend.pos, c("Data", toprint, "CI", f_legend), lty = c(NA, 1, 2, f_lty),
-                                 col = c("black", col, "darkgrey", f_col), pch = c(1, NA, NA, f_pch),
-                                 lwd = c(NA, 1, 1, f_lwd))
+                                 col = c(col_data, col, "darkgrey", f_col), pch = c(pch_data, NA, NA, f_pch),
+                                 lwd = c(NA, 1, 1, f_lwd), bty = "n")
         } else {
           if (draw.legend) legend(legend.pos, c("Data", toprint, f_legend), lty = c(NA, 1, f_lty),
-                                  col = c("black", col_lines, f_col), pch = c(1, NA, f_pch),
-                                  lwd = c(NA, 1, f_lwd))
+                                  col = c(col_data, col_lines, f_col), pch = c(pch_data, NA, f_pch),
+                                  lwd = c(NA, 1, f_lwd), bty = "n")
           
         }
       }
@@ -527,7 +531,8 @@ setMethod("plot", signature(x = "GeDS"),  plot_GeDSdebug <- function(x, f = NULL
              legend = c("Data", "Quadratic Fit"),
              col = c("black", "red"),
              pch = 19,
-             bg = 'white')
+             bg = 'white',
+             bty = "n")
       
     } else {
       
@@ -569,7 +574,8 @@ setMethod("plot", signature(x = "GeDS"),  plot_GeDSdebug <- function(x, f = NULL
              legend = c("Z >= f_hat(X,Y)", "Z  <  f_hat(X,Y)"),
              col = c("red", "blue"),
              pch = 19,
-             bg = 'white')
+             bg = 'white',
+             bty = "n")
     }
     
   } else {
@@ -580,4 +586,7 @@ setMethod("plot", signature(x = "GeDS"),  plot_GeDSdebug <- function(x, f = NULL
   invisible(x)
 }
 )
+
+
+
 

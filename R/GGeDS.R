@@ -140,8 +140,8 @@
 #'
 #' @examples
 #' ######################################################################
-#' # Generate a data sample for the response variable Y and the covariate
-#' # X assuming Poisson distributed error and log link function
+#' # Generate a data sample for the response variable Y and the covariate X
+#' # assuming Poisson distributed error and log link function
 #' # See section 4.1 in Dimitrova et al. (2023)
 #' set.seed(123)
 #' N <- 500
@@ -150,6 +150,10 @@
 #' # Specify a model for the mean of Y to include only a component
 #' # non-linear in X, defined by the function f_1
 #' means <- exp(f_1(X))
+#' 
+#' #############
+#' ## POISSON ##
+#' #############
 #' # Generate Poisson distributed Y according to the mean model
 #' Y <- rpois(N, means)
 #'
@@ -180,6 +184,28 @@
 #' knots(Gmod, n = 4)
 #' coef(Gmod, n = 4)
 #' deviance(Gmod, n = 4)
+#' 
+#' ###########
+#' ## GAMMA ##
+#' ###########
+#' # Generate Gamma distributed Y according to the mean model
+#' Y <- rgamma(N, shape = means, rate = 0.1)
+#' # Fit a Gamma GeDS regression using GGeDS
+#' Gmod <- GGeDS(Y ~ f(X), beta = 0.1, phi = 0.995, family =  Gamma(log),
+#'               Xextr = c(-2,2))
+#' plot(Gmod, f = function(x) exp(f_1(x))/0.1)
+#' 
+#' ##############
+#' ## BINOMIAL ##
+#' ##############
+#' # Generate Binomial distributed Y according to the mean model
+#' eta <- f_1(X) - 4
+#' means <- exp(eta)/(1+exp(eta))
+#' Y <- rbinom(N, size = 50, prob = means) / 50
+#' # Fit a Binomial GeDS regression using GGeDS
+#' Gmod <- GGeDS(Y ~ f(X), beta = 0.1, phi = 0.995, family =  "binomial",
+#'               Xextr = c(-2,2))
+#' plot(Gmod, f = function(x) exp(f_1(x) - 4)/(1 + exp(f_1(x) - 4)))
 #'
 #'
 #' ##########################################
@@ -259,7 +285,7 @@
 #' data <- data.frame(X, Y, Z)
 #' 
 #' # Fit a Poisson GeDS regression using GGeDS
-#' BivGeDS <- GGeDS(Z ~ f(X,Y), beta = 0.3, phi = 0.9, family = "poisson",
+#' BivGeDS <- GGeDS(Z ~ f(X,Y), beta = 0.2, phi = 0.995, family = "poisson",
 #' Xextr = c(0, 3), Yextr = c(0, 3))
 #' 
 #' # MSEs w.r.t data
@@ -413,7 +439,8 @@ GGeDS <- function(formula, data, family = gaussian(), weights, beta, phi = 0.99,
     out <- GenUnivariateFitter(X = X, Y = Y, Z = Z, offset = offset, weights = weights,
                                family = family, beta = beta, phi = phi,
                                min.intknots = min.intknots, max.intknots = max.intknots,
-                               q = q, extr = Xextr, show.iters = show.iters, stoptype = stoptype)
+                               q = q, extr = Xextr, show.iters = show.iters,
+                               stoptype = stoptype)
   ####################
   ## BIVARIATE GeDS ##
   ####################
@@ -427,7 +454,7 @@ GGeDS <- function(formula, data, family = gaussian(), weights, beta, phi = 0.99,
                               Indicator = Indicator, beta = beta, phi = phi,
                               min.intknots = min.intknots, max.intknots = max.intknots,
                               q = q, Xextr = Xextr, Yextr = Yextr, show.iters = show.iters,
-                              family = family)
+                              family = family, stoptype = stoptype)
     
     } else {
       stop("Incorrect number of columns of the independent variable")

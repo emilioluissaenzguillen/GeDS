@@ -222,12 +222,8 @@ SplineReg_GLM <- function(X, Y, Z, offset = rep(0,nobs), weights = rep(1,length(
                           inits = NULL, etastart = NULL)
   {
   # Ensure X, Y, Z, InterKnots are numeric, and n and extr are integers
-  X          <- as.numeric(X)
-  Y          <- as.numeric(Y)
-  Z          <- as.numeric(Z)
-  InterKnots <- as.numeric(InterKnots)
-  n          <- as.integer(n) 
-  extr       <- as.numeric(extr)
+  X <- as.numeric(X); Y <- as.numeric(Y); Z <- as.numeric(Z)
+  InterKnots <- as.numeric(InterKnots); n <- as.integer(n); extr <- as.numeric(extr)
   
   # Check that 'n' (spline order) has length 1
   if(length(n) != 1) stop("'n' must have length 1")

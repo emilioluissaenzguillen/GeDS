@@ -216,6 +216,7 @@ Z <- Z+rnorm(400, 0, sd = 0.1)
 (BivGeDS <- NGeDS(Z ~ f(X, Y) , phi = 0.9, beta = 0.3,
 Xextr = c(0, 3), Yextr = c(0, 3)))
 
+# Extract quadratic coefficients/knots/deviance
 coef(BivGeDS, n = 3)
 knots(BivGeDS, n = 3)
 deviance(BivGeDS, n = 3)

@@ -842,7 +842,7 @@ componentwise_fit <- function(bl_name, data, response, model_formula_template, w
   
   ## (A) GeDS base-learners
   if (base_learners[[bl_name]]$type == "GeDS") {
-    max.intknots <- if (length(pred_vars) == 1) internal_knots + q
+    max.intknots <- if (length(pred_vars) == 1) internal_knots
     else if (length(pred_vars) == 2 && internal_knots == 0) stop("internal_knots must be > 0 for bivariate learners")
     else internal_knots
     

@@ -35,8 +35,13 @@ read.formula <- function(formula, data, weights, offset)
   # Create a model frame based on the model terms and data, omitting rows with NAs
   mf <- model.frame(mt, data, na.action = na.omit)
   
-  # Extract response variable
-  Y <- model.response(mf, type="numeric")
+  # Extract response variable; encode factor response to 0/1
+  if (is.factor(model.response(mf))) {
+    Y <- as.numeric(model.response(mf)) - 1
+    if (any(Y != 0 & Y != 1)) stop("The factor variable is not binary.")
+    } else {
+      Y <- model.response(mf, type="numeric")
+      }
   attr(Y,"names")<- NULL
   # Extract GeDS covariates
   X <- mf[,spec]

@@ -76,11 +76,11 @@
 #' \emph{Applied Mathematics and Computation}, \strong{436}. \cr
 #' DOI: \doi{10.1016/j.amc.2022.127493}
 
-BivariateFitter <- function(X, Y, Z, W, weights=rep(1,length(X)), Indicator,
+BivariateFitter <- function(X, Y, Z, W, weights = rep(1,length(X)), Indicator,
                             beta = 0.5, phi = 0.99, min.intknots = 0,
                             max.intknots = 300, q = 2, Xextr = range(X),
                             Yextr = range(Y), show.iters = TRUE,
-                            tol = as.double(1e-12))
+                            tol = as.double(1e-12), stoptype = c("SR","RD","LR"))
   {
   # Capture the function call
   save <- match.call()
@@ -89,8 +89,13 @@ BivariateFitter <- function(X, Y, Z, W, weights=rep(1,length(X)), Indicator,
                "phi" = phi, "min.intknots" = min.intknots, "max.intknots" = max.intknots,
                "q" = q, "Xextr" = Xextr, "Yextr" = Yextr, "tol" = tol)
   
-  # Initialize RSS
+  # Initialize RSS and phis
   RSSnew <- numeric()
+  phis <- NULL
+  # Initialize \hat{\phi}_\kappa, \hat{\gamma}_0 and \hat{\gamma}_\1 (stoptype = "SR"; see eq. 9 in Dimitrova et al. (2023))
+  phis_star <- NULL; oldintc <- NULL; oldslp <- NULL
+  # Stop type
+  stoptype <- match.arg(stoptype)
   
   # Initialize knots matrix
   previousX <- matrix(nrow = max.intknots + 1, ncol = max.intknots + 4)
@@ -146,6 +151,9 @@ BivariateFitter <- function(X, Y, Z, W, weights=rep(1,length(X)), Indicator,
   # Calculate the cumulative sum of counts for X_2 intervals
   dcumY <- cumsum(dY)
   
+  # Initialized iter and ncoef
+  iter <- ncoef <- NULL
+  
   ##############################################################################
   ################################## STAGE A ###################################
   ##############################################################################
@@ -170,18 +178,62 @@ BivariateFitter <- function(X, Y, Z, W, weights=rep(1,length(X)), Indicator,
     # Store knots and coefficients
     previousX[j, 1:(length(Xintknots)+4)] <- sort(c(Xintknots, rep(Xextr,2)))
     previousY[j, 1:(length(Yintknots)+4)] <- sort(c(Yintknots, rep(Yextr,2)))
-    oldcoef[j, 1:length(first.deg$Theta)] <- first.deg$Theta
+    lth <- length(first.deg$Theta); ncoef <- c(ncoef, lth)
+    oldcoef[j, 1:lth] <- first.deg$Theta
+    
     # Store weighted residuals
     matr <- cbind(X, Y, first.deg$Residuals*weights)
+    # Store RSS
+    RSS.tmp <- first.deg$RSS
+    RSSnew <- c(RSSnew, RSS.tmp)
     
     ###########################
     ## STEP 3: Stopping rule ##
     ###########################
-    RSS.tmp <- first.deg$RSS
-    RSSnew <- c(RSSnew, RSS.tmp)
-    if(j > q && (j - q > min.intknots)) {
-      if(RSSnew[j]/RSSnew[j-q] >= phi) {
-        break
+    if (j > q) {
+      
+      if (RSSnew[j]/RSSnew[j-q] > 1) break
+      
+      # Adding the current ratio of deviances to the 'phis' vector
+      if (stoptype == "LR") {
+        phis <- c(phis, RSSnew[j-q]-RSSnew[j])
+      } else {
+        phnew <- (RSSnew[j]/RSSnew[j-q])^(1/(ncoef[j]-ncoef[j-q]))
+        phis <- c(phis, phnew)
+      }
+      
+      if (j - q > min.intknots) {
+        # (I) Smoothed Ratio of deviances
+        if (stoptype == "SR") {
+          # \hat{φ}_κ = 1 − exp{\hat{γ}_0 + \hat{γ}_1*κ}
+          # 1-\hat{φ}_κ = exp{\hat{γ}_0 + \hat{γ}_1*κ}
+          # ln(1-\hat{φ}_κ) = \hat{γ}_0 + \hat{γ}_1*κ
+          
+          # Fit a linear model ln(1-φ) ~ \hat{γ}_0 + \hat{γ}_1*κ to the sample {φ_h, h}^κ_{h=q}
+          phismod <- log(1-phis); kappa <- length(Xintknots) + length(Yintknots)
+          gamma <- .lm.fit(cbind(1,(q+1):j),phismod)$coef
+          # Calculate \hat{φ}_κ based on the estimated coefficients
+          phi_kappa <- 1 - exp(gamma[1])*exp(gamma[2]*kappa)
+          # Store \hat{φ}_κ and the estimated coefficients \hat{γ}_0 and \hat{γ}_1
+          phis_star <- c(phis_star, phi_kappa)
+          oldintc   <- c(oldintc, gamma[1]); oldslp <- c(oldslp, gamma[2])
+          # Creating a print statement that shows the current adjusted phi value
+          prnt      <- paste0(", phi_hat = ", round(phi_kappa, 3), ", ",
+                              ncoef[j], " coefficients")
+          # Check if \hat{φ}_κ ≥ φ_{exit}
+          if(phi_kappa >= phi)  break
+          # (II) Ratio of Deviances
+        } else if (stoptype == "RD") {
+          prnt <- paste0(", phi = ",round(phnew,3), ", ",
+                         ncoef[j]," coefficients")
+          if (RSSnew[j]/RSSnew[j-q] >= phi^(ncoef[j]-ncoef[j-q])) break
+          # (III) Likelihood Ratio
+        } else if (stoptype == "LR") {
+          prnt <- paste0(", p = ",
+                         round(pchisq(-(RSSnew[j]-RSSnew[j-q]), df = (ncoef[j]-ncoef[j-q])),3),
+                         ", ", ncoef[j]," coefficients")
+          if(-(RSSnew[j]-RSSnew[j-q]) < qchisq(phi,df=(ncoef[j]-ncoef[j-q]))) break
+        }
       }
     }
     
@@ -276,11 +328,10 @@ BivariateFitter <- function(X, Y, Z, W, weights=rep(1,length(X)), Indicator,
   ##############################################################################
   
   # Keep the non-NA columns from the "j"th row
-  # Keep the non-NA columns from the "j"th row
   toBeSaved <- sum(!is.na(previousX[j,]))
-  previousX <- previousX[ ,-((toBeSaved + 1):(max.intknots + 4))]
+  previousX <- previousX[ ,-((toBeSaved + 1):max(max.intknots + 4, toBeSaved + 1))]
   toBeSaved <- sum(!is.na(previousY[j,]))
-  previousY <- previousY[ ,-((toBeSaved + 1):(max.intknots + 4))]
+  previousY <- previousY[ ,-((toBeSaved + 1):max(max.intknots + 4, toBeSaved + 1))]
   
   # Keep the corresponding (intknotsX + 2) * (intknotsY + 2) coefficients
   oldcoef <- oldcoef[, 1:(NCOL(previousX) - 4 + 2) * (NCOL(previousY) - 4 + 2)]
@@ -307,8 +358,8 @@ BivariateFitter <- function(X, Y, Z, W, weights=rep(1,length(X)), Indicator,
     llX <- llY <- NULL
     lin <- SplineReg_biv(X = X, Y = Y, Z = Z, InterKnotsX = llX, InterKnotsY = llY, Xextr = Xextr, Yextr = Yextr, n = 2)
     } else {
-      ikX <- previousX[iter, 3:(lastXknots - 2)]
-      ikY <- previousY[iter, 3:(lastYknots - 2)]
+      ikX <- if (lastXknots > 4) previousX[iter, 3:(lastXknots - 2)] else NULL
+      ikY <- if (lastYknots > 4) previousY[iter, 3:(lastYknots - 2)] else NULL
       # Stage B.1 (averaging knot location)
       llX <- if (length(ikX) < 1) NULL else makenewknots(ikX, 2)
       llY <- if (length(ikY) < 1) NULL else makenewknots(ikY, 2)
@@ -359,7 +410,8 @@ BivariateFitter <- function(X, Y, Z, W, weights=rep(1,length(X)), Indicator,
 GenBivariateFitter <- function(X, Y, Z, W, family = family, weights = rep(1,length(X)),
                                Indicator, beta = 0.5, phi = 0.5, min.intknots = 0, 
                                max.intknots = 300, q = 2, Xextr=range(X), Yextr=range(Y),
-                               show.iters=TRUE, tol = as.double(1e-12), stoptype = "RD")
+                               show.iters=TRUE, tol = as.double(1e-12),
+                               stoptype = c("SR","RD","LR"))
 {
   # Capture the function call
   save <- match.call()
@@ -373,6 +425,8 @@ GenBivariateFitter <- function(X, Y, Z, W, family = family, weights = rep(1,leng
   phis <- NULL
   # Initialize \hat{\phi}_\kappa, \hat{\gamma}_0 and \hat{\gamma}_\1 (stoptype = "SR"; see eq. 9 in Dimitrova et al. (2023))
   phis_star <- NULL; oldintc <- NULL; oldslp <- NULL
+  # Stop type
+  stoptype <- match.arg(stoptype)
   
   # Initialize knots matrix
   previousX <- matrix(nrow = max.intknots + 1, ncol = max.intknots + 4)
@@ -466,7 +520,6 @@ GenBivariateFitter <- function(X, Y, Z, W, family = family, weights = rep(1,leng
                                    family = family, mustart = guess)
     
     # 1. Check for NA values in the Theta vector to handle potential singularities
-    lth <- length(first.deg$Theta)
     if (anyNA(first.deg$Theta)) {
       rank.basis <- Matrix::rankMatrix(first.deg$Basisbiv)
       cols <- NCOL(first.deg$Basisbiv)
@@ -493,6 +546,7 @@ GenBivariateFitter <- function(X, Y, Z, W, family = family, weights = rep(1,leng
     # Store knots and coefficients
     previousX[j, 1:(length(Xintknots)+4)] <- sort(c(Xintknots, rep(Xextr,2)))
     previousY[j, 1:(length(Yintknots)+4)] <- sort(c(Yintknots, rep(Yextr,2)))
+    lth <- length(first.deg$Theta); ncoef <- c(ncoef, lth)
     oldcoef[j, 1:lth] <- first.deg$Theta
     # guess_w <- if(nw > 0) first.deg$Theta[-(1:(lth-nw))] else NULL
     
@@ -508,48 +562,49 @@ GenBivariateFitter <- function(X, Y, Z, W, family = family, weights = rep(1,leng
     ###########################
     ## STEP 2: Stopping Rule ##
     ###########################
-    xl <- length(Xintknots)
-    yl <- length(Yintknots)
-    ncoef <- c(ncoef, lth)
-    
-    # (I) Smoothed Ratio of deviances
-    if (stoptype == "SR") {
-      if (j>q && (xl-q > min.Xintknots) && (yl-q > min.Yintknots) && length(phis) >= 3) {
-        phnew     <- (RSSnew[j]/RSSnew[j-q])^(1/(ncoef[j]-ncoef[j-q]))
-        phis      <- c(phis, phnew)
-        phismod   <- log(1-phis)
-        ccc       <- .lm.fit(cbind(1,(q+1):j),phismod)$coef
-        phis_star <- c(phis_star,1-exp(ccc[1])*exp(ccc[2]*j))
-        oldintc   <- c(oldintc,ccc[1])
-        oldslp    <- c(oldslp,ccc[2])
-        prnt      <- paste0(", phi_hat = ", round(1-exp(ccc[1])*exp(ccc[2]*j),3), ", ",
-                            ncoef[j], " coefficients")
-        
-        if(1-exp(ccc[1])*exp(ccc[2]*j) >= phi) {
-          break
-        }
+    if (j > q) {
+      
+      if (RSSnew[j]/RSSnew[j-q] > 1) break
+      
+      # Adding the current ratio of deviances to the 'phis' vector
+      if (stoptype == "LR") {
+        phis <- c(phis, RSSnew[j-q]-RSSnew[j])
+      } else {
+        phnew <- (RSSnew[j]/RSSnew[j-q])^(1/(ncoef[j]-ncoef[j-q]))
+        phis <- c(phis, phnew)
       }
-    }
-    # (II) Ratio of Deviances
-    if (stoptype=="RD" | (stoptype=="SR" & length(phis) < 3)) {
-      phnew <- (RSSnew[j]/RSSnew[j-q])^(1/(ncoef[j]-ncoef[j-q]))
-      phis <- c(phis,phnew)
-      if(j>q) prnt <- paste0(", phi = ",round(phnew,3), ", ",
-                             ncoef[j]," coefficients")
-      if(j>q && (xl-q > min.Xintknots)&& (yl-q > min.Yintknots)  ){
-        if(RSSnew[j]/RSSnew[j-q] >= phi^(ncoef[j]-ncoef[j-q])) {      # stop rule
-          break
-        }
-      }
-    }
-    # (III) Likelihood Ratio
-    if (stoptype=="LR") {
-      phis <- c(phis,RSSnew[j-q]-RSSnew[j])
-      if (j > q) prnt <- paste0(", p = ", round(pchisq(-(RSSnew[j]-RSSnew[j-q]), df = (ncoef[j]-ncoef[j-q])),3), ", ",
-                                 ncoef[j]," coefficients")
-      if (j > q && (xl-q > min.Xintknots)&& (yl-q > min.Yintknots)) {
-        if(-(RSSnew[j]-RSSnew[j-q]) < qchisq(phi,df=(ncoef[j]-ncoef[j-q]))) {
-          break
+      
+      if (j - q > min.intknots) {
+        # (I) Smoothed Ratio of deviances
+        if (stoptype == "SR") {
+          # \hat{φ}_κ = 1 − exp{\hat{γ}_0 + \hat{γ}_1*κ}
+          # 1-\hat{φ}_κ = exp{\hat{γ}_0 + \hat{γ}_1*κ}
+          # ln(1-\hat{φ}_κ) = \hat{γ}_0 + \hat{γ}_1*κ
+          
+          # Fit a linear model ln(1-φ) ~ \hat{γ}_0 + \hat{γ}_1*κ to the sample {φ_h, h}^κ_{h=q}
+          phismod <- log(1-phis); kappa <- kappa <- length(Xintknots) + length(Yintknots)
+          gamma <- .lm.fit(cbind(1,(q+1):j),phismod)$coef
+          # Calculate \hat{φ}_κ based on the estimated coefficients
+          phi_kappa <- 1 - exp(gamma[1])*exp(gamma[2]*kappa)
+          # Store \hat{φ}_κ and the estimated coefficients \hat{γ}_0 and \hat{γ}_1
+          phis_star <- c(phis_star, phi_kappa)
+          oldintc   <- c(oldintc, gamma[1]); oldslp <- c(oldslp, gamma[2])
+          # Creating a print statement that shows the current adjusted phi value
+          prnt      <- paste0(", phi_hat = ", round(phi_kappa, 3), ", ",
+                              ncoef[j], " coefficients")
+          # Check if \hat{φ}_κ ≥ φ_{exit}
+          if(phi_kappa >= phi)  break
+          # (II) Ratio of Deviances
+        } else if (stoptype == "RD") {
+          prnt <- paste0(", phi = ",round(phnew,3), ", ",
+                         ncoef[j]," coefficients")
+          if (RSSnew[j]/RSSnew[j-q] >= phi^(ncoef[j]-ncoef[j-q])) break
+          # (III) Likelihood Ratio
+        } else if (stoptype == "LR") {
+          prnt <- paste0(", p = ",
+                         round(pchisq(-(RSSnew[j]-RSSnew[j-q]), df = (ncoef[j]-ncoef[j-q])),3),
+                         ", ", ncoef[j]," coefficients")
+          if(-(RSSnew[j]-RSSnew[j-q]) < qchisq(phi,df=(ncoef[j]-ncoef[j-q]))) break
         }
       }
     }
@@ -649,9 +704,9 @@ GenBivariateFitter <- function(X, Y, Z, W, family = family, weights = rep(1,leng
   
   # Keep the non-NA columns from the "j"th row
   toBeSaved <- sum(!is.na(previousX[j,]))
-  previousX <- previousX[ ,-((toBeSaved + 1):(max.intknots + 4))]
+  previousX <- previousX[ ,-((toBeSaved + 1):max(max.intknots + 4, toBeSaved + 1))]
   toBeSaved <- sum(!is.na(previousY[j,]))
-  previousY <- previousY[ ,-((toBeSaved + 1):(max.intknots + 4))]
+  previousY <- previousY[ ,-((toBeSaved + 1):max(max.intknots + 4, toBeSaved + 1))]
   
   # Keep the corresponding (intknotsX + 2) * (intknotsY + 2) coefficients
   oldcoef <- oldcoef[, 1:(NCOL(previousX) - 4 + 2) * (NCOL(previousY) - 4 + 2)]
@@ -672,21 +727,28 @@ GenBivariateFitter <- function(X, Y, Z, W, family = family, weights = rep(1,leng
     iter <- j - q
   }
   
+  # If model selected is from first iteration
+  if (iter == 1) {
+    mustart <- NULL
+    } else {
+      mustart <- oldguess[iter,]
+    }
+  
   # 1. LINEAR
   if(iter < 2) {
     warning("Too few internal knots found: Linear spline will be computed with NULL internal knots. Try to set a different value for 'q' or a different treshold")
     llX <- llY <- NULL
     lin <- SplineReg_biv_GLM(X = X, Y = Y, Z = Z, InterKnotsX = llX, InterKnotsY = llY, Xextr = Xextr, Yextr = Yextr,
-                             n = 2, family = family, mustart = oldguess[iter,])
+                             n = 2, family = family, mustart = mustart)
     } else {
-      ikX <- previousX[iter, 3:(lastXknots-2)]
-      ikY <- previousY[iter, 3:(lastYknots-2)]
+      ikX <- if (lastXknots > 4) previousX[iter, 3:(lastXknots-2)] else NULL
+      ikY <- if (lastYknots > 4) previousY[iter, 3:(lastYknots-2)] else NULL
       # Stage B.1 (averaging knot location)
       llX <- if (length(ikX) < 1) NULL else makenewknots(ikX, 2)
       llY <- if (length(ikY) < 1) NULL else makenewknots(ikY, 2)
       # Stage B.2
       lin <- SplineReg_biv_GLM(X = X, Y = Y, Z = Z, InterKnotsX = llX, InterKnotsY = llY, Xextr = Xextr, Yextr = Yextr,
-                               n = 2, family = family, mustart = oldguess[iter,])
+                               n = 2, family = family, mustart = mustart)
     }
   # 2. QUADRATIC
   if (iter < 3) {
