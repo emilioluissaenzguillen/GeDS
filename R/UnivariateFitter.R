@@ -61,6 +61,9 @@
 #' \code{GenUnivariateFitter} if the link function used is not the identity.
 #' @param tol numeric value indicating the tolerance to be used in the knot
 #' placement steps in stage A. By default equal to 1E-12. See details below.
+#' @param higher_order a logical that defines whether to compute the higher
+#' order fits (quadratic and cubic) after stage A is run. Default is
+#' \code{TRUE}.
 #' 
 #' @return A \code{\link{GeDS-Class}} object, but without the \code{Formula},
 #' \code{extcall}, \code{terms} and \code{znames} slots.
@@ -141,7 +144,8 @@ UnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0,NROW(Y)),
                              weights = rep(1,length(X)), beta=.5, phi = 0.5,
                              min.intknots = 0, max.intknots = 300, q = 2,
                              extr = range(X), show.iters=FALSE,
-                             tol = as.double(1e-12), stoptype = c("SR","RD","LR"))
+                             tol = as.double(1e-12), stoptype = c("SR","RD","LR"),
+                             higher_order = TRUE)
   {
   # Capture the function call
   save <- match.call()
@@ -339,27 +343,34 @@ UnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0,NROW(Y)),
       # Stage B.2
       lin <- SplineReg_LM(X = X, Y = Y, Z = Z, offset = offset, weights = weights, extr = extr, InterKnots = ll, n = 2)
     }
-  # 2. QUADRATIC
-  if (iter < 3) {
-    warning("Too few internal knots found: Quadratic spline will be computed with NULL internal knots. Try to set a different value for 'q' or a different treshold")
-    qq <- NULL
-    squ <- SplineReg_LM(X = X, Y = Y, Z = Z, offset = offset, weights = weights, extr = extr, InterKnots = qq, n = 3)
-    } else {
-      # Stage B.1 (averaging knot location)
-      qq <- makenewknots(ik, 3)
-      # Stage B.2
+  #######################
+  ## Higher order fits ##
+  #######################
+  if (higher_order) {
+    # 2. QUADRATIC
+    if (iter < 3) {
+      warning("Too few internal knots found: Quadratic spline will be computed with NULL internal knots. Try to set a different value for 'q' or a different treshold")
+      qq <- NULL
       squ <- SplineReg_LM(X = X, Y = Y, Z = Z, offset = offset, weights = weights, extr = extr, InterKnots = qq, n = 3)
-    }
-  # 3. CUBIC
-  if (iter < 4) {
-    warning("Too few internal knots found: Cubic spline will be computed with NULL internal knots. Try to set a different value for 'q' or a different treshold")
-    cc <- NULL
-    cub <- SplineReg_LM(X = X, Y = Y, Z = Z, offset = offset, weights = weights, extr = extr, InterKnots = cc, n = 4)
-    } else {
-      # Stage B.1 (averaging knot location)
-      cc <- makenewknots(ik, 4)
-      # Stage B.2
+      } else {
+        # Stage B.1 (averaging knot location)
+        qq <- makenewknots(ik, 3)
+        # Stage B.2
+        squ <- SplineReg_LM(X = X, Y = Y, Z = Z, offset = offset, weights = weights, extr = extr, InterKnots = qq, n = 3)
+        }
+    # 3. CUBIC
+    if (iter < 4) {
+      warning("Too few internal knots found: Cubic spline will be computed with NULL internal knots. Try to set a different value for 'q' or a different treshold")
+      cc <- NULL
       cub <- SplineReg_LM(X = X, Y = Y, Z = Z, offset = offset, weights = weights, extr = extr, InterKnots = cc, n = 4)
+      } else {
+        # Stage B.1 (averaging knot location)
+        cc <- makenewknots(ik, 4)
+        # Stage B.2
+        cub <- SplineReg_LM(X = X, Y = Y, Z = Z, offset = offset, weights = weights, extr = extr, InterKnots = cc, n = 4)
+      }
+    } else {
+      qq <- squ <- cc <- cub <- NULL
     }
   
   out <- list("Type" = "LM - Univ", "Linear.IntKnots" = ll, "Quadratic.IntKnots" = qq, "Cubic.IntKnots" = cc,
@@ -383,7 +394,7 @@ GenUnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)),
                                 beta = 0.5, phi = 0.5, min.intknots = 0,
                                 max.intknots = 300, q = 2, extr = range(X),
                                 show.iters = F, tol = as.double(1e-12),
-                                stoptype = c("SR","RD","LR"))
+                                stoptype = c("SR","RD","LR"), higher_order = TRUE)
 {
   # Capture the function call
   save <- match.call()
@@ -662,36 +673,43 @@ GenUnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)),
                          extr = extr, InterKnots = ll, n = 2, family = family,
                          inits = c(mustart, guess_z))
   }
-  # 2. QUADRATIC
-  if (iter < 3) {
-    warning("Too few internal knots found: Quadratic spline will be computed with NULL internal knots. Try to set a different value for 'q' or a different treshold")
-    qq <- NULL
-    squ <- SplineReg_GLM(X = X, Y = Y, Z = Z, offset = offset, weights = weights,
-                         extr = extr, InterKnots = qq, n = 3, family = family,
-                         mustart = lin$Predicted)
-  } else {
-    # Stage B.1 (averaging knot location)
-    qq <- makenewknots(ik, 3)
-    # Stage B.2
-    squ <- SplineReg_GLM(X = X, Y = Y, Z = Z, offset = offset, weights = weights,
-                         extr = extr, InterKnots = qq, n = 3, family = family,
-                         mustart = lin$Predicted)
-  }
-  # 3. CUBIC
-  if (iter < 4) {
-    warning("Too few internal knots found: Cubic spline will be computed with NULL internal knots. Try to set a different value for 'q' or a different treshold")
-    cc <- NULL
-    cub <- SplineReg_GLM(X = X, Y = Y, Z = Z, offset = offset, weights = weights,
-                         extr = extr, InterKnots = cc, n = 4, family = family,
-                         mustart = squ$Predicted)
-  } else {
-    # Stage B.1 (averaging knot location)
-    cc <- makenewknots(ik, 4)
-    # Stage B.2
-    cub <- SplineReg_GLM(X = X, Y = Y, Z = Z, offset = offset, weights = weights,
-                         extr = extr, InterKnots = cc, n = 4, family = family,
-                         mustart = squ$Predicted)
-  }
+  #######################
+  ## Higher order fits ##
+  #######################
+  if (higher_order) {
+    # 2. QUADRATIC
+    if (iter < 3) {
+      warning("Too few internal knots found: Quadratic spline will be computed with NULL internal knots. Try to set a different value for 'q' or a different treshold")
+      qq <- NULL
+      squ <- SplineReg_GLM(X = X, Y = Y, Z = Z, offset = offset, weights = weights,
+                           extr = extr, InterKnots = qq, n = 3, family = family,
+                           mustart = lin$Predicted)
+      } else {
+        # Stage B.1 (averaging knot location)
+        qq <- makenewknots(ik, 3)
+        # Stage B.2
+        squ <- SplineReg_GLM(X = X, Y = Y, Z = Z, offset = offset, weights = weights,
+                             extr = extr, InterKnots = qq, n = 3, family = family,
+                             mustart = lin$Predicted)
+        }
+    # 3. CUBIC
+    if (iter < 4) {
+      warning("Too few internal knots found: Cubic spline will be computed with NULL internal knots. Try to set a different value for 'q' or a different treshold")
+      cc <- NULL
+      cub <- SplineReg_GLM(X = X, Y = Y, Z = Z, offset = offset, weights = weights,
+                           extr = extr, InterKnots = cc, n = 4, family = family,
+                           mustart = squ$Predicted)
+      } else {
+        # Stage B.1 (averaging knot location)
+        cc <- makenewknots(ik, 4)
+        # Stage B.2
+        cub <- SplineReg_GLM(X = X, Y = Y, Z = Z, offset = offset, weights = weights,
+                             extr = extr, InterKnots = cc, n = 4, family = family,
+                             mustart = squ$Predicted)
+      }
+    } else {
+      qq <- squ <- cc <- cub <- NULL
+    }
   
   out <- list("Type" = "GLM - Univ", "Linear.IntKnots" = ll, "Quadratic.IntKnots" = qq, "Cubic.IntKnots" = cc,
               "Dev.Linear" = lin$RSS, "Dev.Quadratic" = squ$RSS, "Dev.Cubic" = cub$RSS, "Knots" = intknots,

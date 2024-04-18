@@ -517,7 +517,7 @@ backfitting <- function(z, base_learners, base_learners_list, data, wz, phi_gam_
           fit <- tryCatch(
             NGeDS(model_formula, data = data_loop, weights = wz, beta = beta, phi = phi,
                   min.intknots = 0, max.intknots = max.intknots, q = q, Xextr = NULL, Yextr = NULL,
-                  show.iters = FALSE, stoptype = "RD"),
+                  show.iters = FALSE, stoptype = "RD", higher_order = FALSE),
             error = function(e) {
               message(paste0("Error occurred in NGeDS() for base learner ", bl_name, ": ", e))
               error <<- TRUE

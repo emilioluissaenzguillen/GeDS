@@ -50,6 +50,9 @@
 #' @param stoptype a character string indicating the type of GeDS stopping rule
 #' to be used. It should be either one of \code{"SR"}, \code{"RD"} or 
 #' \code{"LR"}, partial match allowed. See details below.
+#' @param higher_order a logical that defines whether to compute the higher
+#' order fits (quadratic and cubic) after stage A is run. Default is
+#' \code{TRUE}.
 #' 
 #' @return A \code{\link{GeDS-Class}} object, i.e. a list of items that
 #' summarizes  the main details of the fitted GeDS regression. See
@@ -326,7 +329,7 @@
 
 GGeDS <- function(formula, data, family = gaussian(), weights, beta, phi = 0.99,
                   min.intknots, max.intknots, q = 2L, Xextr = NULL, Yextr = NULL,
-                  show.iters = FALSE, stoptype = "SR")
+                  show.iters = FALSE, stoptype = "SR", higher_order = TRUE)
   {
   # 1. Capture current function call and use formula's environment if 'data' is missing
   save <- match.call()
@@ -440,7 +443,7 @@ GGeDS <- function(formula, data, family = gaussian(), weights, beta, phi = 0.99,
                                family = family, beta = beta, phi = phi,
                                min.intknots = min.intknots, max.intknots = max.intknots,
                                q = q, extr = Xextr, show.iters = show.iters,
-                               stoptype = stoptype)
+                               stoptype = stoptype, higher_order = higher_order)
   ####################
   ## BIVARIATE GeDS ##
   ####################
@@ -454,7 +457,7 @@ GGeDS <- function(formula, data, family = gaussian(), weights, beta, phi = 0.99,
                               Indicator = Indicator, beta = beta, phi = phi,
                               min.intknots = min.intknots, max.intknots = max.intknots,
                               q = q, Xextr = Xextr, Yextr = Yextr, show.iters = show.iters,
-                              family = family, stoptype = stoptype)
+                              family = family, stoptype = stoptype, higher_order = higher_order)
     
     } else {
       stop("Incorrect number of columns of the independent variable")

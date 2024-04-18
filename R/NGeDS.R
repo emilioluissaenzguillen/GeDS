@@ -43,6 +43,9 @@
 #' @param stoptype a character string indicating the type of GeDS stopping rule
 #' to be used. It should be either one of \code{"SR"}, \code{"RD"} or 
 #' \code{"LR"}, partial match allowed. See details.
+#' @param higher_order a logical that defines whether to compute the higher
+#' order fits (quadratic and cubic) after stage A is run. Default is
+#' \code{TRUE}.
 #' 
 #' @return \code{\link{GeDS-Class}} object, i.e. a list of items that summarizes
 #' the main details of the fitted GeDS regression. See \code{\link{GeDS-Class}}
@@ -218,7 +221,7 @@
 
 NGeDS <- function(formula, data, weights, beta = 0.5, phi = 0.99, min.intknots = 0,
                   max.intknots = 500, q = 2, Xextr = NULL, Yextr = NULL,
-                  show.iters = FALSE, stoptype = "RD")
+                  show.iters = FALSE, stoptype = "RD", higher_order = TRUE)
   {
   # 1. Capture current function call and use formula's environment if 'data' is missing
   save <- match.call()
@@ -317,7 +320,7 @@ NGeDS <- function(formula, data, weights, beta = 0.5, phi = 0.99, min.intknots =
     out <- UnivariateFitter(X = X, Y = Y, Z = Z, offset = offset, weights = weights,
                             beta = beta, phi = phi, min.intknots = min.intknots,
                             max.intknots = max.intknots, q = q, extr = Xextr,
-                            show.iters = show.iters, stoptype = stoptype)
+                            show.iters = show.iters, stoptype = stoptype, higher_order = higher_order)
   ####################
   ## BIVARIATE GeDS ##
   ####################
@@ -331,7 +334,7 @@ NGeDS <- function(formula, data, weights, beta = 0.5, phi = 0.99, min.intknots =
                            Indicator = Indicator, beta=beta, phi = phi,
                            min.intknots = min.intknots, max.intknots = max.intknots,
                            q = q, Xextr = Xextr, Yextr = Yextr, show.iters = show.iters,
-                           stoptype = stoptype)
+                           stoptype = stoptype, higher_order = higher_order)
     
   } else {
     stop("Incorrect number of columns of the independent variable")

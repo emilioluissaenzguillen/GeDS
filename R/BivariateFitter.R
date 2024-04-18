@@ -60,6 +60,9 @@
 #' @param tol numeric value indicating the tolerance to be used in checking
 #' whether two knots should be considered different during the knot placement
 #' steps in stage A.
+#' @param higher_order a logical that defines whether to compute the higher
+#' order fits (quadratic and cubic) after stage A is run. Default is
+#' \code{TRUE}.
 #' 
 #' @return A \code{\link{GeDS-Class}} object, but without the \code{Formula},
 #' \code{extcall}, \code{terms} and \code{znames} slots.
@@ -80,7 +83,8 @@ BivariateFitter <- function(X, Y, Z, W, weights = rep(1,length(X)), Indicator,
                             beta = 0.5, phi = 0.99, min.intknots = 0,
                             max.intknots = 300, q = 2, Xextr = range(X),
                             Yextr = range(Y), show.iters = TRUE,
-                            tol = as.double(1e-12), stoptype = c("SR","RD","LR"))
+                            tol = as.double(1e-12), stoptype = c("SR","RD","LR"),
+                            higher_order = TRUE)
   {
   # Capture the function call
   save <- match.call()
@@ -365,7 +369,11 @@ BivariateFitter <- function(X, Y, Z, W, weights = rep(1,length(X)), Indicator,
       llY <- if (length(ikY) < 1) NULL else makenewknots(ikY, 2)
       # Stage B.2
       lin <- SplineReg_biv(X = X, Y = Y, Z = Z, InterKnotsX = llX, InterKnotsY = llY, Xextr = Xextr, Yextr = Yextr, n = 2)
-      }
+    }
+  #######################
+  ## Higher order fits ##
+  #######################
+  if (higher_order) {
   # 2. QUADRATIC
   if (iter < 3) {
     warning("Too few internal knots found: Quadratic spline will be computed with NULL internal knots. Try to set a different value for 'q' or a different treshold")
@@ -389,7 +397,10 @@ BivariateFitter <- function(X, Y, Z, W, weights = rep(1,length(X)), Indicator,
       ccY <- if (length(ikY) < 3) NULL else makenewknots(ikX, 4)
       # Stage B.2
       cub <- SplineReg_biv(X = X, Y = Y, Z = Z, InterKnotsX = ccX, InterKnotsY = ccY, Xextr = Xextr, Yextr = Yextr, n = 4)
-      }
+    }
+    } else {
+      qqX <- qqY <- squ <- ccX <- ccY <- cub <- NULL
+    }
   
   out <- list("Type" = "LM - Biv", "Linear.IntKnots" = list("Xk" = llX, "Yk" = llY), "Quadratic.IntKnots" = list("Xk" = qqX, "Yk" = qqY),
               "Cubic.IntKnots" = list("Xk" = ccX,"Yk" = ccY),"Dev.Linear" = lin$RSS, "Dev.Quadratic" = squ$RSS, "Dev.Cubic" = cub$RSS,
@@ -411,7 +422,7 @@ GenBivariateFitter <- function(X, Y, Z, W, family = family, weights = rep(1,leng
                                Indicator, beta = 0.5, phi = 0.5, min.intknots = 0, 
                                max.intknots = 300, q = 2, Xextr=range(X), Yextr=range(Y),
                                show.iters=TRUE, tol = as.double(1e-12),
-                               stoptype = c("SR","RD","LR"))
+                               stoptype = c("SR","RD","LR"), higher_order = TRUE)
 {
   # Capture the function call
   save <- match.call()
@@ -750,39 +761,46 @@ GenBivariateFitter <- function(X, Y, Z, W, family = family, weights = rep(1,leng
       lin <- SplineReg_biv_GLM(X = X, Y = Y, Z = Z, InterKnotsX = llX, InterKnotsY = llY, Xextr = Xextr, Yextr = Yextr,
                                n = 2, family = family, mustart = mustart)
     }
-  # 2. QUADRATIC
-  if (iter < 3) {
-    warning("Too few internal knots found: Quadratic spline will be computed with NULL internal knots. Try to set a different value for 'q' or a different treshold")
-    qqX <- qqY <- NULL
-    guess_lin <- lin$Predicted
-    squ <- SplineReg_biv_GLM(X = X, Y = Y, Z = Z, InterKnotsX = qqX, InterKnotsY = qqY, Xextr = Xextr, Yextr = Yextr,
-                             n = 3, family = family, mustart = guess_lin)
-    } else {
-      # Stage B.1 (averaging knot location)
-      qqX <- if (length(ikX) < 2) NULL else makenewknots(ikX, 3)
-      qqY <- if (length(ikY) < 2) NULL else makenewknots(ikY, 3)
-      # Stage B.2
+  #######################
+  ## Higher order fits ##
+  #######################
+  if (higher_order) {
+    # 2. QUADRATIC
+    if (iter < 3) {
+      warning("Too few internal knots found: Quadratic spline will be computed with NULL internal knots. Try to set a different value for 'q' or a different treshold")
+      qqX <- qqY <- NULL
       guess_lin <- lin$Predicted
       squ <- SplineReg_biv_GLM(X = X, Y = Y, Z = Z, InterKnotsX = qqX, InterKnotsY = qqY, Xextr = Xextr, Yextr = Yextr,
                                n = 3, family = family, mustart = guess_lin)
-    }
-  # 3. CUBIC
-  if (iter < 4) {
-    warning("Too few internal knots found: Cubic spline will be computed with NULL internal knots. Try to set a different value for 'q' or a different treshold")
-    ccX <- ccY <- NULL
-    guess_sq <- squ$Predicted
-    cub <- SplineReg_biv_GLM(X = X, Y = Y, Z = Z, InterKnotsX = ccX, InterKnotsY = ccY, Xextr = Xextr, Yextr = Yextr,
-                             n = 4, family = family, mustart = guess_sq)
-    } else {
-      # Stage B.1 (averaging knot location)
-      ccX <- if (length(ikX) < 3) NULL else makenewknots(ikX, 4)
-      ccY <- if (length(ikY) < 3) NULL else makenewknots(ikX, 4)
-      # Stage B.2
+      } else {
+        # Stage B.1 (averaging knot location)
+        qqX <- if (length(ikX) < 2) NULL else makenewknots(ikX, 3)
+        qqY <- if (length(ikY) < 2) NULL else makenewknots(ikY, 3)
+        # Stage B.2
+        guess_lin <- lin$Predicted
+        squ <- SplineReg_biv_GLM(X = X, Y = Y, Z = Z, InterKnotsX = qqX, InterKnotsY = qqY, Xextr = Xextr, Yextr = Yextr,
+                                 n = 3, family = family, mustart = guess_lin)
+        }
+    # 3. CUBIC
+    if (iter < 4) {
+      warning("Too few internal knots found: Cubic spline will be computed with NULL internal knots. Try to set a different value for 'q' or a different treshold")
+      ccX <- ccY <- NULL
       guess_sq <- squ$Predicted
       cub <- SplineReg_biv_GLM(X = X, Y = Y, Z = Z, InterKnotsX = ccX, InterKnotsY = ccY, Xextr = Xextr, Yextr = Yextr,
                                n = 4, family = family, mustart = guess_sq)
+      } else {
+        # Stage B.1 (averaging knot location)
+        ccX <- if (length(ikX) < 3) NULL else makenewknots(ikX, 4)
+        ccY <- if (length(ikY) < 3) NULL else makenewknots(ikX, 4)
+        # Stage B.2
+        guess_sq <- squ$Predicted
+        cub <- SplineReg_biv_GLM(X = X, Y = Y, Z = Z, InterKnotsX = ccX, InterKnotsY = ccY, Xextr = Xextr, Yextr = Yextr,
+                                 n = 4, family = family, mustart = guess_sq)
       }
-    
+    } else {
+      qqX <- qqY <- squ <- ccX <- ccY <- cub <- NULL
+      }
+  
   out <- list("Type" = "GLM - Biv","Linear.IntKnots"=list("Xk" = llX,"Yk" = llY),"Quadratic.IntKnots"=list("Xk" = qqX,"Yk" = qqY),
               "Cubic.IntKnots"=list("Xk" = ccX,"Yk" = ccY),"Dev.Linear" = lin$RSS, "Dev.Quadratic" = squ$RSS,"Dev.Cubic" = cub$RSS,
               "RSS" = RSSnew, "Linear" = lin, "Quadratic" = squ, "Cubic" = cub, "Stored" = previousX, "Args"= args,

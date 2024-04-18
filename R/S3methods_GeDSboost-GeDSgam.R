@@ -712,7 +712,7 @@ split_into_lines <- function(text, max_length)
 #' @export
 #' @aliases visualize_boosting visualize_boosting.GeDSboost
 #' @rdname visualize_boosting
-#' @importFrom graphics mtext
+#' @importFrom graphics mtext abline
 
 visualize_boosting.GeDSboost <- function(M, object)
   {
@@ -743,37 +743,43 @@ visualize_boosting.GeDSboost <- function(M, object)
   y_range <- c(y_range[1] - diff(y_range) * 0.05, y_range[2] + diff(y_range) * 0.05)
   
   # Split int knots into lines
-  int.knots <- round(as.numeric(model$base_learners[[1]]$linear.int.knots), 2) 
-  int.knots_lines <- split_into_lines(paste(int.knots, collapse=", "), 75)
+  knots <- model$base_learners[[1]]$knots
+  int.knots_round <- round(as.numeric(get_internal_knots(knots)), 2) 
+  int.knots_lines <- split_into_lines(paste(int.knots_round, collapse=", "), 65)
   # Create the title
   title_text_1 <- bquote(atop(plain(Delta[.(M) * ",2"] == .(int.knots_lines[1]))))
   
   # Plot
   plot(X, Y, pch = 20, col = "darkgrey", tck = 0.02, main = "",
-       xlim = x_range, ylim = y_range, cex.axis = 2.5, cex.lab = 2.5)
+       xlim = x_range, ylim = y_range, cex.axis = 1, cex.lab = 1)
   lines(X, Y_hat, lwd = 2)
   legend("topleft",
          legend = c(2*M),
          bty = "n",
          text.font = 2,
-         cex=2.5)
+         cex = 1.5)
+  
+  # Trace knots w/vertical lines
+  for(knot in knots) {
+    abline(v = knot, col = "gray", lty = 2)
+  }
   
   # Add the title
-  if(length(int.knots_lines)==1){
-    mtext(title_text_1, side = 3, line=-0.5625, cex = 1.65)
-  } else if(length(int.knots_lines)==2){
-    mtext(title_text_1, side = 3, cex = 1.65)
-    mtext(int.knots_lines[2], side = 3, line=0.5, cex = 1.65)
-  } else if(length(int.knots_lines)==3){
-    mtext(title_text_1, side = 3, line=0.75, cex = 0.85)
-    mtext(int.knots_lines[2], side = 3, line = 1.5, cex = 0.85)
-    mtext(int.knots_lines[3], side = 3, line = 0.25, cex = 0.85)
-  } else if(length(int.knots_lines)==4){
-    mtext(title_text_1, side = 3, line=1, cex = 0.85)
-    mtext(int.knots_lines[2], side = 3, line = 1.5, cex = 0.85)
-    mtext(int.knots_lines[3], side = 3, line = 0.65, cex = 0.85)
-    mtext(int.knots_lines[4], side = 3, line = 0, cex = 0.85)
-  }
+  if(length(int.knots_lines) == 1) {
+    mtext(title_text_1, side = 3, line=-0.5625, cex = 1)
+    } else if (length(int.knots_lines) == 2) {
+      mtext(title_text_1, side = 3, cex = 1)
+      mtext(int.knots_lines[2], side = 3, line=0.5, cex = 1)
+      } else if (length(int.knots_lines) == 3) {
+        mtext(title_text_1, side = 3, line=0.75, cex = 0.625)
+        mtext(int.knots_lines[2], side = 3, line = 1.5, cex = 0.625)
+        mtext(int.knots_lines[3], side = 3, line = 0.25, cex = 0.625)
+        } else if (length(int.knots_lines) == 4) {
+          mtext(title_text_1, side = 3, line=1, cex = 0.625)
+          mtext(int.knots_lines[2], side = 3, line = 1.5, cex = 0.625)
+          mtext(int.knots_lines[3], side = 3, line = 0.65, cex = 0.625)
+          mtext(int.knots_lines[4], side = 3, line = 0, cex = 0.625)
+        }
   
   # 2. Residuals plot
   if (M < length(object$models) - 1){
@@ -787,38 +793,47 @@ visualize_boosting.GeDSboost <- function(M, object)
     y_range <- c(y_range[1] - diff(y_range) * 0.05, y_range[2] + diff(y_range) * 0.05)
     
     # Split int knots into lines
-    int.knots <- round(as.numeric(next_model$best_bl$int.knt), 2)
-    int.knots_lines <- split_into_lines(paste(int.knots, collapse=", "), 75)
+    int.knots <- next_model$best_bl$int.knt
+    int.knots_round <- round(as.numeric(next_model$best_bl$int.knt), 2)
+    int.knots_lines <- split_into_lines(paste(int.knots_round, collapse=", "), 65)
     # Create the title
     title_text_2 <- bquote(atop(plain(delta[.(M) * ",2"] == .(int.knots_lines[1]))))
     
+    # Plot
     plot(X, residuals, pch=20, col=c("darkgrey"), tck = 0.02, main = "",
-         xlim = x_range, ylim = y_range, cex.axis = 2.5, cex.lab = 2.5)
+         xlim = x_range, ylim = y_range, cex.axis = 1, cex.lab = 1)
     lines(X, next_model$best_bl$pred_linear, col="blue", lty = 2, lwd = 1)
     points(next_model$best_bl$coef$mat[,1], next_model$best_bl$coef$mat[,2], col="blue", pch=21)
     legend("topleft",
            legend = c(2*M+1),
            bty = "n",
            text.font = 2,
-           cex=2.5)
-    # Add the title
-    if(length(int.knots_lines)==1){
-      mtext(title_text_2, side = 3, line=-0.5625, cex = 1.65)
-    } else if(length(int.knots_lines)==2){
-      mtext(title_text_2, side = 3, cex = 1.65)
-      mtext(int.knots_lines[2], side = 3, line=0.5, cex = 1.65)
-    } else if(length(int.knots_lines)==3){
-      mtext(title_text_2, side = 3, line=0.75, cex = 0.85)
-      mtext(int.knots_lines[2], side = 3, line = 1.5, cex = 0.85)
-      mtext(int.knots_lines[3], side = 3, line = 0.25, cex = 0.85)
-    } else if(length(int.knots_lines)==4){
-      mtext(title_text_2, side = 3, line=1, cex = 0.85)
-      mtext(int.knots_lines[2], side = 3, line = 1.5, cex = 0.85)
-      mtext(int.knots_lines[3], side = 3, line = 0.65, cex = 0.85)
-      mtext(int.knots_lines[4], side = 3, line = 0, cex = 0.85)
+           cex = 1.5)
+    
+    # Trace knots w/vertical lines
+    for(int.knot in int.knots) {
+      abline(v = int.knot, col = "gray", lty = 2)
     }
+    
+    # Add the title
+    if (length(int.knots_lines) == 1) {
+      mtext(title_text_2, side = 3, line=-0.5625, cex = 1)
+      } else if (length(int.knots_lines) == 2) {
+        mtext(title_text_2, side = 3, cex = 1)
+        mtext(int.knots_lines[2], side = 3, line=0.5, cex = 1)
+        } else if (length(int.knots_lines) == 3) {
+          mtext(title_text_2, side = 3, line=0.75, cex = 0.625)
+          mtext(int.knots_lines[2], side = 3, line = 1.5, cex = 0.625)
+          mtext(int.knots_lines[3], side = 3, line = 0.25, cex = 0.625)
+          } else if (length(int.knots_lines) == 4) {
+            mtext(title_text_2, side = 3, line=1, cex = 0.625)
+            mtext(int.knots_lines[2], side = 3, line = 1.5, cex = 0.625)
+            mtext(int.knots_lines[3], side = 3, line = 0.65, cex = 0.625)
+            mtext(int.knots_lines[4], side = 3, line = 0, cex = 0.625)
+          }
   }
 }
+
 
 #' @export
 visualize_boosting <- visualize_boosting.GeDSboost

@@ -17,7 +17,8 @@ GGeDS(
   Xextr = NULL,
   Yextr = NULL,
   show.iters = FALSE,
-  stoptype = "SR"
+  stoptype = "SR",
+  higher_order = TRUE
 )
 }
 \arguments{
@@ -73,6 +74,10 @@ information at each step. By default equal to \code{FALSE}.}
 \item{stoptype}{a character string indicating the type of GeDS stopping rule
 to be used. It should be either one of \code{"SR"}, \code{"RD"} or 
 \code{"LR"}, partial match allowed. See details below.}
+
+\item{higher_order}{a logical that defines whether to compute the higher
+order fits (quadratic and cubic) after stage A is run. Default is
+\code{TRUE}.}
 }
 \value{
 A \code{\link{GeDS-Class}} object, i.e. a list of items that

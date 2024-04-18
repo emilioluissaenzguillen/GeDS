@@ -398,33 +398,33 @@ NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE,
     model_formula_template <- paste0(response, " ~ ")
     
     ## 1. Loop through predictors and fit an initial base learner to data (NGeDS with # int.knots_init)
-      model_results <- lapply(names(base_learners), function(bl_name) {
-        componentwise_fit(bl_name, data = data, response = response, model_formula_template, weights, base_learners, m = 0,
-                          internal_knots = int.knots_init, beta, phi, q)
+    model_results <- lapply(names(base_learners), function(bl_name) {
+      componentwise_fit(bl_name, data = data, response = response, model_formula_template, weights, base_learners, m = 0,
+                        internal_knots = int.knots_init, beta, phi, q)
       })
-      
+    
     ## 2. Calculate SSR and find model that fits best U according to SSR
-      ssr_values <- numeric(length(model_results))
-      for (i in seq_along(model_results)) {
-        if (!model_results[[i]]$error) {
-          ssr_values[i] <- model_results[[i]]$ssr
+    ssr_values <- numeric(length(model_results))
+    for (i in seq_along(model_results)) {
+      if (!model_results[[i]]$error) {
+        ssr_values[i] <- model_results[[i]]$ssr
         } else {
           message(model_results[[i]]$message)
           ssr_values[i] <- Inf
         }
-      }
-      # Finding the best model
-      min_ssr_index <- which.min(ssr_values)
-      best_resid    <- model_results[[min_ssr_index]]$resid 
-      best_ssr      <- model_results[[min_ssr_index]]$ssr
-      best_pred     <- model_results[[min_ssr_index]]$pred
-      best_bl       <- model_results[[min_ssr_index]]$bl_name
+    }
+    # Finding the best model
+    min_ssr_index <- which.min(ssr_values)
+    best_resid    <- model_results[[min_ssr_index]]$resid 
+    best_ssr      <- model_results[[min_ssr_index]]$ssr
+    best_pred     <- model_results[[min_ssr_index]]$pred
+    best_bl       <- model_results[[min_ssr_index]]$bl_name
     
     ## (A) GeDS best base-learner
-    if (base_learners[[best_bl]]$type == "GeDS"){
+    if (base_learners[[best_bl]]$type == "GeDS") {
       
       # (A.1) UNIVARIATE BASE-LEARNERS
-      if (length(base_learners[[best_bl]]$variables) == 1){
+      if (length(base_learners[[best_bl]]$variables) == 1) {
         ## 3. GeDS fit into linear piecewise polynomial form
         pred_linear <- best_pred$Y_hat
         int.knt <- best_pred$int.knt
@@ -816,7 +816,7 @@ NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE,
                          cubic.int.knots = cubic.int.knots)
   
   output <- list(extcall = extcall, formula = formula, args = args, models = models, final_model = final_model, predictions = preds,
-                 internal_knots = internal_knots)
+                 internal_knots = internal_knots, iters = m)
   class(output) <- "GeDSboost"
   return(output)
 }
@@ -852,7 +852,7 @@ componentwise_fit <- function(bl_name, data, response, model_formula_template, w
       fit <- tryCatch(
         NGeDS(model_formula, data = data, weights = weights, beta = beta, phi = phi,
               min.intknots = 0, max.intknots = max.intknots, q = q, Xextr = NULL, Yextr = NULL,
-              show.iters = FALSE, stoptype = "RD"),
+              show.iters = FALSE, stoptype = "RD", higher_order = FALSE),
         error = function(e) {
           message(paste0("Error occurred in NGeDS() for base-learner ", bl_name, ": ", e))
           error <<- TRUE

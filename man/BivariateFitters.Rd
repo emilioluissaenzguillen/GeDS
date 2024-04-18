@@ -22,7 +22,8 @@ BivariateFitter(
   Yextr = range(Y),
   show.iters = TRUE,
   tol = as.double(1e-12),
-  stoptype = c("SR", "RD", "LR")
+  stoptype = c("SR", "RD", "LR"),
+  higher_order = TRUE
 )
 
 GenBivariateFitter(
@@ -42,7 +43,8 @@ GenBivariateFitter(
   Yextr = range(Y),
   show.iters = TRUE,
   tol = as.double(1e-12),
-  stoptype = c("SR", "RD", "LR")
+  stoptype = c("SR", "RD", "LR"),
+  higher_order = TRUE
 )
 }
 \arguments{
@@ -106,6 +108,10 @@ steps in stage A.}
 to be used. It should be either \code{"SR"}, \code{"RD"} or \code{"LR"},
 partial match allowed. See details of \code{\link{NGeDS}} or
 \code{\link{GGeDS}}.}
+
+\item{higher_order}{a logical that defines whether to compute the higher
+order fits (quadratic and cubic) after stage A is run. Default is
+\code{TRUE}.}
 
 \item{family}{a description of the error distribution and link function to be
 used in the model. This can be a character string naming a family function

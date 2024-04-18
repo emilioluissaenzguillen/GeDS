@@ -105,28 +105,32 @@ predict_GeDS_linear <- function(Gmod, X, Y, Z){
   terms <- all.vars(Gmod$Formula)
   num_predictors <- length(terms[-1])
   
+  max.intknots <- Gmod$Args$max.intknots
   q <- Gmod$Args$q
   
   ## Univariate GeDS
-  if(num_predictors == 1){
+  if (num_predictors == 1) {
     
     X <- as.matrix(X)
+    j <- NROW(Gmod$Stored) # last_row_with_value(Gmod$Stored), last_row_with_value(Gmod$Coefficients)
     
     # Knots
-    if (last_row_with_value(Gmod$Stored) > q){
-      knt <- na.omit(Gmod$Stored[last_row_with_value(Gmod$Stored) - q,]) # an exit from stage A is performed with the spline fit l = k + 1 - q
-    } else {
-      knt <- na.omit(Gmod$Stored[last_row_with_value(Gmod$Stored),])
-    }
+    if (j > q && j != max.intknots + 1) {
+      knt <- na.omit(Gmod$Stored[j - q,]) # an exit from stage A is performed with the spline fit l = k + 1 - q
+      } else {
+        knt <- na.omit(Gmod$Stored[j,])
+      }
+    
     knt <- knt[-c(1, length(knt))]
     int.knt <- knt[-c(1, length(knt))]
-    if(length(knt) == 2) {int.knt <- NULL}
+    if (length(knt) == 2) int.knt <- NULL
+    
     # Coefficients
-    if (last_row_with_value(Gmod$Coefficients) > q){
-      coeff <- na.omit(Gmod$Coefficients[last_row_with_value(Gmod$Coefficients) - q,])
-    } else {
-      coeff <- na.omit(Gmod$Coefficients[last_row_with_value(Gmod$Coefficients),])
-    }
+    if (j > q && j != max.intknots + 1) {
+      coeff <- na.omit(Gmod$Coefficients[j - q,])
+      } else {
+        coeff <- na.omit(Gmod$Coefficients[j,])
+      }
     
     # Initialize output vector
     Y_hat <- numeric(nrow(X))
@@ -156,33 +160,22 @@ predict_GeDS_linear <- function(Gmod, X, Y, Z){
     return(list(Y_hat = Y_hat, knt = knt, int.knt = int.knt, b0 = b0_list, b1 = b1_list, theta = coeff))
     
   ## Bivariate GeDS
-  } else if(num_predictors == 2){
+  } else if (num_predictors == 2){
     
     X <- as.matrix(X)
     Y <- as.matrix(Y)
+    j <- NROW(Gmod$Stored$previousX) #last_row_with_value(Gmod$Stored$previousX)
     
     # Knots and Coefficients
-    last_row_with_value <- last_row_with_value(Gmod$Stored$previousX)
-    
-    if (last_row_with_value > q) {
-      qplus1_last_rows_X <- Gmod$Stored$previousX[(nrow(Gmod$Stored$previousX) - q):nrow(Gmod$Stored$previousX), ]
-      qplus1_last_rows_Y <- Gmod$Stored$previousY[(nrow(Gmod$Stored$previousY) - q):nrow(Gmod$Stored$previousY), ]
-      no_NAs <- !any(is.na(qplus1_last_rows_X)) || !any(is.na(qplus1_last_rows_Y))
-    } else {
-      no_NAs <- FALSE
-    }
-    
-    if (no_NAs || is.null(Gmod$Linear)){
-      index <-  last_row_with_value - q
-      Xknt <- na.omit(Gmod$Stored$previousX[index,]) # an exit from stage A is performed with the spline fit l = k + 1 - q
-      Yknt <- na.omit(Gmod$Stored$previousY[index,])
-      theta <- as.numeric(na.omit(Gmod$Coefficients[index,]))
-    } else {
-      index <-  last_row_with_value
-      Xknt <- na.omit(Gmod$Stored$previousX[index,])
-      Yknt <- na.omit(Gmod$Stored$previousY[index,])
-      theta <- as.numeric(na.omit(Gmod$Coefficients[index,]))
-    }
+    if (j > q && j != max.intknots + 1) {
+      Xknt <- na.omit(Gmod$Stored$previousX[j - q,]) # an exit from stage A is performed with the spline fit l = k + 1 - q
+      Yknt <- na.omit(Gmod$Stored$previousY[j - q,])
+      theta <- as.numeric(na.omit(Gmod$Coefficients[j - q,]))
+      } else {
+        Xknt <- na.omit(Gmod$Stored$previousX[j,]) # an exit from stage A is performed with the spline fit l = k + 1 - q
+        Yknt <- na.omit(Gmod$Stored$previousY[j,])
+        theta <- as.numeric(na.omit(Gmod$Coefficients[j,]))
+      }
     
     Xknt <- Xknt[-c(1, length(Xknt))]
     Yknt <- Yknt[-c(1, length(Yknt))]
