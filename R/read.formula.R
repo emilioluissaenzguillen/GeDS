@@ -35,13 +35,14 @@ read.formula <- function(formula, data, weights, offset)
   # Create a model frame based on the model terms and data, omitting rows with NAs
   mf <- model.frame(mt, data, na.action = na.omit)
   
-  # Extract response variable; encode factor response to 0/1
+  # Extract response variable
   if (is.factor(model.response(mf))) {
+    # encode factor response to 0/1
     Y <- as.numeric(model.response(mf)) - 1
     if (any(Y != 0 & Y != 1)) stop("The factor variable is not binary.")
     } else {
-      Y <- model.response(mf, type="numeric")
-      }
+      Y <- model.response(mf, type = "numeric")
+    }
   attr(Y,"names")<- NULL
   # Extract GeDS covariates
   X <- mf[,spec]
@@ -51,6 +52,14 @@ read.formula <- function(formula, data, weights, offset)
   } else {
     Z <- NULL
   }
+  
+  # Check if formula variables make sense
+  if (ncol(X) == 1) {
+    if (all(Y == X) || (!is.null(Z) && all(Y == Z))) stop("Response variable cannot be equal to a covariate.")
+    } else if (ncol(X) == 2) {
+      if (all(Y == X[,1]) || all(Y == X[,2]) || (!is.null(Z) && all(Y == Z))) stop("Response variable cannot be equal to a covariate.")
+      if (all(X[,1] == X[,2])) stop("Covariates are the same in bivariate GeDS function.")
+    }
   
   # Initialize an offset vector with zeros
   offset <- rep(0, nrow(X))
@@ -122,6 +131,11 @@ read.formula.boost <- read.formula.gam <- function(formula, data){
     # Return a list containing variable names and the type
     return(list(variables = variables, type = type))
   }), bl_elements)
+  
+  # Check if response coincides with any of the covariates
+  for (learner in base_learners) {
+    if (response %in% learner$variables) stop("The response variable cannot be used as part of the predictors in the base learners.")
+    }
   
   return(list(terms = terms, response = response, predictors = predictors, base_learners = base_learners))
 }

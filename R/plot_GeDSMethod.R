@@ -133,6 +133,7 @@
 #' 
 #' @export 
 #' @importFrom plot3D persp3D points3D
+#' @importFrom graphics abline
 #' 
 #' @aliases plot.GeDS plot,GeDS-method plot,GeDS,ANY-method
 
@@ -293,7 +294,10 @@ setMethod("plot", signature(x = "GeDS"), function(x, f = NULL, which, DEV = FALS
         
         # Plot the spline
         lines(X, temp$Predicted, col = col_lines)
-        rug(c(knt, rep(extr,n))) # add a rug plot for knots
+        # add vertical lines for knots
+        for(knt in c(knt, rep(extr,n))) {
+          abline(v = knt, col = "gray", lty = 2)
+        }
         
         ## Each branch now adds specific elements to the plot based on the selected type
         # 1) Polygon
@@ -382,7 +386,10 @@ setMethod("plot", signature(x = "GeDS"), function(x, f = NULL, which, DEV = FALS
         
         # Plot the spline
         lines(X, temp$Predicted, col = col_lines)
-        rug(c(knt, rep(extr,n))) # add a rug plot for knots
+        # add vertical lines for knots
+        for(knt in c(knt, rep(extr,n))) {
+          abline(v = knt, col = "gray", lty = 2)
+        }
         
         ## Each branch now adds specific elements to the plot based on the selected type
         # 1) Polygon

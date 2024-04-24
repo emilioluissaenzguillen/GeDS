@@ -311,7 +311,7 @@ NGeDSgam <- function(formula, data, weights = NULL, normalize_data = FALSE, fami
   # old.dev
   old.dev <- sum(dev.resids(Y, mu, weights))
   # models
-  models = list()
+  models = list(); n_iters <- NULL
   
   # 2. ITERATE
   for (iter in 1:max_iterations) {
@@ -339,6 +339,7 @@ NGeDSgam <- function(formula, data, weights = NULL, normalize_data = FALSE, fami
     eta <- bf$z_hat + offset
     mu <- linkinv(eta)
     base_learners_list <- bf$base_learners_list
+    n_iters <- c(n_iters, bf$n_iters)
     
     models[[paste0("iter", iter)]] <- list(Y_hat = list(eta = eta, mu = mu, z = z),
                                            base_learners = base_learners_list)
@@ -471,7 +472,7 @@ NGeDSgam <- function(formula, data, weights = NULL, normalize_data = FALSE, fami
                          cubic.int.knots = cubic.int.knots)
   
   output <- list(extcall = extcall, formula = formula, args = args, final_model = final_model, predictions = preds,
-                 internal_knots = internal_knots)
+                 internal_knots = internal_knots, iters = list(local_scoring = iter, backfitting = n_iters))
   
   class(output) <- "GeDSgam"
   
@@ -497,7 +498,9 @@ backfitting <- function(z, base_learners, base_learners_list, data, wz, phi_gam_
   ok <- TRUE; rss0 <- sum((z-alpha)^2); model_formula_template <- "partial_resid ~ "
   
   # 2. Cycle
+  n_iters <- 0
   while (ok) { # backfitting loop
+    n_iters <- n_iters + 1
     for (bl_name in names(base_learners)) { # loop through the smooth terms
       
       # 2.1. Fit bl_name to partial residuals
@@ -592,6 +595,6 @@ backfitting <- function(z, base_learners, base_learners_list, data, wz, phi_gam_
     # rss0 <- rss
   }
   
-  out <- list(z_hat = alpha+rowSums(f), base_learners_list = base_learners_list)
+  out <- list(z_hat = alpha+rowSums(f), base_learners_list = base_learners_list, n_iters = n_iters)
   return(out)
 }
