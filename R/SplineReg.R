@@ -55,6 +55,8 @@
 #' \code{SplineReg_LM} fit. See details below.
 #' @param coefficients optional vector of spline coefficients. If provided,
 #' \code{SplineReg} computes only the corresponding predicted values.
+#' @param only_predictions logical, if \code{TRUE} only \code{Theta},
+#' \code{Predicted}, \code{Residuals} and \code{RSS} will be computed.
 #' 
 #' @return A \code{list} containing:
 #' \item{Theta}{ a vector containing the fitted coefficients of the spline
@@ -149,9 +151,9 @@
 #' @aliases SplineReg
 #' @rdname SplineReg
 
-SplineReg_LM <- function(X, Y, Z = NULL, offset = rep(0,NROW(X)), weights = rep(1,length(Y)),
+SplineReg_LM <- function(X, Y, Z = NULL, offset = rep(0,length(X)), weights = rep(1,length(X)),
                          InterKnots, n, extr = range(X), prob = 0.95,
-                         coefficients = NULL)
+                         coefficients = NULL, only_predictions = FALSE)
   {
   # Convert spline order to integer
   n <- as.integer(n)
@@ -159,7 +161,7 @@ SplineReg_LM <- function(X, Y, Z = NULL, offset = rep(0,NROW(X)), weights = rep(
   matrice <- splineDesign(knots = sort(c(InterKnots,rep(extr,n))), x = X, ord = n,
                           derivs = rep(0,length(X)), outer.ok = T)
   # Combine spline basis with parametric design matrix (if provided)
-  matrice2 <- cbind(matrice,Z)
+  matrice2 <- cbind(matrice, Z)
   
   # 1) If coefficients are NOT provided estimate the corresponding regression model
   if (is.null(coefficients)) {
@@ -171,45 +173,62 @@ SplineReg_LM <- function(X, Y, Z = NULL, offset = rep(0,NROW(X)), weights = rep(
     theta <- coef(tmp)
     # Compute predicted values
     predicted <- matrice2 %*% theta + offset
+    
+  # 2) If coefficients are provided, use them to compute predicted values directly
+  } else {
+    tmp <- NULL
+    theta <- coefficients
+    predicted <- matrice2 %*% theta + offset
+  }
+  
+  # Calculate residuals
+  resid <- Y - predicted
+  
+  if (!only_predictions) {
     # Knots for control polygon
-    nodes <- sort(c(InterKnots,rep(extr,n)))[-c(1,NCOL(matrice)+1)]
+    nodes <- sort(c(InterKnots,rep(extr,n)))[-c(1, NCOL(matrice)+1)]
     polyknots <- makenewknots(nodes, degree = n)
-    # Calculate residuals
-    resid <- Y - predicted
     # Residual standard error
-    df <- tmp$df
+    df <- if(!is.null(tmp)) tmp$df.residual else as.numeric(nrow(matrice2) - rankMatrix(matrice2)) # residual degrees of freedom
     sigma_hat <- sqrt(sum(resid^2)/df)
     # Recalculate the probability for a two-tailed test
     prob <- 1-.5*(1-prob)
-    #  CI_j =\hat{y_j} ± t_{α/2,df}*\hat{σ}*\sqrt{H_{jj}}; H = X(X'X)^{−1}X'
-    band <- qt(prob,df) * sigma_hat * influence(tmp)$hat^.5
+    # CI_j =\hat{y_j} ± t_{α/2,df}*\hat{σ}*\sqrt{H_{jj}}; H = X(X'X)^{−1}X'
+    H_diag <- if(!is.null(tmp)) influence(tmp)$hat else stats::hat(matrice2, intercept = FALSE)
+    band <- qt(prob,df) * sigma_hat * H_diag^.5
     
     # Huang's method for confidence band width (alternative approach)
     n <- length(Y)
-    N <- NCOL(matrice)
-    matcb <- matrix(0,N,N)
-    # to be written in cpp
-    for(i in 1:n){
-      matcb <- matcb + matrice[i,] %*% t(matrice[i,])
-    }
-    matcb <- matcb/n
-    matcbinv <- solve(matcb)
-    band_width_huang <- qnorm(prob) * n^(-.5) * diag(sigma_hat*matrice%*%matcbinv%*%t(matrice))
-  
-  # 2) If coefficients are provided, use them to compute predicted values directly
+    if (n < 1500) {
+      N <- NCOL(matrice)
+      matcb <- matrix(0, N, N)
+      # to be written in cpp
+      for(i in 1:n) {
+        matcb <- matcb + matrice[i,] %*% t(matrice[i,])
+        }
+      matcb <- matcb/n
+      matcbinv <- tryCatch({
+        solve(matcb)
+        }, error = function(e) {
+          # If there's an error with solve(), use ginv() as a fallback
+          # Moore-Penrose pseudo-inverse to skip multicolinearity issues that make matcb singular
+          message("Warning message in SplineReg_LM: Matrix is singular for computing confidence intervals; using ginv() as a fallback.")
+          MASS::ginv(matcb)
+          })
+      band_width_huang <- qnorm(prob) * n^(-.5) * diag(sigma_hat*matrice%*%matcbinv%*%t(matrice))
+      } else {
+        band_width_huang <- NULL
+      }
   } else {
-    theta <- coefficients
-    predicted <- matrice2 %*% theta + offset
-    # Set these variables to NA/NULL as they are not computed in this branch
-    polyknots <- resid <- band <- band_width_huang <- NA; tmp <- NULL
+    polyknots <- band <- band_width_huang <- NULL
   }
   
   out <- list("Theta" = theta, "Predicted" = predicted, "Residuals" = resid, "RSS" = t(resid)%*%resid,
               "NCI" = list("Upp" = predicted + band, "Low" = predicted - band),
               "Basis" = matrice, "Polygon" = list("Kn" = polyknots,
                                                   "Thetas" = theta[1:NCOL(matrice)]),
-              "temporary" = tmp, "ACI"=list("Upp" = predicted + band_width_huang,
-                                            "Low" = predicted - band_width_huang))
+              "temporary" = tmp, "ACI" = list("Upp" = predicted + band_width_huang,
+                                              "Low" = predicted - band_width_huang))
   return(out)
 }
 
@@ -217,7 +236,7 @@ SplineReg_LM <- function(X, Y, Z = NULL, offset = rep(0,NROW(X)), weights = rep(
 #' @export
 #' @rdname SplineReg
  
-SplineReg_GLM <- function(X, Y, Z, offset = rep(0,nobs), weights = rep(1,length(Y)),
+SplineReg_GLM <- function(X, Y, Z, offset = rep(0,nobs), weights = rep(1,length(X)),
                           InterKnots, n, extr = range(X), family, mustart,
                           inits = NULL, etastart = NULL)
   {

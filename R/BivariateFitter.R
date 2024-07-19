@@ -63,6 +63,10 @@
 #' @param higher_order a logical that defines whether to compute the higher
 #' order fits (quadratic and cubic) after stage A is run. Default is
 #' \code{TRUE}.
+#' @param Xintknots vector of starting internal knots in the \code{X} direction.
+#' Default is \code{NULL}.
+#' @param Yintknots vector of starting internal knots in the \code{Y} direction.
+#' Default is \code{NULL}.
 #' 
 #' @return A \code{\link{GeDS-Class}} object, but without the \code{Formula},
 #' \code{extcall}, \code{terms} and \code{znames} slots.
@@ -84,7 +88,7 @@ BivariateFitter <- function(X, Y, Z, W, weights = rep(1,length(X)), Indicator,
                             max.intknots = 300, q = 2, Xextr = range(X),
                             Yextr = range(Y), show.iters = TRUE,
                             tol = as.double(1e-12), stoptype = c("SR","RD","LR"),
-                            higher_order = TRUE)
+                            higher_order = TRUE, Xintknots = NULL, Yintknots = NULL)
   {
   # Capture the function call
   save <- match.call()
@@ -94,7 +98,8 @@ BivariateFitter <- function(X, Y, Z, W, weights = rep(1,length(X)), Indicator,
                "q" = q, "Xextr" = Xextr, "Yextr" = Yextr, "tol" = tol)
   
   # Initialize RSS and phis
-  RSSnew <- numeric()
+  n_starting_intknots <- length(Xintknots) + length(Yintknots)
+  RSSnew <- numeric(n_starting_intknots)
   phis <- NULL
   # Initialize \hat{\phi}_\kappa, \hat{\gamma}_0 and \hat{\gamma}_\1 (stoptype = "SR"; see eq. 9 in Dimitrova et al. (2023))
   phis_star <- NULL; oldintc <- NULL; oldslp <- NULL
@@ -108,8 +113,7 @@ BivariateFitter <- function(X, Y, Z, W, weights = rep(1,length(X)), Indicator,
   nw <- if(!is.null(W)) NCOL(W) else 0
   oldcoef   <- matrix(nrow = max.intknots + 1,
                       ncol = round((max.intknots/2 + 2)^2) + nw) # max number of coef; comes from maximizing f(x) = (x + 2)(max.intknots - x + 2)
-  # Initialize internal knots
-  Xintknots <- Yintknots <- NULL
+  
   # Matrix for X, Y and residuals
   ordX <- order(X, Y); ordY <- order(Y, X)
   matr <- matrix(ncol = 3, nrow = length(Z))
@@ -119,7 +123,7 @@ BivariateFitter <- function(X, Y, Z, W, weights = rep(1,length(X)), Indicator,
   ##################################################################################
   
   # Set the number of intervals for dividing the X_1 and X_2 dimensions (M_1 and M_2)
-  nintX <- nintY <- 10
+  nintX <- nintY <- as.integer(sqrt(length(Z)))
   
   # D_{1j} = [a_1 + (j - 1)(b_1 - a_1)/M_1, a_1 + j(b_1 - a_1)/M_1] \times [a_2, b_2], j = 1, ..., M_1
   # upperX = a_1 + j(b_1 - a_1)/M_1, i.e., the interval upper bound
@@ -158,13 +162,16 @@ BivariateFitter <- function(X, Y, Z, W, weights = rep(1,length(X)), Indicator,
   # Initialized iter and ncoef
   iter <- ncoef <- NULL
   
+  # GeDS iterations start by j = n_starting_intknots + 1 
+  init.iter <- if (is.null(Xintknots) && is.null(Yintknots)) 1 else  n_starting_intknots + 1
+  
   ##############################################################################
   ################################## STAGE A ###################################
   ##############################################################################
   
   Xctrl <- Yctrl <- FALSE # Initialize control flag indicating a new X/Y knot was added
 
-  for (j in 1:(max.intknots + 1)) {
+  for (j in init.iter:(max.intknots + 1)) {
     
     if (j > 1) {
       # Sort internal knots vector if new X/Y intknot was added on previous iteration
@@ -194,19 +201,20 @@ BivariateFitter <- function(X, Y, Z, W, weights = rep(1,length(X)), Indicator,
     ###########################
     ## STEP 3: Stopping rule ##
     ###########################
-    if (j > q) {
+    if (j > q + n_starting_intknots) {
       
       if (RSSnew[j]/RSSnew[j-q] > 1) break
       
       # Adding the current ratio of deviances to the 'phis' vector
       if (stoptype == "LR") {
         phis <- c(phis, RSSnew[j-q]-RSSnew[j])
-      } else {
-        phnew <- (RSSnew[j]/RSSnew[j-q])^(1/(ncoef[j]-ncoef[j-q]))
-        phis <- c(phis, phnew)
-      }
+        } else {
+          phnew <- (RSSnew[j]/RSSnew[j-q])^(1/(ncoef[j]-ncoef[j-q]))
+          phis <- c(phis, phnew)
+          }
       
       if (j - q > min.intknots) {
+        
         # (I) Smoothed Ratio of deviances
         if (stoptype == "SR") {
           # \hat{φ}_κ = 1 − exp{\hat{γ}_0 + \hat{γ}_1*κ}
@@ -226,18 +234,21 @@ BivariateFitter <- function(X, Y, Z, W, weights = rep(1,length(X)), Indicator,
                               ncoef[j], " coefficients")
           # Check if \hat{φ}_κ ≥ φ_{exit}
           if(phi_kappa >= phi)  break
+          
           # (II) Ratio of Deviances
-        } else if (stoptype == "RD") {
-          prnt <- paste0(", phi = ",round(phnew,3), ", ",
-                         ncoef[j]," coefficients")
-          if (RSSnew[j]/RSSnew[j-q] >= phi^(ncoef[j]-ncoef[j-q])) break
-          # (III) Likelihood Ratio
-        } else if (stoptype == "LR") {
-          prnt <- paste0(", p = ",
-                         round(pchisq(-(RSSnew[j]-RSSnew[j-q]), df = (ncoef[j]-ncoef[j-q])),3),
-                         ", ", ncoef[j]," coefficients")
-          if(-(RSSnew[j]-RSSnew[j-q]) < qchisq(phi,df=(ncoef[j]-ncoef[j-q]))) break
-        }
+          } else if (stoptype == "RD") {
+            prnt <- paste0(", phi = ",round(phnew,3), ", ",
+                           ncoef[j]," coefficients")
+            # if (RSSnew[j]/RSSnew[j-q] >= phi^(ncoef[j]-ncoef[j-q])) break
+            if (RSSnew[j]/RSSnew[j-q] >= phi) break
+            
+            # (III) Likelihood Ratio
+            } else if (stoptype == "LR") {
+              prnt <- paste0(", p = ",
+                             round(pchisq(-(RSSnew[j]-RSSnew[j-q]), df = (ncoef[j]-ncoef[j-q])),3),
+                             ", ", ncoef[j]," coefficients")
+              if(-(RSSnew[j]-RSSnew[j-q]) < qchisq(phi,df=(ncoef[j]-ncoef[j-q]))) break
+            }
       }
     }
     
@@ -288,7 +299,7 @@ BivariateFitter <- function(X, Y, Z, W, weights = rep(1,length(X)), Indicator,
       
       # Print iteration details if show.iters = TRUE
       if (show.iters) {
-        if (j > q) {
+        if (j > q + n_starting_intknots) {
           toprint <- paste0("Iteration ", j,": New X Knot = ", round(Xnewknot, 3), ", RSS = " ,
                             round(RSSnew[j],3), ", phi = ", round(RSSnew[j]/RSSnew[j-q], 3))
           } else {
@@ -305,7 +316,7 @@ BivariateFitter <- function(X, Y, Z, W, weights = rep(1,length(X)), Indicator,
         
         # Print iteration details if show.iters = TRUE
         if(show.iters) {
-          if (j > q) {
+          if (j > q + n_starting_intknots) {
             toprint <- paste0("Iteration ", j,": New Y Knot = ", round(Ynewknot,3), ", RSS = ",
                               round(RSSnew[j],3), ", phi = ", round(RSSnew[j]/RSSnew[j-q], 3))
             } else {
@@ -338,7 +349,7 @@ BivariateFitter <- function(X, Y, Z, W, weights = rep(1,length(X)), Indicator,
   previousY <- previousY[ ,-((toBeSaved + 1):max(max.intknots + 4, toBeSaved + 1))]
   
   # Keep the corresponding (intknotsX + 2) * (intknotsY + 2) coefficients
-  oldcoef <- oldcoef[, 1:(NCOL(previousX) - 4 + 2) * (NCOL(previousY) - 4 + 2)]
+  oldcoef <- oldcoef[, 1:((NCOL(previousX) - 4 + 2) * (NCOL(previousY) - 4 + 2))]
   
   if (j == max.intknots + 1) {
     warning("Maximum number of iterations exceeded")
@@ -394,7 +405,7 @@ BivariateFitter <- function(X, Y, Z, W, weights = rep(1,length(X)), Indicator,
     } else {
       # Stage B.1 (averaging knot location)
       ccX <- if (length(ikX) < 3) NULL else makenewknots(ikX, 4)
-      ccY <- if (length(ikY) < 3) NULL else makenewknots(ikX, 4)
+      ccY <- if (length(ikY) < 3) NULL else makenewknots(ikY, 4)
       # Stage B.2
       cub <- SplineReg_biv(X = X, Y = Y, Z = Z, InterKnotsX = ccX, InterKnotsY = ccY, Xextr = Xextr, Yextr = Yextr, n = 4)
     }
@@ -405,7 +416,7 @@ BivariateFitter <- function(X, Y, Z, W, weights = rep(1,length(X)), Indicator,
   out <- list("Type" = "LM - Biv", "Linear.IntKnots" = list("Xk" = llX, "Yk" = llY), "Quadratic.IntKnots" = list("Xk" = qqX, "Yk" = qqY),
               "Cubic.IntKnots" = list("Xk" = ccX,"Yk" = ccY),"Dev.Linear" = lin$RSS, "Dev.Quadratic" = squ$RSS, "Dev.Cubic" = cub$RSS,
               "RSS" = RSSnew, "Linear" = lin, "Quadratic" = squ, "Cubic" = cub, "Stored" = list("previousX" = previousX, "previousY" = previousY),
-              "Args"= args, "Call"= save, "Nintknots"= list("X"= length(llX), "Y"= length(llY)), "iters" = j, "Guesses" = NULL,
+              "Args" = args, "Call" = save, "Nintknots" = list("X" = length(llX), "Y" = length(llY)), "iters" = j, "Guesses" = NULL,
               "Coefficients" = oldcoef)
   class(out) <- "GeDS"
   return(out)
@@ -461,7 +472,7 @@ GenBivariateFitter <- function(X, Y, Z, W, family = family, weights = rep(1,leng
   ##################################################################################
   
   # Set the number of intervals for dividing the X_1 and X_2 dimensions (M_1 and M_2)
-  nintX <- nintY <- 10
+  nintX <- nintY <- as.integer(sqrt(length(Z)))
   
   # D_{1j} = [a_1 + (j - 1)(b_1 - a_1)/M_1, a_1 + j(b_1 - a_1)/M_1] \times [a_2, b_2], j = 1, ..., M_1
   # upperX = a_1 + j(b_1 - a_1)/M_1, i.e., the interval upper bound
@@ -663,35 +674,33 @@ GenBivariateFitter <- function(X, Y, Z, W, family = family, weights = rep(1,leng
     # A. If weight for X is greater, then add a new X knot
     if (weightX > weightY) {
       Ynewknot <- NULL
-      previousX <- rbind(previousX, c(Xnewknot,j))
       Xctrl <- TRUE # Control flag indicating an X knot is to be added
       
       # Print iteration details if show.iters = TRUE
-      if(show.iters) {
+      if (show.iters) {
         if (j > q) {
-          toprint <- paste0("Iteration ",j,": New X Knot = ", round(Xnewknot,3),
+          toprint <- paste0("Iteration ", j,": New X Knot = ", round(Xnewknot,3),
                             ", RSS = " , round(RSSnew[j],3), prnt)
-        } else {
+          } else {
             toprint <- paste0("Iteration ", j, ": New X Knot = ", round(Xnewknot,3), prnt)
-        }
-        print(toprint)
+          }
+        print(toprint)         
       }
       
       # B. If weight for Y is greater or equal, then add a new Y knot
       } else {
         Xnewknot <- NULL
-        previousY <- rbind(previousY,c(Ynewknot,j))
         Yctrl <- TRUE
         
         # Print iteration details if show.iters = TRUE
         if (show.iters) {
           if (j > q) {
-            toprint <- paste0("Iteration ",j,": New Y Knot = ", round(Ynewknot,3),
+            toprint <- paste0("Iteration ", j, ": New Y Knot = ", round(Ynewknot,3),
                               ", RSS = " , round(RSSnew[j],3), prnt)
-          } else {
+            } else {
               toprint <- paste0("Iteration ",j,": New Y Knot = ", round(Ynewknot,3) , prnt)
               }
-        print(toprint)
+          print(toprint)
         }
       }
     
@@ -720,7 +729,7 @@ GenBivariateFitter <- function(X, Y, Z, W, family = family, weights = rep(1,leng
   previousY <- previousY[ ,-((toBeSaved + 1):max(max.intknots + 4, toBeSaved + 1))]
   
   # Keep the corresponding (intknotsX + 2) * (intknotsY + 2) coefficients
-  oldcoef <- oldcoef[, 1:(NCOL(previousX) - 4 + 2) * (NCOL(previousY) - 4 + 2)]
+  oldcoef <- oldcoef[, 1:((NCOL(previousX) - 4 + 2) * (NCOL(previousY) - 4 + 2))]
   
   if (j == max.intknots + 1) {
     warning("Maximum number of iterations exceeded")
@@ -801,10 +810,10 @@ GenBivariateFitter <- function(X, Y, Z, W, family = family, weights = rep(1,leng
       qqX <- qqY <- squ <- ccX <- ccY <- cub <- NULL
       }
   
-  out <- list("Type" = "GLM - Biv","Linear.IntKnots"=list("Xk" = llX,"Yk" = llY),"Quadratic.IntKnots"=list("Xk" = qqX,"Yk" = qqY),
-              "Cubic.IntKnots"=list("Xk" = ccX,"Yk" = ccY),"Dev.Linear" = lin$RSS, "Dev.Quadratic" = squ$RSS,"Dev.Cubic" = cub$RSS,
-              "RSS" = RSSnew, "Linear" = lin, "Quadratic" = squ, "Cubic" = cub, "Stored" = previousX, "Args"= args,
-              "Call"= save, "Nintknots"= list("X"= length(llX), "Y"= length(llY)),"iters" = j, "Guesses" = NULL,
+  out <- list("Type" = "GLM - Biv", "Linear.IntKnots" = list("Xk" = llX, "Yk" = llY), "Quadratic.IntKnots" = list("Xk" = qqX, "Yk" = qqY),
+              "Cubic.IntKnots" = list("Xk" = ccX, "Yk" = ccY), "Dev.Linear" = lin$RSS, "Dev.Quadratic" = squ$RSS, "Dev.Cubic" = cub$RSS,
+              "RSS" = RSSnew, "Linear" = lin, "Quadratic" = squ, "Cubic" = cub, "Stored" = list("previousX" = previousX, "previousY" = previousY),
+              "Args"= args, "Call" = save, "Nintknots" = list("X"= length(llX), "Y"= length(llY)), "iters" = j, "Guesses" = NULL,
               "Coefficients" = oldcoef)
   class(out) <- "GeDS"
   return(out)

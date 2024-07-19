@@ -13,16 +13,16 @@
 #' @param formula a description of the structure of the predictor model to be
 #' fitted, including the dependent and independent variables. See
 #' \code{\link[=formula.GeDS]{formula}} for details.
-#' @param data an optional data frame, list or environment containing the
-#' variables of the predictor model. In case the variables are not found in
-#' \code{data}, they are taken from \code{environment(formula)}, typically the
-#' environment from which \code{GGeDS} is called.
 #' @param family a description of the error distribution and link function to be
 #' used in the model. This can be a character string naming a family function
 #' (e.g. \code{"gaussian"}), the family function itself (e.g.
 #' \code{\link[stats]{gaussian}}) or the result of a call to a family function
 #' (e.g. \code{gaussian()}). See \link[stats]{family} for details on family
 #' functions.
+#' @param data an optional data frame, list or environment containing the
+#' variables of the predictor model. In case the variables are not found in
+#' \code{data}, they are taken from \code{environment(formula)}, typically the
+#' environment from which \code{GGeDS} is called.
 #' @param weights an optional vector of `prior weights' to be put on the
 #' observations in the fitting process in case the user requires weighted GeDS
 #' fitting. It is \code{NULL} by default.
@@ -327,7 +327,7 @@
 #' \emph{Applied Mathematics and Computation}, \strong{436}. \cr
 #' DOI: \doi{10.1016/j.amc.2022.127493}
 
-GGeDS <- function(formula, data, family = gaussian(), weights, beta, phi = 0.99,
+GGeDS <- function(formula, family = gaussian(), data, weights, beta, phi = 0.99,
                   min.intknots, max.intknots, q = 2L, Xextr = NULL, Yextr = NULL,
                   show.iters = FALSE, stoptype = "SR", higher_order = TRUE)
   {

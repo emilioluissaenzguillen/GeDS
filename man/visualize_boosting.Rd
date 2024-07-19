@@ -5,12 +5,15 @@
 \alias{visualize_boosting.GeDSboost}
 \title{Visualize Boosting Iterations}
 \usage{
-\method{visualize_boosting}{GeDSboost}(M, object)
+\method{visualize_boosting}{GeDSboost}(object, iters = NULL, final_fits = FALSE)
 }
 \arguments{
-\item{M}{Numeric, specifies the iteration number.}
+\item{object}{a \code{\link{GeDSboost-Class}} object.}
 
-\item{object}{A \code{\link{GeDSboost-Class}} object.}
+\item{iters}{numeric, specifies the iteration(s) number.}
+
+\item{final_fits}{logical indicating whether the final linear, quadratic and
+cubic fits should be plotted.}
 }
 \description{
 This function plots the \code{\link{NGeDSboost}} fit to the data at the
@@ -35,14 +38,14 @@ means <- f_1(X)
 # Add (Normal) noise to the mean of Y
 Y <- rnorm(N, means, sd = 0.2)
 data = data.frame(X, Y)
-object <- NGeDSboost(Y ~ f(X), data = data, normalize_data = TRUE)
+Gmodboost <- NGeDSboost(Y ~ f(X), data = data, normalize_data = TRUE)
 
 # Plot
 plot(X, Y, pch=20, col=c("darkgrey"))
 lines(X, sapply(X, f_1), col = "black", lwd = 2)
-lines(X, object$predictions$pred_linear, col = "green4", lwd = 2)
-lines(X, object$predictions$pred_quadratic, col="red", lwd=2)
-lines(X, object$predictions$pred_cubic, col="purple", lwd=2)
+lines(X, Gmodboost$predictions$pred_linear, col = "green4", lwd = 2)
+lines(X, Gmodboost$predictions$pred_quadratic, col="red", lwd=2)
+lines(X, Gmodboost$predictions$pred_cubic, col="purple", lwd=2)
 legend("topright",
 legend = c("Order 2 (degree=1)", "Order 3 (degree=2)", "Order 4 (degree=3)"),
 col = c("green4", "red", "purple"),
@@ -51,10 +54,9 @@ lwd = c(2, 2, 2),
 cex = 0.75,
 bty="n",
 bg = "white")
-# Visualize boosting iterations
-par(mfrow=c(2,2))
-visualize_boosting(0, object)
-visualize_boosting(1, object)
+# Visualize boosting iterations + final fits
+par(mfrow=c(4,2))
+visualize_boosting(Gmodboost, iters = 0:3, final_fits = TRUE)
 par(mfrow=c(1,1))
 
 }

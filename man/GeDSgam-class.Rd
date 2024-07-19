@@ -68,8 +68,13 @@ includes:
      \item \code{mu}: vector of means.
      \item \code{z}: adjusted dependent variable.      
   }
-  \item \code{base_learners}: internal knots and coefficients of the final
-  model for each of the base-learners.
+  \item \code{base_learners}: a list containing, for each base-learner, the
+  corresponding piecewise linear fit polynomial coefficients. It includes the
+  knots for each order fit, resulting from computing the averaging knot
+  location. Although if the number of internal knots of the final linear fit
+  is less than $n-1$, the averaging knot location is not computed.
+  \item \code{Linear.Fit}: final model linear fit in B-spline form.
+  See for details \code{\link{SplineReg}}.
   \item \code{Quadratic.Fit}: quadratic fit obtained via Schoenberg variation
   diminishing spline approximation. See for details \code{\link{SplineReg}}.
   \item \code{Cubic.Fit}: cubic fit obtained via Schoenberg variation

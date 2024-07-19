@@ -23,7 +23,9 @@ UnivariateFitter(
   show.iters = FALSE,
   tol = as.double(1e-12),
   stoptype = c("SR", "RD", "LR"),
-  higher_order = TRUE
+  higher_order = TRUE,
+  intknots = NULL,
+  only_predictions = FALSE
 )
 
 GenUnivariateFitter(
@@ -58,8 +60,8 @@ selected to enter the parametric component of the predictor model (see
 is set to \code{NULL} by default.}
 
 \item{offset}{a vector of size \eqn{N} that can be used to specify a fixed
-covariate to be included in the predictor model  avoiding the estimation of
-its corresponding regression coefficient. In case  more than one covariate is
+covariate to be included in the predictor model avoiding the estimation of
+its corresponding regression coefficient. In case more than one covariate is
 fixed, the user should sum the corresponding coordinates of the fixed
 covariates to produce one common \eqn{N}-vector of coordinates. The
 \code{offset} argument is particularly useful when using 
@@ -108,6 +110,11 @@ partial match allowed. See details of \code{\link{NGeDS}} or
 \item{higher_order}{a logical that defines whether to compute the higher
 order fits (quadratic and cubic) after stage A is run. Default is
 \code{TRUE}.}
+
+\item{intknots}{vector of initial internal knots from which to start the GeDS
+Stage A iterations. See Section 3 of Kaishev et al. (2016). Default is \code{NULL}.}
+
+\item{only_predictions}{logical, if \code{TRUE} only predictions are computed.}
 
 \item{family}{a description of the error distribution and link function to be
 used in the model. This can be a character string naming a family function

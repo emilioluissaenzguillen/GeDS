@@ -10,19 +10,24 @@
 #' GeD spline regression components (as well as linear components) to be included
 #' (e.g., \code{Y ~ f(X1) + f(X2) + X3}). See \code{\link[=formula.GeDS]{formula}}
 #' for further details.
+#' @param family a character string indicating the response variable distribution
+#' and link function to be used. Default is \code{"gaussian"}. This should be a
+#' character or a family object.
 #' @param data a data frame containing the variables referenced in the formula.
 #' @param weights an optional vector of `prior weights' to be put on the
 #' observations during the fitting process. It should be \code{NULL} or a numeric
 #' vector of the same length as the response variable defined in the formula.
+#' @param offset a vector of size \eqn{N} that can be used to specify a fixed
+#' component to be included in the linear predictor during fitting. In case
+#' more than one covariate is fixed, the user should sum the corresponding
+#' coordinates of the fixed covariates to produce one common \eqn{N}-vector of
+#' coordinates.
 #' @param normalize_data a logical that defines whether the data should be
 #' normalized (standardized) before fitting the baseline linear model, i.e.,
 #' before running the local-scoring algorithm. Normalizing the data involves
 #' scaling the predictor variables to have a mean of 0 and a standard deviation
 #' of 1. This process alters the scale and interpretation of the knots and
 #' coefficients estimated. Default is equal to \code{FALSE}.
-#' @param family a character string indicating the response variable distribution
-#' and link function to be used. Default is \code{"gaussian"}. This should be a
-#' character or a family object.
 #' @param min_iterations optional parameter to manually set a minimum number of
 #' boosting iterations to be run. If not specified, it defaults to 0L.
 #' @param max_iterations optional parameter to manually set the maximum number
@@ -162,8 +167,8 @@
 #####################
 ### Local Scoring ###
 #####################
-NGeDSgam <- function(formula, data, weights = NULL, normalize_data = FALSE, family = "gaussian",
-                     min_iterations, max_iterations,
+NGeDSgam <- function(formula, family = "gaussian", data, weights = NULL, offset = NULL,
+                     normalize_data = FALSE, min_iterations, max_iterations,
                      phi_gam_exit = 0.995, q_gam = 2,
                      beta = 0.5, phi = 0.99, internal_knots = 500, q = 2,
                      higher_order = TRUE)
@@ -171,6 +176,8 @@ NGeDSgam <- function(formula, data, weights = NULL, normalize_data = FALSE, fami
   
   # Capture the function call
   extcall <- match.call()
+  if (missing(data)) 
+    data <- environment(formula)
   
   # Formula
   read.formula <- read.formula.gam(formula, data)
@@ -178,6 +185,15 @@ NGeDSgam <- function(formula, data, weights = NULL, normalize_data = FALSE, fami
   response <- read.formula$response
   predictors <- read.formula$predictors
   base_learners <- read.formula$base_learners
+  
+  # Weights and offset
+  nobs = length(data[[response]])
+  if (is.null(weights)) weights <- rep.int(1, nobs)
+  else weights <- rescale_weights(weights)
+  offset_index <- match("offset", names(extcall), 0L)
+  offset <- if (offset_index != 0) eval(extcall[[offset_index]], data) else NULL
+  if (is.null(offset))
+    offset <- rep.int(0, nobs)
   
   # Eliminate indexes and keep only relevant variables
   rownames(data) <- NULL
@@ -190,11 +206,17 @@ NGeDSgam <- function(formula, data, weights = NULL, normalize_data = FALSE, fami
   # Check for NA in each column and print a warning message if found
   na_vars <- apply(data, 2, function(x) any(is.na(x)))
   for(var in names(data)[na_vars]){
-    warning(paste("variable", var, "contains missing values;\n",
-                  "these observations are not used for fitting"))
+    warning(paste("variable", var, "contains missing values.\n",
+                  "These observations will be excluded from the fitting process."))
   }
   # Eliminate rows containing NA values
   data <- na.omit(data)
+  # Check if there are any character variables in the data
+  if(any(sapply(data, is.character))) {
+    # Convert all character variables to factors
+    data[] <- lapply(data, function(x) if(is.character(x)) as.factor(x) else x)
+    warning("Character variables are converted into factors.")
+  }
   
   # Family arguments
   if (is.character(family)) {
@@ -223,7 +245,8 @@ NGeDSgam <- function(formula, data, weights = NULL, normalize_data = FALSE, fami
     "predictors" = data[predictors], 
     "base_learners"= base_learners,
     "family" = family,
-    "normalize_data" = normalize_data
+    "normalize_data" = normalize_data,
+    "offset" = offset
   )
   
   # Add 'response' as the first element of the list 'args'
@@ -256,14 +279,6 @@ NGeDSgam <- function(formula, data, weights = NULL, normalize_data = FALSE, fami
     }
   }
  
-  # Weights and offset
-  nobs = length(data[[response]])
-  if (is.null(weights)) weights <- rep.int(1, nobs)
-  else weights <- rescale_weights(weights)
-  offset = NULL # by the moment we won't include offset as an argument of NGeDSgam
-  if (is.null(offset))
-    offset <- rep.int(0, nobs)
-  
   # Initialize the knots, intervals, and coefficients for each base-learner
   base_learners_list <- list()
   
@@ -349,6 +364,11 @@ NGeDSgam <- function(formula, data, weights = NULL, normalize_data = FALSE, fami
     if(args$family$family == "gaussian") break
     
     new.dev <- sum(dev.resids(Y, mu, weights))
+    if (is.infinite(new.dev)) stop("Infinite deviance: please decrease shrinkage parameter")
+    if (new.dev < 1e-9) {
+      cat("Deviance is almost zero: stopping boosting iterations\n\n")
+      break
+    }
     old.dev <- c(old.dev, new.dev)
     if (is.na(new.dev)) {
       break
@@ -393,24 +413,78 @@ NGeDSgam <- function(formula, data, weights = NULL, normalize_data = FALSE, fami
     final_model$base_learners[[bl_name]]$linear.int.knots <- get_internal_knots(final_model$base_learners[[bl_name]]$knots)
   }
   
+  # Extract variables of GeDS/linear base-learners
+  GeDS_variables <- unname(unlist(lapply(base_learners, function(x) if (x$type == "GeDS") x$variables)))
+  linear_variables <- unname(unlist(lapply(base_learners, function(x) if (x$type == "linear") x$variables)))
+  
+  #############################
+  ## B-Spline Representation ##
+  #############################
+  # (i) Knots
+  ll_list <- compute_avg_int.knots(final_model, base_learners = base_learners,
+                                   args$X_sd, args$X_mean, normalize_data, n = 2)
+  
+  # (ii) Coefficients
+  # Filter GeDS base learners based on type and number of variables
+  univariate_GeDS_learners <- Filter(function(bl) bl$type == "GeDS" && length(bl$variables) == 1, base_learners)
+  bivariate_GeDS_learners <- Filter(function(bl) bl$type == "GeDS" && length(bl$variables) == 2, base_learners)
+  
+  # Extract B-spline coefficients
+  univariate_GeDS_theta <- unlist(bSpline.coef(final_model, univariate_learners = univariate_GeDS_learners))
+  bivariate_GeDS_theta <- unlist(lapply(names(bivariate_GeDS_learners), function(bl) final_model$base_learners[[bl]]$coefficients))
+  
+  # Handle linear and factor bl/variables
+  linear_coef <- NULL
+  if (length(linear_variables) > 0) {
+    # Initialize the intercept and slopes
+    intercept <- 0; slopes <- NULL
+    # Loop through each variable in linear_variables
+    for (var in linear_variables) {
+      coef <- final_model$base_learners[[var]]$coefficients
+      int <- coef$b0; slp <- unlist(coef[names(coef) != "b0"])
+      # Sum up the intercepts
+      intercept <- intercept + int
+      # Vector of slopes
+      slopes <- c(slopes, slp)
+    }
+    linear_coef <- c(intercept, slopes)
+  } else {
+    Z <- NULL  # Set Z to NULL if there are no factor variables
+  }
+  
+  theta <- c(univariate_GeDS_theta, bivariate_GeDS_theta, linear_coef)
+  
+  linear_fit <- tryCatch({
+    SplineReg_Multivar(X = args$predictors[GeDS_variables], Y = args$response[[response]],
+                       Z = args$predictors[linear_variables], offset = args$offset + mean(final_model$Y_hat$z),
+                       base_learners = args$base_learners, weights = weights, InterKnotsList = ll_list,
+                       n = 2, family = args$family,
+                       coefficients = theta, linear_intercept = TRUE, de_mean = TRUE)}, error = function(e) {
+                         cat(paste0("Error computing linear fit:", e))
+                         return(NULL)
+                       })
+  
+  # De-normalize if necessary
+  if (normalize_data == TRUE && family@name != "Negative Binomial Likelihood (logit link)") {
+    linear_fit$Predicted <- as.numeric(linear_fit$Predicted) * args$Y_sd + args$Y_mean
+  }
+  
+  final_model$Linear.Fit <- linear_fit
+  
+  pred_linear <- as.numeric(final_model$Y_hat$mu)
+  
   #######################
   ## Higher order fits ##
   #######################
   if (higher_order) {
-    
-    # Extract variables of GeDS/linear base-learners
-    GeDS_variables <- lapply(base_learners, function(x) {if(x$type == "GeDS") return(x$variables) else return(NULL)})
-    GeDS_variables <- unname(unlist(GeDS_variables))
-    linear_variables <- lapply(base_learners, function(x) {if(x$type == "linear") return(x$variables) else return(NULL)})
-    linear_variables <- unname(unlist(linear_variables))
     
     # Quadratic fit
     qq_list <- compute_avg_int.knots(final_model, base_learners = base_learners,
                                    args$X_sd, args$X_mean, normalize_data, n = 3)
     quadratic_fit <- tryCatch({
       SplineReg_Multivar(X = args$predictors[GeDS_variables], Y = args$response[[response]],
-                         Z = args$predictors[linear_variables],
-                         base_learners = args$base_learners, InterKnotsList = qq_list,
+                         Z = args$predictors[linear_variables], offset = args$offset,
+                         base_learners = args$base_learners, weights = weights, InterKnotsList = qq_list,
                          n = 3, family = family)}, error = function(e) {
                            cat(paste0("Error computing quadratic fit:", e))
                            return(NULL)
@@ -423,8 +497,8 @@ NGeDSgam <- function(formula, data, weights = NULL, normalize_data = FALSE, fami
                                      args$X_sd, args$X_mean, normalize_data, n = 4)
     cubic_fit <- tryCatch({
       SplineReg_Multivar(X = args$predictors[GeDS_variables], Y = args$response[[response]],
-                         Z = args$predictors[linear_variables],
-                         base_learners = args$base_learners, InterKnotsList = cc_list,
+                         Z = args$predictors[linear_variables], offset = args$offset,
+                         base_learners = args$base_learners, weights = weights, InterKnotsList = cc_list,
                          n = 4, family = family)}, error = function(e) {
                            cat(paste0("Error computing cubic fit:", e))
                            return(NULL)
@@ -449,7 +523,7 @@ NGeDSgam <- function(formula, data, weights = NULL, normalize_data = FALSE, fami
   }
   
   # Store predictions
-  preds <- list(pred_linear = as.numeric(final_model$Y_hat$mu), pred_quadratic = pred_quadratic, pred_cubic = pred_cubic)
+  preds <- list(pred_linear = pred_linear, pred_quadratic = pred_quadratic, pred_cubic = pred_cubic)
   
   # Store internal knots
   linear.int.knots <- setNames(vector("list", length(base_learners)), names(base_learners))
@@ -520,7 +594,7 @@ backfitting <- function(z, base_learners, base_learners_list, data, wz, phi_gam_
           fit <- tryCatch(
             NGeDS(model_formula, data = data_loop, weights = wz, beta = beta, phi = phi,
                   min.intknots = 0, max.intknots = max.intknots, q = q, Xextr = NULL, Yextr = NULL,
-                  show.iters = FALSE, stoptype = "RD", higher_order = FALSE),
+                  show.iters = FALSE, stoptype = "RD", higher_order = FALSE, only_predictions = TRUE),
             error = function(e) {
               message(paste0("Error occurred in NGeDS() for base learner ", bl_name, ": ", e))
               error <<- TRUE

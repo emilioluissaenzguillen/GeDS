@@ -23,7 +23,9 @@ BivariateFitter(
   show.iters = TRUE,
   tol = as.double(1e-12),
   stoptype = c("SR", "RD", "LR"),
-  higher_order = TRUE
+  higher_order = TRUE,
+  Xintknots = NULL,
+  Yintknots = NULL
 )
 
 GenBivariateFitter(
@@ -112,6 +114,12 @@ partial match allowed. See details of \code{\link{NGeDS}} or
 \item{higher_order}{a logical that defines whether to compute the higher
 order fits (quadratic and cubic) after stage A is run. Default is
 \code{TRUE}.}
+
+\item{Xintknots}{vector of starting internal knots in the \code{X} direction.
+Default is \code{NULL}.}
+
+\item{Yintknots}{vector of starting internal knots in the \code{Y} direction.
+Default is \code{NULL}.}
 
 \item{family}{a description of the error distribution and link function to be
 used in the model. This can be a character string naming a family function

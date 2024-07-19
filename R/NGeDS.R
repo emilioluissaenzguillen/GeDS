@@ -46,6 +46,8 @@
 #' @param higher_order a logical that defines whether to compute the higher
 #' order fits (quadratic and cubic) after stage A is run. Default is
 #' \code{TRUE}.
+#' @param intknots vector of starting internal knots. Default is \code{NULL}.
+#' @param only_predictions logical, if \code{TRUE} only predictions are computed.
 #' 
 #' @return \code{\link{GeDS-Class}} object, i.e. a list of items that summarizes
 #' the main details of the fitted GeDS regression. See \code{\link{GeDS-Class}}
@@ -188,8 +190,7 @@
 #' Z <- doublesin(cbind(X,Y))
 #' Z <- Z+rnorm(400, 0, sd = 0.1)
 #' # Fit a two dimensional GeDS model using NGeDS
-#' (BivGeDS <- NGeDS(Z ~ f(X, Y) , phi = 0.9, beta = 0.3,
-#' Xextr = c(0, 3), Yextr = c(0, 3)))
+#' (BivGeDS <- NGeDS(Z ~ f(X, Y), Xextr = c(0, 3), Yextr = c(0, 3)))
 #' 
 #' # Extract quadratic coefficients/knots/deviance
 #' coef(BivGeDS, n = 3)
@@ -221,7 +222,8 @@
 
 NGeDS <- function(formula, data, weights, beta = 0.5, phi = 0.99, min.intknots = 0,
                   max.intknots = 500, q = 2, Xextr = NULL, Yextr = NULL,
-                  show.iters = FALSE, stoptype = "RD", higher_order = TRUE)
+                  show.iters = FALSE, stoptype = "RD", higher_order = TRUE,
+                  intknots = NULL, only_predictions = FALSE)
   {
   # 1. Capture current function call and use formula's environment if 'data' is missing
   save <- match.call()
@@ -320,7 +322,9 @@ NGeDS <- function(formula, data, weights, beta = 0.5, phi = 0.99, min.intknots =
     out <- UnivariateFitter(X = X, Y = Y, Z = Z, offset = offset, weights = weights,
                             beta = beta, phi = phi, min.intknots = min.intknots,
                             max.intknots = max.intknots, q = q, extr = Xextr,
-                            show.iters = show.iters, stoptype = stoptype, higher_order = higher_order)
+                            show.iters = show.iters, stoptype = stoptype,
+                            higher_order = higher_order, intknots = intknots,
+                            only_predictions = only_predictions)
   ####################
   ## BIVARIATE GeDS ##
   ####################
@@ -329,12 +333,15 @@ NGeDS <- function(formula, data, weights, beta = 0.5, phi = 0.99, min.intknots =
     Indicator <- if(any(duplicated(X))) table(X[,1], X[,2]) else NULL 
     Xextr     <- if (is.null(Xextr)) range(X[,1]) else as.numeric(Xextr)
     Yextr     <- if (is.null(Yextr)) range(X[,2]) else as.numeric(Yextr)
+    Xintknots <- intknots$ikX
+    Yintknots <- intknots$ikY
     
     out <- BivariateFitter(X = X[,1], Y = X[,2], W = Z, Z = Y, weights = weights,
                            Indicator = Indicator, beta=beta, phi = phi,
                            min.intknots = min.intknots, max.intknots = max.intknots,
                            q = q, Xextr = Xextr, Yextr = Yextr, show.iters = show.iters,
-                           stoptype = stoptype, higher_order = higher_order)
+                           stoptype = stoptype, higher_order = higher_order,
+                           Xintknots = Xintknots, Yintknots = Yintknots)
     
   } else {
     stop("Incorrect number of columns of the independent variable")

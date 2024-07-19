@@ -15,6 +15,13 @@
 #' GeD spline regression components (as well as linear components) to be
 #' included (e.g., \code{Y ~ f(X1) + f(X2) + X3}).
 #' See \code{\link[=formula.GeDS]{formula}} for further details.
+#' @param family determines the loss function to be optimized by the boosting
+#' algorithm. In case \code{initial_learner = FALSE} it also determines the
+#' corresponding empirical risk minimizer to be used as offset initial learner.
+#' By default, it is set to \code{mboost::Gaussian()}. Users can specify any
+#' \code{\link[mboost]{Family}} object from the \pkg{mboost} package.
+#' @param link in case the \code{\link[mboost]{Family}} object has not the desired
+#' link function you can specify it here.
 #' @param data a data frame containing the variables referenced in the formula.
 #' @param weights an optional vector of `prior weights' to be put on the
 #' observations during the fitting process. It should be \code{NULL} or a
@@ -26,11 +33,6 @@
 #' predictor variables to have a mean of 0 and a standard deviation of 1. This
 #' process alters the scale and interpretation of the knots and coefficients
 #' estimated. Default is equal to \code{FALSE}.
-#' @param family determines the loss function to be optimized by the boosting
-#' algorithm. In case \code{initial_learner = FALSE} it also determines the
-#' corresponding empirical risk minimizer to be used as offset initial learner.
-#' By default, it is set to \code{mboost::Gaussian()}. Users can specify any
-#' \code{\link[mboost]{Family}} object from the \pkg{mboost} package.
 #' @param initial_learner a logical value. If set to \code{TRUE}, the model's
 #' initial learner will be a normal GeD spline. If set to FALSE, then the
 #' initial predictor will consist of the empirical risk minimizer corresponding
@@ -65,7 +67,7 @@
 #' @param phi numeric parameter in the interval \eqn{[0,1]} specifying the
 #' threshold for the stopping rule  (model selector) in stage A of GeDS.
 #' Default is equal to \code{0.99}. See details in \code{\link{NGeDS}}.
-#' @param internal_knots The maximum number of internal knots that can be added
+#' @param int.knots_boost The maximum number of internal knots that can be added
 #' by the GeDS base-learners in each boosting iteration, effectively setting the
 #' value of \code{max.intknots} in \code{\link{NGeDS}} at each boosting
 #' iteration. Default is \code{500L}.
@@ -75,6 +77,11 @@
 #' @param higher_order a logical that defines whether to compute the higher
 #' order fits (quadratic and cubic) after the FGB algorithm is run. Default is
 #' \code{TRUE}.
+#' @param boosting_with_memory logical value. If \code{TRUE}, boosting is
+#' performed taking into account previously fitted knots when fitting a GeDS
+#' learner at each new boosting iteration. If \code{boosting_with_memory} is
+#' \code{TRUE}, we recommend setting \code{int.knots_init = 1} and
+#' \code{int.knots_boost = 1}.
 #' 
 #' @return \code{\link{GeDSboost-Class}} object, i.e. a list of items that
 #' summarizes the main details of the fitted FGB-GeDS model. See
@@ -251,12 +258,12 @@
 ### NGeDSboost ###
 ##################
 NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE,
-                       family = mboost::Gaussian(), initial_learner = TRUE,
+                       family = mboost::Gaussian(), link = NULL, initial_learner = TRUE,
                        int.knots_init = 2L, min_iterations,
-                       max_iterations, shrinkage = 1,
-                       phi_boost_exit = 0.995, q_boost = 2L, beta = 0.5,
-                       phi = 0.99, internal_knots = 500L, q = 2L,
-                       higher_order = TRUE)
+                       max_iterations, shrinkage = 1, beta = 0.5,
+                       phi = 0.99, int.knots_boost = 500L, q = 2L,
+                       phi_boost_exit = 0.99, q_boost = 2L,
+                       higher_order = TRUE, boosting_with_memory = FALSE)
   {
   # Capture the function call
   extcall <- match.call()
@@ -269,6 +276,13 @@ NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE,
   response <- read.formula$response
   predictors <- read.formula$predictors
   base_learners <- read.formula$base_learners
+  
+  # Weights
+  nobs = length(data[[response]])
+  if (is.null(weights)) weights <- rep.int(1, nobs)
+  else weights <- rescale_weights(weights)
+  if (!family@weights(weights))
+    stop(sQuote("family"), " is not able to deal with weights")
   
   # Eliminate indexes and keep only relevant variables
   rownames(data) <- NULL
@@ -286,24 +300,33 @@ NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE,
   }
   # Eliminate rows containing NA values
   data <- na.omit(data)
+  # Check if there are any character variables in the data
+  if(any(sapply(data, is.character))) {
+    # Convert all character variables to factors
+    data[] <- lapply(data, function(x) if(is.character(x)) as.factor(x) else x)
+    warning("Character variables are converted into factors.")
+  }
   
   # Family arguments
   ngradient <- family@ngradient
   risk <- family@risk
   offset <- family@offset
   check_y_family <- family@check_y
+  family_stats <- get_mboost_family(family@name)
   
   # Min/max iterations
   min_iterations <- validate_iterations(min_iterations, 0L, "min_iterations")
-  max_iterations <- validate_iterations(max_iterations, 100L, "max_iterations")
+  max_iterations <- validate_iterations(max_iterations, 500L, "max_iterations")
   
   # Save arguments
   args <- list(
     "predictors" = data[predictors], 
     "base_learners"= base_learners,
+    "weights" = weights,
     "family" = family,
+    "link" = link,
     "initial_learner" = initial_learner, 
-    "int.knots_init" = if(!is.null(initial_learner)){int.knots_init} else {NULL},
+    "int.knots_init" = if(initial_learner){int.knots_init} else {NULL},
     "shrinkage" = shrinkage, 
     "normalize_data" = normalize_data
   )
@@ -336,19 +359,14 @@ NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE,
     }
   }
   
-  # Weights
-  nobs = length(data[[response]])
-  if (is.null(weights)) weights <- rep.int(1, nobs)
-  else weights <- rescale_weights(weights)
-  if (!family@weights(weights))
-    stop(sQuote("family"), " is not able to deal with weights")
-
   # Initialize the knots, intervals, and coefficients for each base-learner
   base_learners_list <- list()
   
   for (bl_name in names(base_learners)) {
+    
     # Extract predictor variable(s) of base-learner
     pred_vars <- base_learners[[bl_name]]$variables
+    
     ## (A) GeDS base-learners
     if (base_learners[[bl_name]]$type=="GeDS") {
       # Get min and max values for each predictor
@@ -362,21 +380,27 @@ NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE,
         coefficients <- list("b0" = 0, "b1" = 0)
         base_learners_list[[bl_name]] <- list("knots" = knots, "intervals" = intervals, "coefficients" = coefficients)
       # (A.2) BIVARIATE BASE-LEARNERS
-        } else {
-          knots <- list(Xk = c(min_vals[1], max_vals[1]), Yk = c(min_vals[2], max_vals[2]))
-          base_learners_list[[bl_name]] <- list("knots" = knots, "iterations" = list())
+      } else {
+        knots <- list(Xk = c(min_vals[1], max_vals[1]), Yk = c(min_vals[2], max_vals[2]))
+        base_learners_list[[bl_name]] <- list("knots" = knots, "iterations" = list())
         }
     ## (B) Linear base-learners (initialize only coefficients)
-    } else if (base_learners[[bl_name]]$type=="linear"){
-      # Factor
-      if (is.factor(data[[pred_vars]])){
+    } else if (base_learners[[bl_name]]$type=="linear") {
+      # (B.1) Factor
+      if (is.factor(data[[pred_vars]])) {
+        knots <- NULL
         n <- nlevels(data[[pred_vars]]); coefficients <- vector("list", length = n)
         names(coefficients) <- paste0("b", 0:(n-1)); coefficients[] <- 0
-      # Continuous
+      # (B.2) Continuous
         } else {
+          # Get min and max values for each predictor
+          min_vals <- sapply(pred_vars, function(p) min(data[[p]]))
+          max_vals <- sapply(pred_vars, function(p) max(data[[p]]))
+          
+          knots <- c(min_vals[[1]], max_vals[[1]])
           coefficients <- list("b0" = 0, "b1" = 0)
-        }
-      base_learners_list[[bl_name]] <- list("coefficients" = coefficients)
+          }
+      base_learners_list[[bl_name]] <- list("knots" = knots, "coefficients" = coefficients)
     }
   }
   
@@ -386,9 +410,9 @@ NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE,
   
   ## (I) GeDS (or Linear) Initial Learner ##
   if (initial_learner) {
-    if (family@name != "Squared Error (Regression)") {
-      stop("Initial learner only allowed for family = Gaussian()")
-    }
+    # if (family@name != "Squared Error (Regression)") {
+    #   stop("Initial learner only allowed for family = Gaussian()")
+    # }
     
     # Pre-allocate memory for results
     results <- vector("list", length = length(base_learners))
@@ -399,8 +423,9 @@ NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE,
     
     ## 1. Loop through predictors and fit an initial base learner to data (NGeDS with # int.knots_init)
     model_results <- lapply(names(base_learners), function(bl_name) {
-      componentwise_fit(bl_name, data = data, response = response, model_formula_template, weights, base_learners, m = 0,
-                        internal_knots = int.knots_init, beta, phi, q)
+      componentwise_fit(bl_name = bl_name, response = response, data = data, model_formula_template = model_formula_template,
+                        family = get_mboost_family(args$family@name), weights = weights, base_learners = base_learners, m = 0,
+                        internal_knots = int.knots_init, beta = beta, phi = phi, q = q)
       })
     
     ## 2. Calculate SSR and find model that fits best U according to SSR
@@ -477,29 +502,37 @@ NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE,
         base_learners_list[[best_bl]]$coefficients <-  coef
       }
     
-    ## 3. Evaluate model and compute residuals
-    Y_hat <- best_pred$Y_hat
-    U     <- best_resid
+    ## 3. Evaluate model and compute negative gradient
+    if (family_stats$family != "binomial") {
+      Y_hat <- validate_Y_hat(best_pred$Y_hat, family_stats)
+      F_hat <- family_stats$linkfun(Y_hat)
+      } else {
+        F_hat <- best_pred$Y_hat
+        Y_hat <- family@response(F_hat)
+      }
+    
+    U <- ngradient(y = data[[response]], f = F_hat, w = weights)
     # Initialize old.dev for stopping rule
     old.dev <- best_ssr
     
     # Save model
     models[["model0"]] <- list("best_bl" = list("name" = best_bl, "n_intknots" = n_intknots, "int.knt" = int.knt,
                                                 "coef" = coef, "pred_linear" = pred_linear),
-                               "Y_hat" = Y_hat, "base_learners" = base_learners_list)
+                               "Y_hat" = Y_hat, "F_hat" = F_hat, "base_learners" = base_learners_list)
     
     
   ## (II) Offset Initial Learner ##
   } else {
-    # 1. Initialize Y_hat with an offset value
-    Y_hat <- offset(data[[response]], weights)
-    if (length(Y_hat) == 1){Y_hat <- rep(Y_hat, NROW(data[[response]]))}
-    old.dev <- risk(data[[response]], Y_hat, weights)
+    # 1. Initialize F_hat with an offset value
+    F_hat <- offset(data[[response]], weights)
+    if (length(F_hat) == 1) F_hat <- rep(F_hat, NROW(data[[response]]))
+    old.dev <- risk(data[[response]], F_hat, weights)
     # 2. Compute the negative gradient of the loss function
-    U <- ngradient(data[[response]], Y_hat, weights)
+    U <- ngradient(y = data[[response]], f = F_hat, w = weights)
     
     # Save model
-    models[["model0"]] <- list("Y_hat" = Y_hat, "base_learners" = base_learners_list)
+    models[["model0"]] <- list(Y_hat = family@response(F_hat), F_hat = F_hat,
+                               base_learners = base_learners_list)
   }
   
   ## Initialize parallel processing if required (i.e. if # base-learners > 1000)
@@ -539,9 +572,16 @@ NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE,
     if (length(base_learners) < pprocessing_threshold) {
       ## 3. Loop through base learners and fit to negative gradient (NGeDS with # internal_knots or linear model)
       model_results <- lapply(names(base_learners), function(bl_name) {
-        componentwise_fit(bl_name, data = data_loop, response = "U", model_formula_template, weights, base_learners, m,
-                          internal_knots = internal_knots, beta, phi, q)
-      })
+        if (boosting_with_memory) {
+          starting_intknots <- get_internal_knots(previous_model$base_learners[[bl_name]]$knots)
+        } else {
+          starting_intknots <- NULL
+        }
+        componentwise_fit(bl_name = bl_name, response = "U", data = data_loop, model_formula_template = model_formula_template,
+                          weights = weights, base_learners = base_learners, m = m,
+                          internal_knots = int.knots_boost, beta = beta, phi = phi, q = q,
+                          starting_intknots =  starting_intknots)
+        })
       
       ## 4. Calculate SSR and find model that fits best U according to SSR
       ssr_values <- numeric(length(model_results))
@@ -566,10 +606,19 @@ NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE,
       } else {
        ## 3. Loop through base-learners and fit to negative gradient (NGeDS with # internal_knots)
         results <- foreach(bl_name = names(base_learners), .combine = 'rbind', .packages = "GeDS",
-                           .export = c("predict_GeDS_linear", "last_row_with_value")) %dorng% {
-          componentwise_fit(bl_name, data = data_loop, response = "U", model_formula_template, weights, base_learners, m,
-                            internal_knots = internal_knots, beta, phi, q)
-        }
+                           .export = c("predict_GeDS_linear", "last_row_with_value")) %dorng%
+          {
+            if (boosting_with_memory) {
+              starting_intknots <- get_internal_knots(previous_model$base_learners[[bl_name]]$knots)
+            } else {
+              starting_intknots <- NULL
+            }
+            componentwise_fit(bl_name = bl_name, response = "U", data = data_loop, model_formula_template =  model_formula_template,
+                              weights = weights, base_learners = base_learners, m = m,
+                              internal_knots = int.knots_boost, beta = beta, phi = phi, q = q,
+                              starting_intknots =  starting_intknots)
+          }
+        
       ## 4. Calculate SSR and find model that fits best U according to SSR
         best_result_index <- which.min(sapply(1:nrow(results), function(i) results[i, "ssr"]))
         best_ssr <- unlist(results[best_result_index, "ssr"])
@@ -589,7 +638,7 @@ NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE,
       
       # (A.1) UNIVARIATE BASE-LEARNERS
       if (length(base_learners[[best_bl]]$variables) == 1){
-        ## 4.1. GeDS fit into linear piecewise polynomial form
+        ## 4.1. Linear GeDS fit into piecewise polynomial form
         pred_linear <- best_pred$Y_hat
         int.knt <- best_pred$int.knt
         b0 <- best_pred$b0
@@ -598,13 +647,15 @@ NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE,
         
         ## 4.2. Knots, intervals and coefficients
         # (i) Update knots vector
-        knots = sort(c(previous_model$base_learners[[best_bl]]$knots, int.knt))
+        new_int.knt = setdiff(int.knt, previous_model$base_learners[[best_bl]]$knots)
+        knots = sort(c(previous_model$base_learners[[best_bl]]$knots, new_int.knt))
         int.knots = knots[-c(1, length(knots))]
         
         # (ii) Update intervals matrix
-        # Combine the 1st value from the "start" col of intervals, with the values from the "end" col of intervals and int.knt
+        # Combine the 1st value from the "start" col of previous model intervals,
+        # with the values from the "end" col of previous model intervals and new_int.knt
         combined <- sort(c(unname(previous_model$base_learners[[best_bl]]$intervals[1, "start"]),
-                           unname(previous_model$base_learners[[best_bl]]$intervals[, "end"]), int.knt))
+                           unname(previous_model$base_learners[[best_bl]]$intervals[, "end"]), new_int.knt))
         intervals <- matrix(c(combined[-length(combined)], combined[-1]), ncol = 2)
         colnames(intervals) <- c("start", "end")
         
@@ -613,26 +664,39 @@ NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE,
         old_aux <- cbind(previous_model$base_learners[[best_bl]]$intervals,
                          data.frame(b0 = previous_model$base_learners[[best_bl]]$coefficients$b0),
                          data.frame(b1 = previous_model$base_learners[[best_bl]]$coefficients$b1))
-        # Combine new intervals with coefficients from the piecewise polynomial
-        new_aux <- data.frame(intervals)
-        new_aux$interval <- findInterval(new_aux$end, c(-Inf, int.knt, Inf))
-        new_aux$interval[new_aux$end %in% int.knt] <- new_aux$interval[new_aux$end %in% int.knt] - 1
         
-        new_aux$b0 <- b0[new_aux$interval]
-        new_aux$b1 <- b1[new_aux$interval]
-        new_aux$interval <- NULL
+        if (boosting_with_memory) {
+          # Combine new intervals with coefficients from the bl - piecewise polynomial
+          new_aux <- cbind(data.frame(intervals), b0, b1)
+          
+        } else {
+          # Combine new intervals with coefficients from the piecewise polynomial
+          new_aux <- data.frame(intervals)
+          # find the positions of elements in new_aux$end relative to the intervals defined by c(-Inf, new_int.knt, Inf)
+          new_aux$interval <- findInterval(new_aux$end, c(-Inf, new_int.knt, Inf)) 
+          # adjust the interval indices for those new_aux$end values that exactly match the knots in new_int.knt
+          # each new_int.knt yields 2 pairs of coef; the 1st pair corresponds to X < new_int.knt, the 2nd to X > new_int.knt
+          new_aux$interval[new_aux$end %in% new_int.knt] <- new_aux$interval[new_aux$end %in% new_int.knt] - 1
+          
+          new_aux$b0 <- b0[new_aux$interval]
+          new_aux$b1 <- b1[new_aux$interval]
+          new_aux$interval <- NULL
+        }
         
         # Initialize new coefficients
         b0_new <- numeric(nrow(new_aux))
         b1_new <- numeric(nrow(new_aux))
         
-        # Sum old coefficients and coefficients of piecewise polynomial
-        # Using a matrix approach for faster computation
+        # Sum old coefficients and coefficients of best_bl fit using a matrix approach for faster computation
+        # Create two matrices, each row being the start and end points of the old intervals respectively
+        # Repeat each row to match nrow(new_aux)
         mat_start <- matrix(old_aux$start, nrow = nrow(new_aux), ncol = nrow(old_aux), byrow = TRUE)
         mat_end <- matrix(old_aux$end, nrow = nrow(new_aux), ncol = nrow(old_aux), byrow = TRUE)
         
-        # Find intervals that satisfy the conditions
+        # Determine indices of new intervals that are contained within old intervals.
         indices <- which(mat_start <= new_aux$start & new_aux$end <= mat_end, arr.ind = TRUE)
+        # indices[, 1]: rows of the new_aux intervals that meet the condition
+        # indices[, 2]: corresponding rows from old_aux that satisfy the condition relative to each new_aux row identified in the first column
         
         # Update coefficients based on the identified intervals
         b0_new[indices[, 1]] <- old_aux$b0[indices[, 2]] + shrinkage * new_aux$b0[indices[, 1]]
@@ -651,8 +715,8 @@ NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE,
           ## 3/4. Save knots and coefficients (bivariate base-learners are not converted into PP form)
           pred_linear <- best_pred$Y_hat
           int.knt <- best_pred$int.knt
-          knots = list(Xk = sort(c(base_learners_list[[best_bl]]$knots$Xk, int.knt$Xint.knt)),
-                       Yk = sort(c(base_learners_list[[best_bl]]$knots$Yk, int.knt$Yint.knt)))
+          knots = list(Xk = sort(unique(c(base_learners_list[[best_bl]]$knots$Xk, int.knt$Xint.knt))),
+                       Yk = sort(unique(c(base_learners_list[[best_bl]]$knots$Yk, int.knt$Yint.knt))))
           base_learners_list[[best_bl]]$knots <- knots
           # Number of int. knots placed on current iteration
           n_intknots <- list(X = length(knots$Xk) - length(previous_model$base_learners[[best_bl]]$knots$Xk),
@@ -677,14 +741,20 @@ NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE,
     
     
     ## 5. Evaluate model and recompute gradient vector and residuals
-    Y_hat <- models[[paste0("model", m-1)]]$Y_hat + shrinkage*best_pred$Y_hat
-    U <- ngradient(data[[response]], Y_hat, weights)
-    new.dev <- risk(data[[response]], Y_hat, weights)
+    F_hat <- models[[paste0("model", m-1)]]$F_hat + shrinkage*pred_linear
+    Y_hat <- family@response(F_hat)
+    U <- ngradient(y = data[[response]], f = F_hat, w = weights)
+    new.dev <- risk(y = data[[response]], f = F_hat, w = weights)
+    if (is.infinite(new.dev)) stop("Infinite deviance: please decrease shrinkage parameter")
+    if (new.dev < 1e-6) {
+      cat("Deviance is almost zero: stopping boosting iterations\n\n")
+      break
+    }
     
     # Save model
     models[[paste0("model", m)]] <- list("best_bl" = list("name" = best_bl, "n_intknots" = n_intknots, 
                                                           "int.knt"= int.knt, "coef"= coef, "pred_linear" = pred_linear),
-                                         "Y_hat" = Y_hat, "base_learners" = base_learners_list)
+                                         "Y_hat" = Y_hat, "F_hat" = F_hat, "base_learners" = base_learners_list)
     
     
     ## 6. Stopping Rule (Ratio of Deviances)
@@ -693,9 +763,9 @@ NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE,
    
     if (!is.null(phi_boost_exit) && !is.null(q_boost) && m >= q_boost && m >= min_iterations) {
       # Check if the change in Deviance is less than the tolerance level
-      phi_boost =  old.dev[m+1]/ old.dev[m+1-q_boost]
+      phi_boost =  old.dev[m+1] / old.dev[m+1-q_boost]
       if (phi_boost >= phi_boost_exit) {
-        cat("Stopping iterations due to small improvement in Deviance\n\n")
+        cat("Stopping iterations due to small improvement in deviance\n\n")
         break
       }
     }
@@ -711,9 +781,8 @@ NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE,
       })
   }
   # 7.2. Calculate each model's deviance
-  family_stats <- get_mboost_family(family@name)
   deviances <- sapply(models, function(model) {
-    mu <- family@response(model$Y_hat)
+    mu <- model$Y_hat
     if(family_stats$family == "binomial" && all(args$response[[response]] %in% c(-1, 1))) {
       # since for NGeDSboost(family = "binomial") the encoding is -1/1 and for stats::binomial() the encoding is 0/1
       sum(family_stats$dev.resids((args$response[[response]] + 1) / 2, mu, weights))
@@ -734,25 +803,82 @@ NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE,
     final_model$base_learners[[bl_name]]$linear.int.knots <- get_internal_knots(final_model$base_learners[[bl_name]]$knots)
   }
   
+  # Extract variables of GeDS/linear base-learners
+  GeDS_variables <- unname(unlist(lapply(base_learners, function(x) if (x$type == "GeDS") x$variables)))
+  linear_variables <- unname(unlist(lapply(base_learners, function(x) if (x$type == "linear") x$variables)))
+  
+  #############################
+  ## B-Spline Representation ##
+  #############################
+  # If all base-learners are univariate we transform the linear pp representation into B-spline form
+  bivariate_learners <- base_learners[sapply(base_learners, function(bl) length(bl$variables)) == 2]
+  if (length(bivariate_learners) == 0) {
+    # (i) Knots
+    ll_list <- compute_avg_int.knots(final_model, base_learners = base_learners,
+                                     args$X_sd, args$X_mean, normalize_data, n = 2)
+    
+    # (ii) Coefficients
+    # Univariate GeDS base-learners B-spline coefficients
+    bSpline.base_learners <- args$base_learners[!names(args$base_learners) %in% linear_variables]
+    bSpline_coef <- unlist(bSpline.coef(final_model, univariate_learners = bSpline.base_learners))
+    
+    # Handle linear and factor bl/variables
+    linear_coef <- NULL
+    if (length(linear_variables) > 0) {
+      # Initialize the intercept and slopes
+      intercept <- 0; slopes <- NULL
+      # Loop through each variable in linear_variables
+      for (var in linear_variables) {
+        coef <- final_model$base_learners[[var]]$coefficients
+        int <- coef$b0; slp <- unlist(coef[names(coef) != "b0"])
+        # Sum up the intercepts
+        intercept <- intercept + int
+        # Vector of slopes
+        slopes <- c(slopes, slp)
+      }
+      linear_coef <- c(intercept, slopes)
+    } else {
+      Z <- NULL  # Set Z to NULL if there are no linear/factor variables
+    }
+    
+    theta <- c(bSpline_coef, linear_coef)
+    
+    # Initial learner
+    if (args$initial_learner) offset <- rep(0, NROW(args$response[[response]])) else offset <- models$model0$F_hat
+
+    linear_fit <- tryCatch({
+      SplineReg_Multivar(X = args$predictors[GeDS_variables], Y = args$response[[response]],
+                         Z = args$predictors[linear_variables], offset = offset,
+                         base_learners = bSpline.base_learners, weights = weights,
+                         InterKnotsList = ll_list, n = 2, family = args$family, link = args$link,
+                         coefficients = theta, linear_intercept = TRUE)}, error = function(e) {
+                           cat(paste0("Error computing linear fit:", e))
+                           return(NULL)
+                           })
+    
+    # De-normalize if necessary
+    if (normalize_data == TRUE && family@name != "Negative Binomial Likelihood (logit link)") {
+      linear_fit$Predicted <- as.numeric(linear_fit$Predicted) * args$Y_sd + args$Y_mean
+    }
+    
+    final_model$Linear.Fit <- linear_fit
+  }
+  
+  pred_linear <- as.numeric(final_model$Y_hat)
+  
   #######################
   ## Higher order fits ##
   #######################
   if (higher_order) {
-    
-    # Extract variables of GeDS/linear base-learners
-    GeDS_variables <- lapply(base_learners, function(x) {if(x$type == "GeDS") return(x$variables) else return(NULL)})
-    GeDS_variables <- unname(unlist(GeDS_variables))
-    linear_variables <- lapply(base_learners, function(x) {if(x$type == "linear") return(x$variables) else return(NULL)})
-    linear_variables <- unname(unlist(linear_variables))
     
     # Quadratic fit
     qq_list <- compute_avg_int.knots(final_model, base_learners = base_learners,
                                    args$X_sd, args$X_mean, normalize_data, n = 3)
     quadratic_fit <- tryCatch({
       SplineReg_Multivar(X = args$predictors[GeDS_variables], Y = args$response[[response]],
-                         Z = args$predictors[linear_variables],
-                         base_learners = args$base_learners, InterKnotsList = qq_list,
-                         n = 3, family = get_mboost_family(family@name))}, error = function(e) {
+                         Z = args$predictors[linear_variables], base_learners = args$base_learners,
+                         weights = weights, InterKnotsList = qq_list,
+                         n = 3, family = args$family, link = args$link)}, error = function(e) {
                            cat(paste0("Error computing quadratic fit:", e))
                            return(NULL)
                            })
@@ -764,9 +890,9 @@ NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE,
                                    args$X_sd, args$X_mean, normalize_data, n = 4)
     cubic_fit <- tryCatch({
       SplineReg_Multivar(X = args$predictors[GeDS_variables], Y = args$response[[response]],
-                         Z = args$predictors[linear_variables],
-                         base_learners = args$base_learners, InterKnotsList = cc_list,
-                         n = 4, family = get_mboost_family(family@name))}, error = function(e) {
+                         Z = args$predictors[linear_variables], base_learners = args$base_learners,
+                         weights = weights, InterKnotsList = cc_list,
+                         n = 4, family = args$family, link = args$link)}, error = function(e) {
                            cat(paste0("Error computing cubic fit:", e))
                            return(NULL)
                            })
@@ -789,9 +915,6 @@ NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE,
   for (bl_name in names(base_learners)){
     final_model$base_learners[[bl_name]]$knots <- NULL
   }
-  
-  # Response (for example, if family is binomial, define the probability estimates)
-  f <- as.numeric(final_model$Y_hat); pred_linear <- family@response(f)
   
   preds <- list(pred_linear = pred_linear, pred_quadratic = pred_quadratic, pred_cubic = pred_cubic)
   
@@ -825,8 +948,8 @@ NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE,
 #######################################
 ### Component-wise fitting function ###
 #######################################
-componentwise_fit <- function(bl_name, data, response, model_formula_template, weights, base_learners, m, 
-                              internal_knots, beta, phi, q) {
+componentwise_fit <- function(bl_name, response, data, model_formula_template, family = NULL, weights, base_learners, m, 
+                              internal_knots, beta, phi, q, starting_intknots = NULL) {
   
   # Initialize a results list with default values
   results <- list(
@@ -842,17 +965,25 @@ componentwise_fit <- function(bl_name, data, response, model_formula_template, w
   
   ## (A) GeDS base-learners
   if (base_learners[[bl_name]]$type == "GeDS") {
-    max.intknots <- if (length(pred_vars) == 1) internal_knots
+    max.intknots <- if (length(pred_vars) == 1) internal_knots + length(starting_intknots)
     else if (length(pred_vars) == 2 && internal_knots == 0) stop("internal_knots must be > 0 for bivariate learners")
-    else internal_knots
+    else internal_knots + length(starting_intknots$ikX) + length(starting_intknots$ikY)
     
     model_formula <- formula(paste0(model_formula_template, bl_name))
     error <- FALSE
     suppressWarnings({
       fit <- tryCatch(
-        NGeDS(model_formula, data = data, weights = weights, beta = beta, phi = phi,
-              min.intknots = 0, max.intknots = max.intknots, q = q, Xextr = NULL, Yextr = NULL,
-              show.iters = FALSE, stoptype = "RD", higher_order = FALSE),
+        if (family$family == "gaussian" || family$family == "binomial" || is.null(family)) {
+          NGeDS(model_formula, data = data, weights = weights, beta = beta, phi = phi,
+                min.intknots = 0, max.intknots = max.intknots, q = q,
+                Xextr = NULL, Yextr = NULL, show.iters = FALSE, stoptype = "RD",
+                higher_order = FALSE, intknots = starting_intknots, only_predictions = TRUE)
+          } else {
+            GGeDS(model_formula, data = data, family = family, weights = weights,
+                  beta = beta, phi = phi, min.intknots = 0, max.intknots = max.intknots,
+                  q = q, Xextr = NULL, Yextr = NULL, show.iters = FALSE, stoptype = "SR",
+                  higher_order = FALSE)
+          },
         error = function(e) {
           message(paste0("Error occurred in NGeDS() for base-learner ", bl_name, ": ", e))
           error <<- TRUE
@@ -861,7 +992,7 @@ componentwise_fit <- function(bl_name, data, response, model_formula_template, w
     })
     if (error) {
       results$error <- TRUE
-      results$message <- paste0("Skipped iteration ", m, " for base-learner ", bl_name, ".")
+      results$message <- paste0("Skipped boosting iteration ", m, " for base-learner ", bl_name, ".")
       return(results)
     }
     
@@ -887,7 +1018,7 @@ componentwise_fit <- function(bl_name, data, response, model_formula_template, w
     })
     if (error) {
       results$error <- TRUE
-      results$message <- paste0("Skipped iteration ", m, " for base-learner ", bl_name, ".")
+      results$message <- paste0("Skipped boosting iteration ", m, " for base-learner ", bl_name, ".")
       return(results)
     }
     

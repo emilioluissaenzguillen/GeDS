@@ -79,17 +79,29 @@ iteration. Each of these models includes:
  iteration.
   \item \code{Y_hat}: model fitted values at the \emph{i}-th boosting
   iteration.
-  \item \code{base_learners}: knots and coefficients for each of the
+  \item \code{base_learners}: knots and polynomial coefficients for each of the
   base-learners at the \emph{i}-th boosting iteration.  
 }}
 
 \item{\code{final_model}}{A list detailing the final GeDSboost model after the
-gradient descent algorithm is run. Apart of the components present in any
-model it includes the quadratic and cubic fits obtained through Schoenberg
-variation diminishing spline approximation. These include the same elements
-as \code{Quadratic} and \code{Cubic} in a \code{\link{GeDS-class}} object
-(see \code{\link{SplineReg}} for details). \code{best_bl} is eliminated to
-simplify the output.}
+gradient descent algorithm is run:
+\itemize{
+\item \code{model_name}: the boosting iteration corresponding to the final
+ model.
+ \item \code{DEV}: deviance of the final model.
+ \item \code{Y_hat}: fitted values.
+ \item \code{base_learners}: a list containing, for each base-learner, the
+ intervals defined by the piecewise linear fit and its corresponding
+ polynomial coefficients. It also includes the knots corresponding to each
+ order fit, which result from computing the corresponding averaging knot
+ location. See Kaishev et al. (2016) for details. If the number of internal
+ knots of the final linear fit is less than $n-1$, the averaging knot location
+ is not computed.
+ \item \code{Linear.Fit}/\code{Quadratic.Fit}/\code{Cubic.Fit}: final linear,
+ quadratic and cubic fits in B-spline form. These include the same elements
+ as \code{Linear}, \code{Quadratic} and \code{Cubic} in a \code{\link{GeDS-class}}
+ object (see \code{\link{SplineReg}} for details).
+ }}
 
 \item{\code{predictions}}{A list containing the predicted values obtained (linear,
 quadratic, and cubic).}

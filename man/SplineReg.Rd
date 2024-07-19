@@ -11,13 +11,14 @@ SplineReg_LM(
   X,
   Y,
   Z = NULL,
-  offset = rep(0, NROW(X)),
-  weights = rep(1, length(Y)),
+  offset = rep(0, length(X)),
+  weights = rep(1, length(X)),
   InterKnots,
   n,
   extr = range(X),
   prob = 0.95,
-  coefficients = NULL
+  coefficients = NULL,
+  only_predictions = FALSE
 )
 
 SplineReg_GLM(
@@ -25,7 +26,7 @@ SplineReg_GLM(
   Y,
   Z,
   offset = rep(0, nobs),
-  weights = rep(1, length(Y)),
+  weights = rep(1, length(X)),
   InterKnots,
   n,
   extr = range(X),
@@ -77,6 +78,9 @@ of \code{X}.}
 
 \item{coefficients}{optional vector of spline coefficients. If provided,
 \code{SplineReg} computes only the corresponding predicted values.}
+
+\item{only_predictions}{logical, if \code{TRUE} only \code{Theta},
+\code{Predicted}, \code{Residuals} and \code{RSS} will be computed.}
 
 \item{family}{a description of the error distribution and link function to be
 used in the model. This can be a character string naming a family function, a

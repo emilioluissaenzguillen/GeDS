@@ -1,6 +1,10 @@
-SplineReg_biv <- function(X,Y,Z,W=NULL,weights=rep(1,length(X)),InterKnotsX,InterKnotsY,n,
-                          Xextr=range(X),Yextr=range(Y),flag=TRUE,center=c(sum(Xextr)/2,sum(Yextr)/2),
-                          coefficients = NULL){
+SplineReg_biv <- function(X ,Y , Z, W = NULL, offset = rep(0,length(X)), weights = rep(1,length(X)),
+                          InterKnotsX, InterKnotsY, n, Xextr = range(X), Yextr = range(Y), flag = TRUE,
+                          center = c(sum(Xextr)/2,sum(Yextr)/2), coefficients = NULL)
+  {
+  # Convert spline order to integer
+  n <- as.integer(n)
+  # Create spline basis matrix using specified knots, evaluation points and order
   matriceX <- splineDesign(knots=sort(c(InterKnotsX,rep(Xextr,n))),derivs=rep(0,length(X)),
                            x=X,ord=n,outer.ok = T)
   matriceY <- splineDesign(knots=sort(c(InterKnotsY,rep(Yextr,n))),derivs=rep(0,length(Y)),
@@ -8,6 +12,8 @@ SplineReg_biv <- function(X,Y,Z,W=NULL,weights=rep(1,length(X)),InterKnotsX,Inte
   matriceY_noint <- cut_int(matriceY)
   
   matricebiv <- tensorProd(matriceX,matriceY_noint)
+  
+  # Combine spline basis with parametric design matrix (if provided)
   matricebiv2 <- cbind(matricebiv,W)
   
   # If coefficients vector was provided, check whether this is conformable with the knots vectors, o.w. re-estimate the coefficients
@@ -17,24 +23,31 @@ SplineReg_biv <- function(X,Y,Z,W=NULL,weights=rep(1,length(X)),InterKnotsX,Inte
   
   # 1) If coefficients are NOT provided or input vectors are NOT conformable, estimate the corresponding regression model
   if (is.null(coefficients) ||  non_conformable) {
-    tmp <- lm.wfit(matricebiv2, Z, weights)
-    if(any(is.na(coef(tmp)))) {
-      warning("NAs in regression coefficients")
-      tmp <- lm(Z~-1+matricebiv2,weights =  weights)
-    }
-    theta <- as.numeric(coef(tmp))
+    
+    # Substract offset (if any) from Z
+    Z0 <- Z - offset
+    # Fit linear model without intercept, using weights
+    tmp <- lm(Z0 ~ -1 + matricebiv2, weights = weights)
+    # Extract fitted coefficients
+    theta <- coef(tmp)
     # Avoid issues if there are NA values in the coefficients:
-    if(any(is.na(theta))) {theta[is.na(theta)] <- 0}
-    predicted <- matricebiv2%*%theta
-    resid <- residuals(tmp)
+    if (any(is.na(theta))) theta[is.na(theta)] <- 0
+    # Compute predicted values
+    predicted <- matricebiv2 %*% theta + offset
+    # Calculate residuals
+    resid <- Z - predicted
   
   # 2) If coefficients are provided and conformable with InterKnotsX/InterKnotsY, compute the corresponding predicted values
   } else {
     tmp <- NULL
     theta <- coefficients
-    predicted <- matricebiv2%*%theta
+    # Compute predicted values
+    predicted <- matricebiv2 %*% theta + offset
+    # Calculate residuals
     resid <- NA
   }
+  
+  
   
   out <- list("Theta"= theta,"Predicted"= predicted,
               "Residuals"= resid,"RSS" = t(resid)%*%resid,
@@ -47,7 +60,7 @@ SplineReg_biv <- function(X,Y,Z,W=NULL,weights=rep(1,length(X)),InterKnotsX,Inte
 
 
 cut_int <- function(mat){
-  d<-dim(mat)
+  d <-dim(mat)
   #we delete the intercept
   #otherwise tensor product basis is rank deficient
   mat_star <- t(rep(1,d[1])%*%mat)
@@ -56,19 +69,11 @@ cut_int <- function(mat){
   return(mat)
 }
 
-SplineReg_biv_GLM <- function(X, Y, Z, W = NULL, offset = rep(0,nobs), weights = rep(1,length(Z)),
+SplineReg_biv_GLM <- function(X, Y, Z, W = NULL, offset = rep(0,nobs), weights = rep(1,length(X)),
                               InterKnotsX, InterKnotsY, n, Xextr = range(X), Yextr = range(Y),
                               flag = TRUE, center = c(sum(Xextr)/2,sum(Yextr)/2), 
-                              family, mustart, inits = NULL, etastart = NULL)
+                              family, mustart, inits = NULL, etastart = NULL, coefficients = NULL)
   {
-  # Ensure X, Y, Z, InterKnots are numeric, and n is integer
-  X           <- as.numeric(X)
-  Y           <- as.numeric(Y)
-  Z           <- as.numeric(Z)
-  InterKnotsX <- as.numeric(InterKnotsX)
-  InterKnotsY <- as.numeric(InterKnotsY)
-  n           <- as.integer(n)
-  
   # Check that 'n' (spline order) has length 1
   if(length(n) != 1) stop("'n' must have length 1")
   ord <- n # to avoid problem in use of family$initialize e.g. binomial()
@@ -87,36 +92,53 @@ SplineReg_biv_GLM <- function(X, Y, Z, W = NULL, offset = rep(0,nobs), weights =
   # Combine spline basis with parametric design matrix (if provided)
   matricebiv2 <- cbind(matricebiv,W)
   
-  
-  # Initialize mustart based on input or defaults
-  if(missing(mustart)||is.null(mustart)) {
-    
-    if (is.null(inits)) {
-      
-      if(is.null(etastart)) {
-        # Set environment to parent frame
-        env <- parent.frame()
-        eval(family$initialize) 
-        mustart <- env$mustart
-      } else {
-        mustart <- family$linkinv(etastart)
-      }
-      
-    } else {
-      # Validate length of 'inits'
-      if(length(inits)!= NCOL(matricebiv2)) stop("'inits' has wrong length")
-      # Calculate initial mustart based on 'inits' (initial value for spline coefficients)
-      mustart <- family$linkinv(matricebiv2%*%inits)
-    }
+  # If coefficients vector was provided, check whether this is conformable with the knots vectors, o.w. re-estimate the coefficients
+  if(!is.null(coefficients)){
+    non_conformable <- (length(InterKnotsX) + 2) *  (length(InterKnotsY) + 2) != length(coefficients)
   }
   
-  tmp <- IRLSfit(matricebiv2, Z, offset = offset,
-                 family = family, mustart = mustart, weights = weights)
-  theta <- coef(tmp)
-  # Avoid issues if there are NA values in the coefficients:
-  if(any(is.na(theta))) {theta[is.na(theta)] <- 0}
-  predicted <- family$linkinv(matricebiv2%*%theta + offset)
-  resid <- tmp$res2
+  # 1) If coefficients are NOT provided or input vectors are NOT conformable, estimate the corresponding regression model
+  if (is.null(coefficients) ||  non_conformable) {
+    
+    # Initialize mustart based on input or defaults
+    if(missing(mustart)||is.null(mustart)) {
+      
+      if (is.null(inits)) {
+        if(is.null(etastart)) {
+          # Set environment to parent frame
+          env <- parent.frame()
+          eval(family$initialize) 
+          mustart <- env$mustart
+          } else {
+            mustart <- family$linkinv(etastart)
+            }
+        
+        } else {
+          # Validate length of 'inits'
+          if(length(inits)!= NCOL(matricebiv2)) stop("'inits' has wrong length")
+          # Calculate initial mustart based on 'inits' (initial value for spline coefficients)
+          mustart <- family$linkinv(matricebiv2%*%inits)
+        }
+    }
+    
+    tmp <- IRLSfit(matricebiv2, Z, offset = offset,
+                   family = family, mustart = mustart, weights = weights)
+    # Extract fitted coefficients
+    theta <- coef(tmp)
+    # Avoid issues if there are NA values in the coefficients:
+    if(any(is.na(theta))) theta[is.na(theta)] <- 0
+    # Compute predicted values
+    predicted <- family$linkinv(matricebiv2%*%theta + offset)
+    
+  # 2) If coefficients are provided and conformable with InterKnotsX/InterKnotsY, compute the corresponding predicted values
+  } else {
+    tmp <- NULL
+    theta <- coefficients
+    predicted <- family$linkinv(matricebiv2 %*% theta + offset)
+  }
+  
+  # Calculate residuals
+  resid <- Z - predicted
   
   out <- list("Theta" = theta, "Predicted" = predicted,
               "Residuals" = resid,"RSS" = tmp$lastdeviance, "deviance" = tmp$deviance,

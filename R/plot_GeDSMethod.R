@@ -293,10 +293,14 @@ setMethod("plot", signature(x = "GeDS"), function(x, f = NULL, which, DEV = FALS
         results$predicted <- temp$Predicted
         
         # Plot the spline
-        lines(X, temp$Predicted, col = col_lines)
+        lines(X, temp$Predicted, col = col_lines, lwd = 2)
         # add vertical lines for knots
-        for(knt in c(knt, rep(extr,n))) {
-          abline(v = knt, col = "gray", lty = 2)
+        if (length(knt) < 20) {
+          for(knt in c(knt, rep(extr,n))) {
+            abline(v = knt, col = "gray", lty = 2)
+          }
+        } else {
+          rug(c(knt, rep(extr,n)))
         }
         
         ## Each branch now adds specific elements to the plot based on the selected type
@@ -314,26 +318,26 @@ setMethod("plot", signature(x = "GeDS"), function(x, f = NULL, which, DEV = FALS
           
           # 2) Normal Confidence Intervals
         } else if(type == "NCI") {
-          lines(X,temp$NCI$Upp, col = "darkgrey", lty = 2)
-          lines(X,temp$NCI$Low, col = "darkgrey", lty = 2)
+          lines(X,temp$NCI$Upp, col = "black", lty = 2)
+          lines(X,temp$NCI$Low, col = "black", lty = 2)
           
           results$CIupp <- temp$NCI$Upp
           results$CIlow <- temp$NCI$Low
           
           if(draw.legend) legend(legend.pos,c("Data", toprint, "CI", f_legend), lty = c(NA, 1, 2, f_lty),
-                                 col = c(col_data, col_lines,"darkgrey", f_col), pch = c(pch_data, NA, NA, f_pch),
+                                 col = c(col_data, col_lines,"black", f_col), pch = c(pch_data, NA, NA, f_pch),
                                  lwd = c(NA, 1, 1, f_lwd), bty = "n")
           
           # 3) Asymptotic Confidence Intervals
         } else if (type == "ACI") {
-          lines(X,temp$ACI$Upp, col = "darkgrey", lty = 2)
-          lines(X,temp$ACI$Low, col = "darkgrey", lty = 2)
+          lines(X,temp$ACI$Upp, col = "black", lty = 2)
+          lines(X,temp$ACI$Low, col = "black", lty = 2)
           
           results$CIupp <- temp$ACI$Upp
           results$CIlow <- temp$ACI$Low
           
           if(draw.legend) legend(legend.pos, c("Data", toprint, "CI", f_legend), lty = c(NA, 1, 2, f_lty),
-                                 col = c(col_data, col_lines, "darkgrey", f_col), pch = c(pch_data, NA, NA, f_pch),
+                                 col = c(col_data, col_lines, "black", f_col), pch = c(pch_data, NA, NA, f_pch),
                                  lwd = c(NA, 1, 1, f_lwd), bty = "n")
           
         } else {
@@ -385,10 +389,14 @@ setMethod("plot", signature(x = "GeDS"), function(x, f = NULL, which, DEV = FALS
         results$pred <- temp$Predicted
         
         # Plot the spline
-        lines(X, temp$Predicted, col = col_lines)
+        lines(X, temp$Predicted, col = col_lines, lwd = 2)
         # add vertical lines for knots
-        for(knt in c(knt, rep(extr,n))) {
-          abline(v = knt, col = "gray", lty = 2)
+        if (length(knt) < 20) {
+          for(knt in c(knt, rep(extr,n))) {
+            abline(v = knt, col = "gray", lty = 2)
+          }
+        } else {
+          rug(c(knt, rep(extr,n)))
         }
         
         ## Each branch now adds specific elements to the plot based on the selected type
@@ -419,14 +427,14 @@ setMethod("plot", signature(x = "GeDS"), function(x, f = NULL, which, DEV = FALS
           CIupp <- pred$fit + qnorm(.975)*pred$se.fit
           CIlow <- pred$fit - qnorm(.975)*pred$se.fit
           
-          lines(X, CIupp, col = "darkgrey", lty = 2)
-          lines(X, CIlow, col = "darkgrey", lty = 2)
+          lines(X, CIupp, col = "black", lty = 2)
+          lines(X, CIlow, col = "black", lty = 2)
           
           results$CIupp <- CIupp
           results$CIlow <- CIlow
           
           if(draw.legend) legend(legend.pos, c("Data", toprint, "CI", f_legend), lty = c(NA, 1, 2, f_lty),
-                                 col = c(col_data, col_lines, "darkgrey", f_col), pch = c(pch_data, NA, NA, f_pch),
+                                 col = c(col_data, col_lines, "black", f_col), pch = c(pch_data, NA, NA, f_pch),
                                  lwd = c(NA, 1, 1, f_lwd), bty = "n")
           
           # 3) Asymptotic Confidence Intervals
@@ -437,11 +445,11 @@ setMethod("plot", signature(x = "GeDS"), function(x, f = NULL, which, DEV = FALS
           results$CIupp <- CIupp
           results$CIlow <- CIlow
           
-          lines(X, CIupp, col="darkgrey", lty = 2)
-          lines(X, CIlow, col="darkgrey", lty = 2)
+          lines(X, CIupp, col="black", lty = 2)
+          lines(X, CIlow, col="black", lty = 2)
           
           if(draw.legend) legend(legend.pos, c("Data", toprint, "CI", f_legend), lty = c(NA, 1, 2, f_lty),
-                                 col = c(col_data, col, "darkgrey", f_col), pch = c(pch_data, NA, NA, f_pch),
+                                 col = c(col_data, col, "black", f_col), pch = c(pch_data, NA, NA, f_pch),
                                  lwd = c(NA, 1, 1, f_lwd), bty = "n")
         } else {
           if (draw.legend) legend(legend.pos, c("Data", toprint, f_legend), lty = c(NA, 1, f_lty),
@@ -593,7 +601,4 @@ setMethod("plot", signature(x = "GeDS"), function(x, f = NULL, which, DEV = FALS
   invisible(x)
 }
 )
-
-
-
 

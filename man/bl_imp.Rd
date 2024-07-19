@@ -5,10 +5,14 @@
 \alias{bl_imp}
 \title{Base Learner Importance for GeDSboost objects}
 \usage{
-\method{bl_imp}{GeDSboost}(object, ...)
+\method{bl_imp}{GeDSboost}(object, boosting_iter_only = FALSE, ...)
 }
 \arguments{
-\item{object}{An object of class \code{\link{GeDSboost-Class}}.}
+\item{object}{an object of class \code{\link{GeDSboost-Class}}.}
+
+\item{boosting_iter_only}{logical value, if \code{TRUE} then base-learner
+in-bag risk reduction is only computed across boosting iterations, i.e.,
+without taking into account the initial learner.}
 
 \item{...}{potentially further arguments.}
 }

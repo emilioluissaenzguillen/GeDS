@@ -4,20 +4,27 @@
 ########################
 SplineReg_Multivar <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)), base_learners,
                                weights = rep(1, NROW(Y)), InterKnotsList, n, 
-                               extrList = lapply(X, range), prob = 0.95, family, 
-                               mustart = NULL, inits = NULL) {
+                               extrList = lapply(X, range), prob = 0.95, family, link,
+                               mustart = NULL, inits = NULL, coefficients = NULL,
+                               linear_intercept = FALSE, de_mean = FALSE) {
   
-  # Check if family is "Squared Error (Regression)" or "gaussian"
-  if (family$family == "gaussian") {
+  if (inherits(family, "boost_family_glm") || inherits(family, "boost_family")) {
+    family_name <- get_mboost_family(family@name)$family
+    if (!is.null(link)) family <- get(family_name)(link = link)
+    } else {
+      family_name <- family$family
+      }
+  
+  # Check if family is "gaussian"
+  if (family_name == "gaussian") {
     # Call Spline_LM_Multivar function
     result <- SplineReg_LM_Multivar(X, Y, Z, offset, base_learners, weights, InterKnotsList,
-                                    n, extrList, prob)
-    
-  } else {
-    # Call Spline_GLM_Multivar function
-    result <- SplineReg_GLM_Multivar(X, Y, Z, offset, base_learners, weights, InterKnotsList,
-                                     n, extrList, family, mustart, inits)
-  }
+                                    n, extrList, prob, coefficients, linear_intercept, de_mean)
+    } else {
+      # Call Spline_GLM_Multivar function
+      result <- SplineReg_GLM_Multivar(X, Y, Z, offset, base_learners, weights, InterKnotsList,
+                                       n, extrList, family, mustart, inits, coefficients, linear_intercept, de_mean)
+    }
   
   return(result)
 }
@@ -30,7 +37,7 @@ SplineReg_Multivar <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)), base_le
 #' 
 SplineReg_LM_Multivar <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)), base_learners,
                                   weights = rep(1, NROW(Y)), InterKnotsList, n, extrList = lapply(X, range),
-                                  prob = 0.95)
+                                  prob = 0.95, coefficients, linear_intercept = FALSE, de_mean = FALSE)
 {
   n <- as.integer(n)
   
@@ -38,8 +45,8 @@ SplineReg_LM_Multivar <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)), base
   InterKnotsList_biv <- InterKnotsList[!names(InterKnotsList) %in% names(InterKnotsList_univ)]
   
   # Select GeDS base-learners
-  base_learners =  base_learners[sapply(base_learners, function(x) x$type == "GeDS")]
-  
+  base_learners =  if (length(base_learners) > 0) base_learners[sapply(base_learners, function(x) x$type == "GeDS")] else NULL
+  univariate_learners <- bivariate_learners <- NULL
   # Univariate
   if (length(InterKnotsList_univ) != 0){
     # Create a list to store individual design matrices
@@ -110,24 +117,43 @@ SplineReg_LM_Multivar <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)), base
   }
   
   # Convert any factor columns in Z to dummy variables
-  if (NCOL(Z) != 0) Z <- model.matrix(~ . - 1, data = Z)
+  if (!is.null(Z) && NCOL(Z) > 0) {
+    if (linear_intercept) {
+      Z <- model.matrix(~ ., data = Z)
+      } else {
+        Z <- model.matrix(~ . -1, data = Z)
+        }
+    } else {
+      Z <- NULL
+    }
   
-  matrice2 <- cbind(full_matrix, as.matrix(Z))
-  Y0 <- Y - offset
-  tmp <- lm(Y0 ~ -1 + matrice2, weights=as.numeric(weights))
-  # the ‘-1’ serving to suppress the redundant extra intercept that would be added by default
-  # 'splineDesign' already includes a basis that accounts for the intercept
-  theta <- coef(tmp)
-  names(theta) <- sub("matrice2", "", names(theta))
-  predicted <- tmp$fitted.values + offset
+  matrice2 <- cbind(full_matrix, Z)
   
-  # Reset environment of lm object
-  f <- tmp$terms
-  environment(f) <- .GlobalEnv
-  tmp$terms <- f
-  terms_tmp <- attr(tmp$model, "terms")
-  environment(terms_tmp) <- .GlobalEnv
-  attr(tmp$model, "terms") <- terms_tmp
+  # 1) If coefficients are NOT provided estimate the corresponding regression model
+  if (is.null(coefficients)) {
+    Y0 <- Y - offset
+    tmp <- lm(Y0 ~ -1 + matrice2, weights=as.numeric(weights))
+    # the ‘-1’ serving to suppress the redundant extra intercept that would be added by default
+    # 'splineDesign' already includes a basis that accounts for the intercept
+    theta <- coef(tmp)
+    names(theta) <- sub("matrice2", "", names(theta))
+    predicted <- tmp$fitted.values + offset
+    
+    # Reset environment of lm object
+    f <- tmp$terms
+    environment(f) <- .GlobalEnv
+    tmp$terms <- f
+    terms_tmp <- attr(tmp$model, "terms")
+    environment(terms_tmp) <- .GlobalEnv
+    attr(tmp$model, "terms") <- terms_tmp
+  
+  # 2) If coefficients are provided, use them to compute predicted values directly
+  } else {
+    tmp <- NULL
+    theta <- coefficients
+    f <- if (de_mean) matrice2 %*% theta - mean(matrice2 %*% theta) else matrice2 %*% theta # to recover backfitting predictions need de_mean
+    predicted <- f + offset
+  }
   
   # Control polygon knots
   polyknots_list <- list()
@@ -172,14 +198,16 @@ SplineReg_LM_Multivar <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)), base
   }
   
   resid <- Y - predicted
-  df <- tmp$df
+  df <- if(!is.null(tmp)) tmp$df.residual else as.numeric(nrow(matrice2) - rankMatrix(matrice2)) # residual degrees of freedom
   sigma_hat <- sqrt(sum(resid^2)/df)
   prob <- 1 - 0.5 * (1 - prob)
-  band <- qt(prob, df) * sigma_hat * influence(tmp)$hat^0.5
-  n <- length(Y)
+  # CI_j =\hat{y_j} ± t_{α/2,df}*\hat{σ}*\sqrt{H_{jj}}; H = X(X'X)^{−1}X'
+  H_diag <- if(!is.null(tmp)) influence(tmp)$hat else stats::hat(matrice2, intercept = FALSE)
+  band <- qt(prob,df) * sigma_hat * H_diag^.5
   
-  if (NCOL(full_matrix) != 0) {
-    N <- NCOL(full_matrix)
+  n <- length(Y)
+  N <- NCOL(full_matrix)
+  if (N != 0 && n < 1500) {
     matcb <- matrix(0, N, N)
     for (i in 1:n) {
       matcb <- matcb + full_matrix[i, ] %*% t(full_matrix[i, ])
@@ -190,7 +218,7 @@ SplineReg_LM_Multivar <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)), base
       }, error = function(e) {
         # If there's an error with solve(), use ginv() as a fallback
         # Moore-Penrose pseudo-inverse to skip multicolinearity issues that make matcb singular
-    message("Warning message in SplineReg_LM_Multivar: Matrix is singular for computing confidence intervals; using ginv() as a fallback.")
+        message("Warning message in SplineReg_LM_Multivar: Matrix is singular for computing confidence intervals; using ginv() as a fallback.")
         MASS::ginv(matcb)
         })
     
@@ -199,10 +227,10 @@ SplineReg_LM_Multivar <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)), base
     Upp = predicted + band_width_huang
     Low = predicted - band_width_huang
     
-  } else {
-    Upp = NULL
-    Low = NULL
-  }
+    } else {
+      Upp = NULL
+      Low = NULL
+    }
   
   out <- list(Fit = tmp, Theta = theta, Predicted = predicted, Residuals = resid, 
               RSS = t(resid) %*% resid, NCI = list(Upp = predicted + 
@@ -218,17 +246,27 @@ SplineReg_LM_Multivar <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)), base
 ## SplineReg_GLM_Multivar ##
 ############################
 SplineReg_GLM_Multivar <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)), base_learners,
-                                  weights = rep(1, NROW(Y)), InterKnotsList, n, extrList = lapply(X, range),
-                                  family, mustart = NULL, inits = NULL)
+                                   weights = rep(1, NROW(Y)), InterKnotsList, n, extrList = lapply(X, range),
+                                   family, mustart = NULL, inits = NULL, coefficients, linear_intercept = FALSE,
+                                   de_mean = FALSE)
 {
   n <- as.integer(n)
+  # If boosting family save some relevant functions before converting to glm familt
+  if (inherits(family, "boost_family_glm") || inherits(family, "boost_family")) {
+    family_name <- family@name
+    family_linkinv <- family@response
+    family <- get_mboost_family(family_name)
+  } else {
+    family_name <- family$family
+    family_linkinv <- family$linkinv
+  }
   
   InterKnotsList_univ <- InterKnotsList[sapply(InterKnotsList, is.atomic)]
   InterKnotsList_biv <- InterKnotsList[!names(InterKnotsList) %in% names(InterKnotsList_univ)]
   
   # Select GeDS base-learners
   base_learners =  base_learners[sapply(base_learners, function(x) x$type == "GeDS")]
-  
+  univariate_learners <- bivariate_learners <- NULL
   # Univariate
   if (length(InterKnotsList_univ) != 0){
     # Create a list to store individual design matrices
@@ -299,41 +337,60 @@ SplineReg_GLM_Multivar <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)), bas
   }
   
   # Convert any factor columns in Z to dummy variables
-  if (NCOL(Z) != 0) Z <- model.matrix(~ . - 1, data = Z)
-  
-  matrice2 <- cbind(full_matrix, as.matrix(Z))
-  
-  
-  # Initialization
-  # Since for NGeDSboost(family = "binomial") the encoding is -1/1
-  # and for stats::binomial() the encoding is 0/1
-  if(family$family == "binomial" && all(Y %in% c(-1, 1))) {
-    Y <- (Y + 1) / 2
-  } 
-  
-  if(missing(mustart)||is.null(mustart)){
-    env <- parent.frame()
-    if (is.null(inits)) {
-      temp_env <- list2env(list(y = Y, nobs = length(Y),
-                                etastart = NULL, start = NULL, mustart = NULL ))
-      eval(family$initialize, envir = temp_env)
-      mustart <- temp_env$mustart
+  if (!is.null(Z) && NCOL(Z) > 0) {
+    if (linear_intercept) {
+      Z <- model.matrix(~ ., data = Z)
     } else {
-      if(length(inits)!= NCOL(matrice2)) stop("'inits' must be of length length(InterKnots) + n + NCOL(Z)")
-      mustart <- family$linkinv(matrice2%*%inits)
+      Z <- model.matrix(~ . -1, data = Z)
     }
+  } else {
+    Z <- NULL
   }
   
-  # tmp <- IRLSfit(matrice2, Y, offset=offset,
-  #                family=family, mustart = mustart, weights = weights)
-  # tmp <- glm.fit(matrice2, Y,
-  #                family=family)
-  tmp <- glm(Y ~ -1 + matrice2, weights=as.numeric(weights), family=family)
+  matrice2 <- cbind(full_matrix, Z)
   
-  theta <- coef(tmp)
-  names(theta) <- sub("matrice2", "", names(theta))
-  # predicted <- family$linkinv(matrice2%*%theta + offset)
-  predicted <- tmp$fitted.values + offset
+  # 1) If coefficients are NOT provided estimate the corresponding regression model
+  if (is.null(coefficients)) {
+    
+    # Since for NGeDSboost(family = "binomial") the encoding is -1/1
+    # and for stats::binomial() the encoding is 0/1
+    if (family_name == "Negative Binomial Likelihood (logit link)") {
+      Y <- (Y + 1) / 2
+    }
+    
+    # Initialization
+    if (missing(mustart)||is.null(mustart)) {
+      env <- parent.frame()
+      if (is.null(inits)) {
+        temp_env <- list2env(list(y = Y, nobs = length(Y),
+                                  etastart = NULL, start = NULL, mustart = NULL ))
+        eval(family$initialize, envir = temp_env)
+        mustart <- temp_env$mustart
+      } else {
+        if(length(inits)!= NCOL(matrice2)) stop("'inits' must be of length length(InterKnots) + n + NCOL(Z)")
+        mustart <- family$linkinv(matrice2%*%inits)
+      }
+    }
+    
+    # tmp <- IRLSfit(matrice2, Y, offset = offset,
+    #                family=family, mustart = mustart, weights = weights)
+    # tmp <- glm.fit(matrice2, Y, family = family,
+    #                weights = as.numeric(weights), mustart = mustart)
+    
+    tmp <- glm(Y ~ -1 + matrice2, family = family, weights = weights)
+    
+    theta <- coef(tmp)
+    names(theta) <- sub("matrice2", "", names(theta))
+    # predicted <- family$linkinv(matrice2%*%theta + offset)
+    predicted <- family$linkinv(tmp$linear.predictors + offset)
+    
+    # 2) If coefficients are provided, use them to compute predicted values directly
+  } else {
+    tmp <- NULL
+    theta <- coefficients
+    f <- if (de_mean) matrice2 %*% theta - mean(matrice2 %*% theta) else matrice2 %*% theta # to recover backfitting predictions need de_mean
+    predicted <- family_linkinv(f + offset)
+  }
   
   # Control polygon knots
   polyknots_list <- list()
@@ -378,13 +435,14 @@ SplineReg_GLM_Multivar <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)), bas
     }
   }
   
-  resid <- tmp$res2
+  resid <- if(!is.null(tmp)) tmp$residuals else NULL
+  deviance <- if(!is.null(tmp)) tmp$deviance else sum(family$dev.resids(Y, predicted, weights))
   
   out <- list(Fit = tmp, Theta = theta, Predicted = predicted,
-              Residuals = resid, RSS = tmp$deviance,
+              Residuals = resid, RSS = deviance,
               Basis = full_matrix,
               Polygon = list(Kn = polyknots_list, Thetas = theta[1:NCOL(full_matrix)]),
-              temporary = tmp, deviance = tmp$deviance)
+              temporary = tmp, deviance = deviance)
   return(out)
 }
 

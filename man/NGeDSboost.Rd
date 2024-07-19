@@ -10,18 +10,20 @@ NGeDSboost(
   weights = NULL,
   normalize_data = FALSE,
   family = mboost::Gaussian(),
+  link = NULL,
   initial_learner = TRUE,
   int.knots_init = 2L,
   min_iterations,
   max_iterations,
   shrinkage = 1,
-  phi_boost_exit = 0.995,
-  q_boost = 2L,
   beta = 0.5,
   phi = 0.99,
-  internal_knots = 500L,
+  int.knots_boost = 500L,
   q = 2L,
-  higher_order = TRUE
+  phi_boost_exit = 0.99,
+  q_boost = 2L,
+  higher_order = TRUE,
+  boosting_with_memory = FALSE
 )
 }
 \arguments{
@@ -52,6 +54,9 @@ corresponding empirical risk minimizer to be used as offset initial learner.
 By default, it is set to \code{mboost::Gaussian()}. Users can specify any
 \code{\link[mboost]{Family}} object from the \pkg{mboost} package.}
 
+\item{link}{in case the \code{\link[mboost]{Family}} object has not the desired
+link function you can specify it here.}
+
 \item{initial_learner}{a logical value. If set to \code{TRUE}, the model's
 initial learner will be a normal GeD spline. If set to FALSE, then the
 initial predictor will consist of the empirical risk minimizer corresponding
@@ -80,13 +85,6 @@ in the direction of the gradient of the loss function. In other words, the
 magnitude of the update each new iteration contributes to the final model.
 Default is equal to \code{1}.}
 
-\item{phi_boost_exit}{numeric parameter in the interval \eqn{[0,1]}
-specifying the threshold for the boosting iterations stopping rule. Default
-is equal to \code{0.995}.}
-
-\item{q_boost}{numeric parameter which allows to fine-tune the boosting
-iterations stopping rule, by default equal to \code{2L}.}
-
 \item{beta}{numeric parameter in the interval \eqn{[0,1]} tuning the knot
 placement in stage A of GeDS. Default is equal to \code{0.5}. See details in
 \code{\link{NGeDS}}.}
@@ -95,7 +93,7 @@ placement in stage A of GeDS. Default is equal to \code{0.5}. See details in
 threshold for the stopping rule  (model selector) in stage A of GeDS.
 Default is equal to \code{0.99}. See details in \code{\link{NGeDS}}.}
 
-\item{internal_knots}{The maximum number of internal knots that can be added
+\item{int.knots_boost}{The maximum number of internal knots that can be added
 by the GeDS base-learners in each boosting iteration, effectively setting the
 value of \code{max.intknots} in \code{\link{NGeDS}} at each boosting
 iteration. Default is \code{500L}.}
@@ -104,9 +102,22 @@ iteration. Default is \code{500L}.}
 stage A of GeDS, by default equal to \code{2L}. See details in
 \code{\link{NGeDS}}.}
 
+\item{phi_boost_exit}{numeric parameter in the interval \eqn{[0,1]}
+specifying the threshold for the boosting iterations stopping rule. Default
+is equal to \code{0.995}.}
+
+\item{q_boost}{numeric parameter which allows to fine-tune the boosting
+iterations stopping rule, by default equal to \code{2L}.}
+
 \item{higher_order}{a logical that defines whether to compute the higher
 order fits (quadratic and cubic) after the FGB algorithm is run. Default is
 \code{TRUE}.}
+
+\item{boosting_with_memory}{logical value. If \code{TRUE}, boosting is
+performed taking into account previously fitted knots when fitting a GeDS
+learner at each new boosting iteration. If \code{boosting_with_memory} is
+\code{TRUE}, we recommend setting \code{int.knots_init = 1} and
+\code{int.knots_boost = 1}.}
 }
 \value{
 \code{\link{GeDSboost-Class}} object, i.e. a list of items that

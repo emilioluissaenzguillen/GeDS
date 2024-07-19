@@ -53,8 +53,8 @@
 #' partial match allowed. See details of \code{\link{NGeDS}} or
 #' \code{\link{GGeDS}}.
 #' @param offset a vector of size \eqn{N} that can be used to specify a fixed
-#' covariate to be included in the predictor model  avoiding the estimation of
-#' its corresponding regression coefficient. In case  more than one covariate is
+#' covariate to be included in the predictor model avoiding the estimation of
+#' its corresponding regression coefficient. In case more than one covariate is
 #' fixed, the user should sum the corresponding coordinates of the fixed
 #' covariates to produce one common \eqn{N}-vector of coordinates. The
 #' \code{offset} argument is particularly useful when using 
@@ -64,6 +64,9 @@
 #' @param higher_order a logical that defines whether to compute the higher
 #' order fits (quadratic and cubic) after stage A is run. Default is
 #' \code{TRUE}.
+#' @param intknots vector of initial internal knots from which to start the GeDS
+#' Stage A iterations. See Section 3 of Kaishev et al. (2016). Default is \code{NULL}.
+#' @param only_predictions logical, if \code{TRUE} only predictions are computed.
 #' 
 #' @return A \code{\link{GeDS-Class}} object, but without the \code{Formula},
 #' \code{extcall}, \code{terms} and \code{znames} slots.
@@ -143,9 +146,9 @@
 UnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0,NROW(Y)),
                              weights = rep(1,length(X)), beta=.5, phi = 0.5,
                              min.intknots = 0, max.intknots = 300, q = 2,
-                             extr = range(X), show.iters=FALSE,
+                             extr = range(X), show.iters = FALSE,
                              tol = as.double(1e-12), stoptype = c("SR","RD","LR"),
-                             higher_order = TRUE)
+                             higher_order = TRUE, intknots = NULL, only_predictions = FALSE)
   {
   # Capture the function call
   save <- match.call()
@@ -155,7 +158,8 @@ UnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0,NROW(Y)),
                "max.intknots" = max.intknots, "q" = q, "extr" = extr, "tol" = tol)
   
   # Initialize RSS and phis
-  RSSnew <- numeric()
+  n_starting_intknots <- length(intknots)
+  RSSnew <- numeric(n_starting_intknots)
   phis <- NULL
   # Initialize \hat{\phi}_\kappa, \hat{\gamma}_0 and \hat{\gamma}_\1 (stoptype = "SR"; see eq. 9 in Dimitrova et al. (2023))
   phis_star <- NULL; oldintc <- NULL; oldslp <- NULL
@@ -173,13 +177,13 @@ UnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0,NROW(Y)),
   oldcoef <- matrix(nrow = max.intknots + 1,
                     ncol = max.intknots + 2 + nz) # number of B-splines is p = l + 2
   
-  intknots <- NULL
-  
+  # GeDS iterations start by j = n_starting_intknots + 1 
+  init.iter <- if (is.null(intknots)) 1 else  n_starting_intknots + 1
   
   ##############################################################################
   ################################## STAGE A ###################################
   ##############################################################################
-  for(j in 1:min(max.intknots + 1, length(Y) - 2)) {
+  for(j in init.iter:min(max.intknots + 1, length(Y) - 2)) {
     
     #############################################################
     ## STEP 1/STEP 8: Find the least squares linear spline fit ##
@@ -199,7 +203,7 @@ UnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0,NROW(Y)),
     ############################
     ## STEP 10: Stopping Rule ##
     ############################
-    if (j > q) {
+    if (j > q + n_starting_intknots) {
       
       if (RSSnew[j]/RSSnew[j-q] > 1) break
       
@@ -303,7 +307,7 @@ UnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0,NROW(Y)),
     if(show.iters) {
       indent <- rep(" ", nchar(options()$prompt))
       indent <- paste(indent, collapse="")
-      if (j > q) {
+      if (j > q + n_starting_intknots) {
         toprint <- paste0(indent, "Iteration ",j,": New Knot = ", round(newknot, 3),
                           ", RSS = " , round(RSSnew[j],3), prnt,"\n")
       } else {
@@ -335,13 +339,15 @@ UnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0,NROW(Y)),
   if (iter < 2) {
     warning("Too few internal knots found: Linear spline will be computed with NULL internal knots. Try to set a different value for 'q' or a different treshold")
     ll <- NULL
-    lin <- SplineReg_LM(X = X, Y = Y, Z = Z, offset = offset, weights = weights, extr = extr, InterKnots = ll, n = 2)
+    lin <- SplineReg_LM(X = X, Y = Y, Z = Z, offset = offset, weights = weights, InterKnots = ll, n = 2, extr = extr,
+                        only_predictions = only_predictions)
     } else {
       ik <- as.numeric(na.omit(previous[iter, -c(1, 2, iter + 2, iter + 3)])) # keep the internal knots in the "iter"th row
       # Stage B.1 (averaging knot location)
       ll <- makenewknots(ik, 2)
       # Stage B.2
-      lin <- SplineReg_LM(X = X, Y = Y, Z = Z, offset = offset, weights = weights, extr = extr, InterKnots = ll, n = 2)
+      lin <- SplineReg_LM(X = X, Y = Y, Z = Z, offset = offset, weights = weights, InterKnots = ll, n = 2, extr = extr,
+                          only_predictions = only_predictions)
     }
   #######################
   ## Higher order fits ##

@@ -6,10 +6,11 @@
 \usage{
 NGeDSgam(
   formula,
+  family = "gaussian",
   data,
   weights = NULL,
+  offset = NULL,
   normalize_data = FALSE,
-  family = "gaussian",
   min_iterations,
   max_iterations,
   phi_gam_exit = 0.995,
@@ -29,11 +30,21 @@ GeD spline regression components (as well as linear components) to be included
 (e.g., \code{Y ~ f(X1) + f(X2) + X3}). See \code{\link[=formula.GeDS]{formula}}
 for further details.}
 
+\item{family}{a character string indicating the response variable distribution
+and link function to be used. Default is \code{"gaussian"}. This should be a
+character or a family object.}
+
 \item{data}{a data frame containing the variables referenced in the formula.}
 
 \item{weights}{an optional vector of `prior weights' to be put on the
 observations during the fitting process. It should be \code{NULL} or a numeric
 vector of the same length as the response variable defined in the formula.}
+
+\item{offset}{a vector of size \eqn{N} that can be used to specify a fixed
+component to be included in the linear predictor during fitting. In case
+more than one covariate is fixed, the user should sum the corresponding
+coordinates of the fixed covariates to produce one common \eqn{N}-vector of
+coordinates.}
 
 \item{normalize_data}{a logical that defines whether the data should be
 normalized (standardized) before fitting the baseline linear model, i.e.,
@@ -41,10 +52,6 @@ before running the local-scoring algorithm. Normalizing the data involves
 scaling the predictor variables to have a mean of 0 and a standard deviation
 of 1. This process alters the scale and interpretation of the knots and
 coefficients estimated. Default is equal to \code{FALSE}.}
-
-\item{family}{a character string indicating the response variable distribution
-and link function to be used. Default is \code{"gaussian"}. This should be a
-character or a family object.}
 
 \item{min_iterations}{optional parameter to manually set a minimum number of
 boosting iterations to be run. If not specified, it defaults to 0L.}

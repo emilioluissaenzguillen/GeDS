@@ -17,7 +17,9 @@ NGeDS(
   Yextr = NULL,
   show.iters = FALSE,
   stoptype = "RD",
-  higher_order = TRUE
+  higher_order = TRUE,
+  intknots = NULL,
+  only_predictions = FALSE
 )
 }
 \arguments{
@@ -70,6 +72,10 @@ to be used. It should be either one of \code{"SR"}, \code{"RD"} or
 \item{higher_order}{a logical that defines whether to compute the higher
 order fits (quadratic and cubic) after stage A is run. Default is
 \code{TRUE}.}
+
+\item{intknots}{vector of starting internal knots. Default is \code{NULL}.}
+
+\item{only_predictions}{logical, if \code{TRUE} only predictions are computed.}
 }
 \value{
 \code{\link{GeDS-Class}} object, i.e. a list of items that summarizes
@@ -218,8 +224,7 @@ Y <- (round(runif(400, min = 0, max = 3),2))
 Z <- doublesin(cbind(X,Y))
 Z <- Z+rnorm(400, 0, sd = 0.1)
 # Fit a two dimensional GeDS model using NGeDS
-(BivGeDS <- NGeDS(Z ~ f(X, Y) , phi = 0.9, beta = 0.3,
-Xextr = c(0, 3), Yextr = c(0, 3)))
+(BivGeDS <- NGeDS(Z ~ f(X, Y), Xextr = c(0, 3), Yextr = c(0, 3)))
 
 # Extract quadratic coefficients/knots/deviance
 coef(BivGeDS, n = 3)

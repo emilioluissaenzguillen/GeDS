@@ -291,7 +291,8 @@ predict.GeDSboost_GeDSgam <- function(object, newdata, n = 2L, ...)
       
       # 1.0 Offset initial learner
       if (!object$args$initial_learner) {
-        pred0 <- rep(mean(object$models$model0$Y_hat), nrow(newdata))
+        pred0 <- object$args$family@offset(object$args$response[[1]],  object$args$weights)
+        pred0 <- rep(pred0, nrow(newdata)); 
         if(object$args$normalize_data && family_name != "Negative Binomial Likelihood (logit link)") {pred0 <- (pred0-Y_mean)/Y_sd}
       }
       # 1.1 Linear base learners
@@ -425,14 +426,15 @@ predict.GeDSboost_GeDSgam <- function(object, newdata, n = 2L, ...)
       return(as.numeric(pred))
     }
     
-    ##################
+    #####################
     ## 2. Higher Order ##
-    ##################
+    #####################
   } else if (n==3 || n==4) {
     
     # Extract family from GeDSboost/GeDSgam object
     if (inherits(object, "GeDSboost")) {
       family <- get_mboost_family(object$args$family@name)
+      if (!is.null(object$args$link)) family <- get(family$family)(link = object$args$link)
     } else {
       family <- object$args$family
     }
@@ -653,9 +655,22 @@ split_into_lines <- function(text, max_length)
     }
   }
   lines <- c(lines, paste(current_line, collapse = ", "))
+  
   # Add braces
-  lines[1] <- paste("{", lines[1], sep = "")
-  lines[length(lines)] <- paste(lines[length(lines)], "}", sep = "")
+  if (length(lines) == 1) {
+    lines[1] <- paste0("{", lines[1])
+    } else if (length(lines) == 2) {
+      lines[1] <- paste0("{", lines[1], ",")
+      } else if (length(lines) == 3) {
+        lines[1] <- paste0("{", lines[1], ",")
+        lines[2] <- paste0(lines[2], ",")
+        } else if (length(lines) == 4) {
+          lines[1] <- paste0("{", lines[1], ",")
+          lines[2] <- paste0(lines[2], ",")
+          lines[3] <- paste0(lines[3], ",")
+          }
+  lines[length(lines)] <- paste0(lines[length(lines)], "}")
+  
   lines
 }
 
@@ -667,8 +682,10 @@ split_into_lines <- function(text, max_length)
 #' \code{\link{NGeDS}} fit on the corresponding residual (negative gradient).
 #' Note: Applicable only for \code{\link{NGeDSboost}} models with one covariate
 #' and \code{family = mboost::Gaussian()}.
-#' @param M Numeric, specifies the iteration number.
-#' @param object A \code{\link{GeDSboost-Class}} object.
+#' @param iters numeric, specifies the iteration(s) number.
+#' @param object a \code{\link{GeDSboost-Class}} object.
+#' @param final_fits logical indicating whether the final linear, quadratic and
+#' cubic fits should be plotted.
 #' 
 #' @method visualize_boosting GeDSboost
 #' @examples
@@ -687,14 +704,14 @@ split_into_lines <- function(text, max_length)
 #' # Add (Normal) noise to the mean of Y
 #' Y <- rnorm(N, means, sd = 0.2)
 #' data = data.frame(X, Y)
-#' object <- NGeDSboost(Y ~ f(X), data = data, normalize_data = TRUE)
+#' Gmodboost <- NGeDSboost(Y ~ f(X), data = data, normalize_data = TRUE)
 #' 
 #' # Plot
 #' plot(X, Y, pch=20, col=c("darkgrey"))
 #' lines(X, sapply(X, f_1), col = "black", lwd = 2)
-#' lines(X, object$predictions$pred_linear, col = "green4", lwd = 2)
-#' lines(X, object$predictions$pred_quadratic, col="red", lwd=2)
-#' lines(X, object$predictions$pred_cubic, col="purple", lwd=2)
+#' lines(X, Gmodboost$predictions$pred_linear, col = "green4", lwd = 2)
+#' lines(X, Gmodboost$predictions$pred_quadratic, col="red", lwd=2)
+#' lines(X, Gmodboost$predictions$pred_cubic, col="purple", lwd=2)
 #' legend("topright",
 #' legend = c("Order 2 (degree=1)", "Order 3 (degree=2)", "Order 4 (degree=3)"),
 #' col = c("green4", "red", "purple"),
@@ -703,10 +720,9 @@ split_into_lines <- function(text, max_length)
 #' cex = 0.75,
 #' bty="n",
 #' bg = "white")
-#' # Visualize boosting iterations
-#' par(mfrow=c(2,2))
-#' visualize_boosting(0, object)
-#' visualize_boosting(1, object)
+#' # Visualize boosting iterations + final fits
+#' par(mfrow=c(4,2))
+#' visualize_boosting(Gmodboost, iters = 0:3, final_fits = TRUE)
 #' par(mfrow=c(1,1))
 #' 
 #' @export
@@ -714,8 +730,8 @@ split_into_lines <- function(text, max_length)
 #' @rdname visualize_boosting
 #' @importFrom graphics mtext abline
 
-visualize_boosting.GeDSboost <- function(M, object)
-  {
+visualize_boosting.GeDSboost <- function(object, iters = NULL, final_fits = FALSE)
+{
   # Check if object is of class "GeDSboost"
   if(!inherits(object, "GeDSboost")) {
     stop("The input 'object' must be of class 'GeDSboost'")
@@ -724,113 +740,150 @@ visualize_boosting.GeDSboost <- function(M, object)
   if(length(object$args$predictors) > 1) {
     stop("Visualization only available for models with a single predictor")
   }
-  # Check if family = Gaussian
-  if(object$args$family@name != "Squared Error (Regression)") {
-    stop("Visualization only available for family = 'Gaussian'")
+  # If M is NULL, set it to be the initial model
+  if (is.null(iters)) iters <- 0
+  # Check if M > than # of boosting iterations
+  if(any(iters > object$iters)) {
+    stop(paste0("iters = ", iters, " but only ", object$iters, " boosting iterations were run."))
   }
   
   Y <- object$args$response[[1]]; X <- object$args$predictors[[1]]
   
-  model <- object$models[[paste0("model", M)]]
-  Y_hat <- model$Y_hat
-  next_model <- object$models[[paste0("model", M+1)]]
-  
-  # 1. Data plot
-  # Plot range
-  x_range <- range(X)
-  y_range <- range(Y, Y_hat)
-  x_range <- c(x_range[1] - diff(x_range) * 0.05, x_range[2] + diff(x_range) * 0.05)
-  y_range <- c(y_range[1] - diff(y_range) * 0.05, y_range[2] + diff(y_range) * 0.05)
-  
-  # Split int knots into lines
-  knots <- model$base_learners[[1]]$knots
-  int.knots_round <- round(as.numeric(get_internal_knots(knots)), 2) 
-  int.knots_lines <- split_into_lines(paste(int.knots_round, collapse=", "), 65)
-  # Create the title
-  title_text_1 <- bquote(atop(plain(Delta[.(M) * ",2"] == .(int.knots_lines[1]))))
-  
-  # Plot
-  plot(X, Y, pch = 20, col = "darkgrey", tck = 0.02, main = "",
-       xlim = x_range, ylim = y_range, cex.axis = 1, cex.lab = 1)
-  lines(X, Y_hat, lwd = 2)
-  legend("topleft",
-         legend = c(2*M),
-         bty = "n",
-         text.font = 2,
-         cex = 1.5)
-  
-  # Trace knots w/vertical lines
-  for(knot in knots) {
-    abline(v = knot, col = "gray", lty = 2)
-  }
-  
-  # Add the title
-  if(length(int.knots_lines) == 1) {
-    mtext(title_text_1, side = 3, line=-0.5625, cex = 1)
-    } else if (length(int.knots_lines) == 2) {
-      mtext(title_text_1, side = 3, cex = 1)
-      mtext(int.knots_lines[2], side = 3, line=0.5, cex = 1)
-      } else if (length(int.knots_lines) == 3) {
-        mtext(title_text_1, side = 3, line=0.75, cex = 0.625)
-        mtext(int.knots_lines[2], side = 3, line = 1.5, cex = 0.625)
-        mtext(int.knots_lines[3], side = 3, line = 0.25, cex = 0.625)
-        } else if (length(int.knots_lines) == 4) {
-          mtext(title_text_1, side = 3, line=1, cex = 0.625)
-          mtext(int.knots_lines[2], side = 3, line = 1.5, cex = 0.625)
-          mtext(int.knots_lines[3], side = 3, line = 0.65, cex = 0.625)
-          mtext(int.knots_lines[4], side = 3, line = 0, cex = 0.625)
-        }
-  
-  # 2. Residuals plot
-  if (M < length(object$models) - 1){
+  for (M in iters) {
     
-    residuals <- Y - model$Y_hat
+    model <- object$models[[paste0("model", M)]]
+    Y_hat <- model$Y_hat
+    next_model <- object$models[[paste0("model", M+1)]]
     
+    # 1. Data plot
     # Plot range
     x_range <- range(X)
-    y_range <- range(residuals, next_model$best_bl$pred_linear)
+    y_range <- range(Y, Y_hat)
     x_range <- c(x_range[1] - diff(x_range) * 0.05, x_range[2] + diff(x_range) * 0.05)
     y_range <- c(y_range[1] - diff(y_range) * 0.05, y_range[2] + diff(y_range) * 0.05)
     
     # Split int knots into lines
-    int.knots <- next_model$best_bl$int.knt
-    int.knots_round <- round(as.numeric(next_model$best_bl$int.knt), 2)
+    knots <- model$base_learners[[1]]$knots
+    int.knots_round <- round(as.numeric(get_internal_knots(knots)), 2) 
     int.knots_lines <- split_into_lines(paste(int.knots_round, collapse=", "), 65)
     # Create the title
-    title_text_2 <- bquote(atop(plain(delta[.(M) * ",2"] == .(int.knots_lines[1]))))
+    title_text_1 <- bquote(atop(bold(Delta)[.(M) * ",2"] == .(int.knots_lines[1])))
     
     # Plot
-    plot(X, residuals, pch=20, col=c("darkgrey"), tck = 0.02, main = "",
-         xlim = x_range, ylim = y_range, cex.axis = 1, cex.lab = 1)
-    lines(X, next_model$best_bl$pred_linear, col="blue", lty = 2, lwd = 1)
-    points(next_model$best_bl$coef$mat[,1], next_model$best_bl$coef$mat[,2], col="blue", pch=21)
+    plot(X, Y, pch = 20, col = "darkgrey", tck = 0.02, main = "",
+         xlim = x_range, ylim = y_range, cex.axis = 1.5, cex.lab = 1.5)
+    lines(X, Y_hat, lwd = 2)
     legend("topleft",
-           legend = c(2*M+1),
+           legend = c(2*M),
            bty = "n",
            text.font = 2,
            cex = 1.5)
     
     # Trace knots w/vertical lines
-    for(int.knot in int.knots) {
-      abline(v = int.knot, col = "gray", lty = 2)
+    if (length(knots) < 20) {
+      for (knot in knots) {
+        abline(v = knot, col = "gray", lty = 2)
+      }
+    } else {
+      rug(knots)
     }
     
     # Add the title
-    if (length(int.knots_lines) == 1) {
-      mtext(title_text_2, side = 3, line=-0.5625, cex = 1)
+    if(length(int.knots_lines) == 1) {
+      mtext(title_text_1, side = 3, line = -0.5, cex = 1.15)
+    } else if (length(int.knots_lines) == 2) {
+      mtext(title_text_1, side = 3, line = 0, cex = 1.15)
+      mtext(int.knots_lines[2], side = 3, line = 0.5, cex = 1.15)
+    } else if (length(int.knots_lines) == 3) {
+      mtext(title_text_1, side = 3, line=0.75, cex = 0.9)
+      mtext(int.knots_lines[2], side = 3, line = 1.4, cex = 0.9)
+      mtext(int.knots_lines[3], side = 3, line = 0.5, cex = 0.9)
+    } else if (length(int.knots_lines) == 4) {
+      mtext(title_text_1, side = 3, line = 1, cex = 0.9)
+      mtext(int.knots_lines[2], side = 3, line = 1.8, cex = 0.9)
+      mtext(int.knots_lines[3], side = 3, line = 0.9, cex = 0.9)
+      mtext(int.knots_lines[4], side = 3, line = 0, cex =0.9)
+    }
+    
+    # 2. Negative gradient plot
+    if (M < length(object$models) - 1) {
+      
+      family <- object$args$family
+      family_stats <- get_mboost_family(family@name)
+      
+      negative_gradient <- family@ngradient(y = Y, f = family_stats$linkfun(Y_hat), w = object$args$weights)
+      
+      # Plot range
+      x_range <- range(X)
+      y_range <- range(negative_gradient, next_model$best_bl$pred_linear)
+      x_range <- c(x_range[1] - diff(x_range) * 0.05, x_range[2] + diff(x_range) * 0.05)
+      y_range <- c(y_range[1] - diff(y_range) * 0.05, y_range[2] + diff(y_range) * 0.05)
+      
+      # Split int knots into lines
+      int.knots <- next_model$best_bl$int.knt
+      int.knots_round <- round(as.numeric(next_model$best_bl$int.knt), 2)
+      int.knots_lines <- split_into_lines(paste(int.knots_round, collapse=", "), 65)    
+      # Create the title
+      title_text_2 <- bquote(atop(bold(delta)[.(M) * ",2"] == .(int.knots_lines[1])))
+      
+      # Plot
+      plot(X, negative_gradient, pch=20, col=c("darkgrey"), tck = 0.02, main = "",
+           xlim = x_range, ylim = y_range, cex.axis = 1.5, cex.lab = 1.5)
+      lines(X, next_model$best_bl$pred_linear, col="blue", lty = 2, lwd = 1)
+      points(next_model$best_bl$coef$mat[,1], next_model$best_bl$coef$mat[,2], col="blue", pch=21)
+      legend("topleft",
+             legend = c(2*M+1),
+             bty = "n",
+             text.font = 2,
+             cex = 1.5)
+      
+      # Trace knots w/vertical lines
+      if (length(int.knots) < 20) {
+        for(int.knot in int.knots) {
+          abline(v = int.knot, col = "gray", lty = 2)
+        }
+      } else {
+        rug(int.knots)
+      }
+      
+      # Add the title
+      if (length(int.knots_lines) == 1) {
+        mtext(title_text_2, side = 3, line = -0.5, cex = 1.15)
       } else if (length(int.knots_lines) == 2) {
-        mtext(title_text_2, side = 3, cex = 1)
-        mtext(int.knots_lines[2], side = 3, line=0.5, cex = 1)
-        } else if (length(int.knots_lines) == 3) {
-          mtext(title_text_2, side = 3, line=0.75, cex = 0.625)
-          mtext(int.knots_lines[2], side = 3, line = 1.5, cex = 0.625)
-          mtext(int.knots_lines[3], side = 3, line = 0.25, cex = 0.625)
-          } else if (length(int.knots_lines) == 4) {
-            mtext(title_text_2, side = 3, line=1, cex = 0.625)
-            mtext(int.knots_lines[2], side = 3, line = 1.5, cex = 0.625)
-            mtext(int.knots_lines[3], side = 3, line = 0.65, cex = 0.625)
-            mtext(int.knots_lines[4], side = 3, line = 0, cex = 0.625)
-          }
+        mtext(title_text_2, side = 3, line = 0, cex = 1.15)
+        mtext(int.knots_lines[2], side = 3, line = 0.5, cex = 1.15)
+      } else if (length(int.knots_lines) == 3) {
+        mtext(title_text_2, side = 3, line = 0.75, cex = 0.9)
+        mtext(int.knots_lines[2], side = 3, line = 1.4, cex = 0.9)
+        mtext(int.knots_lines[3], side = 3, line = 0.5, cex = 0.9)
+      } else if (length(int.knots_lines) == 4) {
+        mtext(title_text_2, side = 3, line = 1, cex = 0.9)
+        mtext(int.knots_lines[2], side = 3, line = 1.8, cex = 0.9)
+        mtext(int.knots_lines[3], side = 3, line = 0.9, cex = 0.9)
+        mtext(int.knots_lines[4], side = 3, line = 0, cex = 0.9)
+      }
+    }
+  }
+  
+  if (final_fits) {
+    
+    x_range <- range(X)
+    y_range <- range(Y, object$predictions$pred_linear, object$predictions$pred_quadratic, object$predictions$pred_cubic)
+    x_range <- c(x_range[1] - diff(x_range) * 0.05, x_range[2] + diff(x_range) * 0.05)
+    y_range <- c(y_range[1] - diff(y_range) * 0.05, y_range[2] + diff(y_range) * 0.05)
+    plot(X, Y, pch = 20, col = "darkgrey", tck = 0.02, main = "Final fits",
+         xlim = x_range, ylim = y_range, cex.axis = 1.5, cex.lab = 1.5, cex.main = 2)
+    lines(X, object$predictions$pred_linear, col = "green4", lwd = 2, lty = 1)
+    lines(X, object$predictions$pred_quadratic, col="red", lwd = 2, lty = 4)
+    lines(X, object$predictions$pred_cubic, col="purple", lwd = 2, lty = 5)
+    legend("topright",                           
+           legend = c("Order 2 (degree=1)", "Order 3 (degree=2)", "Order 4 (degree=3)"),    
+           col = c("green4", "red", "purple"),
+           lty = c(1, 4, 5),
+           lwd = c(2, 2, 2),                                   
+           cex = 1.5,
+           bty="n")
+    
   }
 }
 
@@ -856,7 +909,10 @@ visualize_boosting <- visualize_boosting.GeDSboost
 #' \code{\link[mboost]{varimp}} and is compatible with the available
 #' \code{\link[mboost]{mboost-package}} methods for \code{\link[mboost]{varimp}},
 #' including \code{plot}, \code{print} and \code{as.data.frame}.
-#' @param object An object of class \code{\link{GeDSboost-Class}}.
+#' @param object an object of class \code{\link{GeDSboost-Class}}.
+#' @param boosting_iter_only logical value, if \code{TRUE} then base-learner
+#' in-bag risk reduction is only computed across boosting iterations, i.e.,
+#' without taking into account the initial learner.
 #' @param ... potentially further arguments.
 #'
 #' @return An object of class \code{varimp} with available \code{plot},
@@ -893,7 +949,7 @@ visualize_boosting <- visualize_boosting.GeDSboost
 #' Hothorn T., Buehlmann P., Kneib T., Schmid M. and Hofner B. (2022).
 #' mboost: Model-Based Boosting. R package version 2.9-7, \url{https://CRAN.R-project.org/package=mboost}.
 #' @rdname bl_imp
-bl_imp.GeDSboost <- function(object, ...)
+bl_imp.GeDSboost <- function(object, boosting_iter_only = FALSE, ...)
   {
   # Check if object is of class "GeDSboost"
   if(!inherits(object, "GeDSboost")) {
@@ -905,14 +961,18 @@ bl_imp.GeDSboost <- function(object, ...)
   response <- names(object$args$response)
   ## Base-learners
   bl_names <- names(object$args$base_learners)
-  bl_selected <- sapply(object$models, function(model) model$best_bl$name)
+  bl_selected <- lapply(object$models, function(model) model$best_bl$name)
   bl_indices <- match(bl_selected, bl_names)
+  # Risk function
+  risk <- object$args$family@risk
   
   # 2. In-bag risk
   # Calculate initial risk
-  initial_risk <- mean((object$args$response[[response]] - 0)^2)
+  initial_risk <- risk(y = object$args$response[[response]],
+                       f = 0, w = object$args$weights)
   # Get the riskdiff of model0
-  model0_risk <- mean((object$args$response[[response]] - object$models[[paste0("model", 0)]]$Y_hat)^2)
+  model0_risk <- risk(y = object$args$response[[response]],
+                      f = object$models[[paste0("model", 0)]]$F_hat, w = object$args$weights)
   first_riskdiff <- initial_risk - model0_risk
   
   # Get the number of models
@@ -921,11 +981,12 @@ bl_imp.GeDSboost <- function(object, ...)
   # Initialize an empty vector to store the inbag risks
   inbag_risks <- vector(mode = "numeric", length = n_models)
   # Loop over each model from model1 onwards
-  for (i in seq_len(n_models)) {
+  for (i in seq_len(n_models - 1)) {
     # Extract the selected predictor for each model
-    Y_hat <- object$models[[paste0("model", i)]]$Y_hat
+    F_hat <- object$models[[paste0("model", i)]]$F_hat
     # Calculate the inbag risk for this iteration
-    inbag_risks[i] <- mean((object$args$response[[response]] - Y_hat)^2)
+    inbag_risks[i] <- risk(y = object$args$response[[response]],
+                           f = F_hat, w = object$args$weights)
   }
   inbag_risks <- c(model0_risk, inbag_risks)
   
@@ -937,7 +998,7 @@ bl_imp.GeDSboost <- function(object, ...)
   riskdiff <- c(first_riskdiff, riskdiff)
   
   # For offset initial-learner bl_imp is just measured within boosting iterations
-  if(!object$args$initial_learner){
+  if(!object$args$initial_learner || boosting_iter_only){
     riskdiff <- riskdiff[-1]
     bl_selected$model0 <- NULL
     bl_indices <- bl_indices[-1]
@@ -969,3 +1030,81 @@ bl_imp.GeDSboost <- function(object, ...)
 
 #' @export
 bl_imp <- bl_imp.GeDSboost
+
+
+####################
+## plot.GeDSboost ##
+####################
+#' @title Plot method for non-additive GeDSboost
+#' @name plot.GeDSboost
+#' @description
+#' Plot method for GeDSboost objects. Plots GeDSboost fits.
+#' @param object the  \code{\link{GeDSboost-class}}
+#' @param n integer value (2, 3 or 4) specifying the order (\eqn{=} degree
+#' \eqn{+ 1}) of the FGB-GeDS fit whose coefficients should be
+#' extracted.
+#' @param ... potentially further arguments (required by the definition of the
+#' generic function). They will be ignored, but with a warning. 
+#' 
+#' @export
+#' @usage \method{plot}{GeDSboost}(object, n = 3L, ...)
+#' @aliases plot.GeDSboost
+#' @rdname plot.GeDSboost
+plot.GeDSboost <- function(object, n = 3L, ...)
+  {
+  
+  # Check if object is of class "GeDSboost"
+  if(!inherits(object, "GeDSboost")) {
+    stop("The input 'object' must be of class 'GeDSboost'")
+  }
+  # Check if object has only one predictor
+  if(length(object$args$predictors) > 1) {
+    stop("Visualization only available for models with a single predictor")
+  }
+  
+  Y <- object$args$response[[1]]; X <- object$args$predictors[[1]] 
+  int.knots <- object$internal_knots$linear.int.knots[[1]]
+  
+  if (n == 2) {
+    fit <- object$predictions$pred_linear
+    legend <- c("Data", "Linear")
+  } else if (n == 3) {
+    fit <- object$predictions$pred_quadratic
+    legend <- c("Data", "Quadratic")
+  } else if (n == 4) {
+    fit <- object$predictions$pred_cubic
+    legend <- c("Data", "Cubic")
+  }
+  
+  y_range <- range(Y, object$predictions$pred_linear, object$predictions$pred_quadratic, object$predictions$pred_cubic)
+  y_range <- c(y_range[1] - diff(y_range) * 0.05, y_range[2] + diff(y_range) * 0.05)
+  
+  # Capture additional parameters
+  additional_params <- list(...)
+  # Set the main title
+  main0 <- if("main" %in% names(additional_params)) {
+    additional_params$main
+  } else {
+    paste0(length(int.knots), " internal knots")
+  }
+  plot(X, Y, main = main0, ylim = y_range, ...)
+  
+  lines(X, fit, col = "red", lwd = 2, lty = 1)
+  
+  legend("topright",                           
+         legend = legend,    
+         col = c("black", "red"),
+         lty = c(NA, 1),
+         lwd = c(NA, 2),                                   
+         pch = c(1, NA),
+         bty = "n")
+  if (length(int.knots) < 20) {
+    for(int.knot in int.knots) {
+      abline(v = int.knot, col = "gray", lty = 2)
+    }
+  } else {
+    rug(int.knots)
+  }
+  
+}
+

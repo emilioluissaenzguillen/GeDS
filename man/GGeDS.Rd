@@ -6,8 +6,8 @@
 \usage{
 GGeDS(
   formula,
-  data,
   family = gaussian(),
+  data,
   weights,
   beta,
   phi = 0.99,
@@ -26,17 +26,17 @@ GGeDS(
 fitted, including the dependent and independent variables. See
 \code{\link[=formula.GeDS]{formula}} for details.}
 
-\item{data}{an optional data frame, list or environment containing the
-variables of the predictor model. In case the variables are not found in
-\code{data}, they are taken from \code{environment(formula)}, typically the
-environment from which \code{GGeDS} is called.}
-
 \item{family}{a description of the error distribution and link function to be
 used in the model. This can be a character string naming a family function
 (e.g. \code{"gaussian"}), the family function itself (e.g.
 \code{\link[stats]{gaussian}}) or the result of a call to a family function
 (e.g. \code{gaussian()}). See \link[stats]{family} for details on family
 functions.}
+
+\item{data}{an optional data frame, list or environment containing the
+variables of the predictor model. In case the variables are not found in
+\code{data}, they are taken from \code{environment(formula)}, typically the
+environment from which \code{GGeDS} is called.}
 
 \item{weights}{an optional vector of `prior weights' to be put on the
 observations in the fitting process in case the user requires weighted GeDS
