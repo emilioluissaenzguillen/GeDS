@@ -193,6 +193,5 @@ Models and Functional Gradient Boosting, based on Geometrically Designed
 \seealso{
 \code{\link{NGeDS}}; \code{\link{GGeDS}}; \code{\link{GeDSgam-Class}};
 S3 methods such as \code{\link{knots.GeDSgam}}; \code{\link{coef.GeDSgam}};
-\code{\link{deviance.GeDSgam}}; \code{\link{predict.GeDSgam}};
-\link[gam]{gam}; \link{glm}
+\code{\link{deviance.GeDSgam}}; \code{\link{predict.GeDSgam}}
 }
