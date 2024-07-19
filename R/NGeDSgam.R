@@ -131,11 +131,11 @@
 #'
 #' @seealso \code{\link{NGeDS}}; \code{\link{GGeDS}}; \code{\link{GeDSgam-Class}};
 #' S3 methods such as \code{\link{knots.GeDSgam}}; \code{\link{coef.GeDSgam}};
-#' \code{\link{deviance.GeDSgam}}; \code{\link{predict.GeDSgam}}
+#' \code{\link{deviance.GeDSgam}}; \code{\link{predict.GeDSgam}};
+#' \link[gam]{gam}; \link{glm}
 #' 
 #' @export
 #' @importFrom stats setNames
-#' @seealso \link{gam}, \link{glm}
 #' 
 #' @references 
 #' Hastie, T. and Tibshirani, R. (1986). Generalized Additive Models.
