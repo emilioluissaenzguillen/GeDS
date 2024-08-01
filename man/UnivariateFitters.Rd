@@ -25,7 +25,7 @@ UnivariateFitter(
   stoptype = c("SR", "RD", "LR"),
   higher_order = TRUE,
   intknots = NULL,
-  only_predictions = FALSE
+  only_pred = FALSE
 )
 
 GenUnivariateFitter(
@@ -114,7 +114,7 @@ order fits (quadratic and cubic) after stage A is run. Default is
 \item{intknots}{vector of initial internal knots from which to start the GeDS
 Stage A iterations. See Section 3 of Kaishev et al. (2016). Default is \code{NULL}.}
 
-\item{only_predictions}{logical, if \code{TRUE} only predictions are computed.}
+\item{only_pred}{logical, if \code{TRUE} only predictions are computed.}
 
 \item{family}{a description of the error distribution and link function to be
 used in the model. This can be a character string naming a family function

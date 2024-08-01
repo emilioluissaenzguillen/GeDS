@@ -22,7 +22,7 @@
 )
 }
 \arguments{
-\item{x}{a \code{\link{GeDS-Class}} object from which the GeDS fit(s) should
+\item{x}{a \code{\link{GeDS-class}} object from which the GeDS fit(s) should
 be extracted.}
 
 \item{f}{(optional) specifies the underlying function or generating process

@@ -5,16 +5,16 @@ SplineReg_biv <- function(X ,Y , Z, W = NULL, offset = rep(0,length(X)), weights
   # Convert spline order to integer
   n <- as.integer(n)
   # Create spline basis matrix using specified knots, evaluation points and order
-  matriceX <- splineDesign(knots=sort(c(InterKnotsX,rep(Xextr,n))),derivs=rep(0,length(X)),
+  basisMatrixX <- splineDesign(knots=sort(c(InterKnotsX,rep(Xextr,n))),derivs=rep(0,length(X)),
                            x=X,ord=n,outer.ok = T)
-  matriceY <- splineDesign(knots=sort(c(InterKnotsY,rep(Yextr,n))),derivs=rep(0,length(Y)),
+  basisMatrixY <- splineDesign(knots=sort(c(InterKnotsY,rep(Yextr,n))),derivs=rep(0,length(Y)),
                            x=Y,ord=n,outer.ok = T)
-  matriceY_noint <- cut_int(matriceY)
+  basisMatrixY_noint <- cut_int(basisMatrixY)
   
-  matricebiv <- tensorProd(matriceX,matriceY_noint)
+  basisMatrixbiv <- tensorProd(basisMatrixX,basisMatrixY_noint)
   
   # Combine spline basis with parametric design matrix (if provided)
-  matricebiv2 <- cbind(matricebiv,W)
+  basisMatrixbiv2 <- cbind(basisMatrixbiv,W)
   
   # If coefficients vector was provided, check whether this is conformable with the knots vectors, o.w. re-estimate the coefficients
   if(!is.null(coefficients)){
@@ -27,13 +27,13 @@ SplineReg_biv <- function(X ,Y , Z, W = NULL, offset = rep(0,length(X)), weights
     # Substract offset (if any) from Z
     Z0 <- Z - offset
     # Fit linear model without intercept, using weights
-    tmp <- lm(Z0 ~ -1 + matricebiv2, weights = weights)
+    tmp <- lm(Z0 ~ -1 + basisMatrixbiv2, weights = weights)
     # Extract fitted coefficients
     theta <- coef(tmp)
     # Avoid issues if there are NA values in the coefficients:
     if (any(is.na(theta))) theta[is.na(theta)] <- 0
     # Compute predicted values
-    predicted <- matricebiv2 %*% theta + offset
+    predicted <- basisMatrixbiv2 %*% theta + offset
     # Calculate residuals
     resid <- Z - predicted
   
@@ -42,7 +42,7 @@ SplineReg_biv <- function(X ,Y , Z, W = NULL, offset = rep(0,length(X)), weights
     tmp <- NULL
     theta <- coefficients
     # Compute predicted values
-    predicted <- matricebiv2 %*% theta + offset
+    predicted <- basisMatrixbiv2 %*% theta + offset
     # Calculate residuals
     resid <- NA
   }
@@ -51,7 +51,7 @@ SplineReg_biv <- function(X ,Y , Z, W = NULL, offset = rep(0,length(X)), weights
   
   out <- list("Theta"= theta,"Predicted"= predicted,
               "Residuals"= resid,"RSS" = t(resid)%*%resid,
-              "XBasis"= matriceX, "YBasis" = matriceY_noint,
+              "XBasis"= basisMatrixX, "YBasis" = basisMatrixY_noint,
               "Xknots" = sort(c(InterKnotsX,rep(Xextr,n))),
               "Yknots" = sort(c(InterKnotsY,rep(Yextr,n))),
               "temporary"=tmp)
@@ -81,16 +81,16 @@ SplineReg_biv_GLM <- function(X, Y, Z, W = NULL, offset = rep(0,nobs), weights =
   # Set required environment variables for family$initialize and IRLSfit
   y <- Z; nobs <- NROW(Z)
   
-  # Create spline basis matrices using specified knots, order, and evaluation points
-  matriceX <- splineDesign(knots = sort(c(InterKnotsX,rep(Xextr,n))), derivs = rep(0,length(X)),
+  # Create spline basis basisMatrixs using specified knots, order, and evaluation points
+  basisMatrixX <- splineDesign(knots = sort(c(InterKnotsX,rep(Xextr,n))), derivs = rep(0,length(X)),
                            x = X, ord = n, outer.ok = T)
-  matriceY <- splineDesign(knots=sort(c(InterKnotsY,rep(Yextr,n))), derivs = rep(0,length(Y)),
+  basisMatrixY <- splineDesign(knots=sort(c(InterKnotsY,rep(Yextr,n))), derivs = rep(0,length(Y)),
                            x = Y, ord = n, outer.ok = T)
-  matriceY_noint <- cut_int(matriceY)
+  basisMatrixY_noint <- cut_int(basisMatrixY)
   
-  matricebiv <- tensorProd(matriceX,matriceY_noint)
+  basisMatrixbiv <- tensorProd(basisMatrixX,basisMatrixY_noint)
   # Combine spline basis with parametric design matrix (if provided)
-  matricebiv2 <- cbind(matricebiv,W)
+  basisMatrixbiv2 <- cbind(basisMatrixbiv,W)
   
   # If coefficients vector was provided, check whether this is conformable with the knots vectors, o.w. re-estimate the coefficients
   if(!is.null(coefficients)){
@@ -115,26 +115,26 @@ SplineReg_biv_GLM <- function(X, Y, Z, W = NULL, offset = rep(0,nobs), weights =
         
         } else {
           # Validate length of 'inits'
-          if(length(inits)!= NCOL(matricebiv2)) stop("'inits' has wrong length")
+          if(length(inits)!= NCOL(basisMatrixbiv2)) stop("'inits' has wrong length")
           # Calculate initial mustart based on 'inits' (initial value for spline coefficients)
-          mustart <- family$linkinv(matricebiv2%*%inits)
+          mustart <- family$linkinv(basisMatrixbiv2%*%inits)
         }
     }
     
-    tmp <- IRLSfit(matricebiv2, Z, offset = offset,
+    tmp <- IRLSfit(basisMatrixbiv2, Z, offset = offset,
                    family = family, mustart = mustart, weights = weights)
     # Extract fitted coefficients
     theta <- coef(tmp)
     # Avoid issues if there are NA values in the coefficients:
     if(any(is.na(theta))) theta[is.na(theta)] <- 0
     # Compute predicted values
-    predicted <- family$linkinv(matricebiv2%*%theta + offset)
+    predicted <- family$linkinv(basisMatrixbiv2%*%theta + offset)
     
   # 2) If coefficients are provided and conformable with InterKnotsX/InterKnotsY, compute the corresponding predicted values
   } else {
     tmp <- NULL
     theta <- coefficients
-    predicted <- family$linkinv(matricebiv2 %*% theta + offset)
+    predicted <- family$linkinv(basisMatrixbiv2 %*% theta + offset)
   }
   
   # Calculate residuals
@@ -142,7 +142,7 @@ SplineReg_biv_GLM <- function(X, Y, Z, W = NULL, offset = rep(0,nobs), weights =
   
   out <- list("Theta" = theta, "Predicted" = predicted,
               "Residuals" = resid,"RSS" = tmp$lastdeviance, "deviance" = tmp$deviance,
-              "XBasis" = matriceX, "YBasis" = matriceY,
+              "XBasis" = basisMatrixX, "YBasis" = basisMatrixY,
               "Xknots" = sort(c(InterKnotsX,rep(Xextr,ord))),
               "Yknots" = sort(c(InterKnotsY,rep(Yextr,ord))),
               "temporary" = tmp )

@@ -66,7 +66,7 @@
 #' \code{TRUE}.
 #' @param intknots vector of initial internal knots from which to start the GeDS
 #' Stage A iterations. See Section 3 of Kaishev et al. (2016). Default is \code{NULL}.
-#' @param only_predictions logical, if \code{TRUE} only predictions are computed.
+#' @param only_pred logical, if \code{TRUE} only predictions are computed.
 #' 
 #' @return A \code{\link{GeDS-Class}} object, but without the \code{Formula},
 #' \code{extcall}, \code{terms} and \code{znames} slots.
@@ -148,7 +148,7 @@ UnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0,NROW(Y)),
                              min.intknots = 0, max.intknots = 300, q = 2,
                              extr = range(X), show.iters = FALSE,
                              tol = as.double(1e-12), stoptype = c("SR","RD","LR"),
-                             higher_order = TRUE, intknots = NULL, only_predictions = FALSE)
+                             higher_order = TRUE, intknots = NULL, only_pred = FALSE)
   {
   # Capture the function call
   save <- match.call()
@@ -340,14 +340,14 @@ UnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0,NROW(Y)),
     warning("Too few internal knots found: Linear spline will be computed with NULL internal knots. Try to set a different value for 'q' or a different treshold")
     ll <- NULL
     lin <- SplineReg_LM(X = X, Y = Y, Z = Z, offset = offset, weights = weights, InterKnots = ll, n = 2, extr = extr,
-                        only_predictions = only_predictions)
+                        only_pred = only_pred)
     } else {
       ik <- as.numeric(na.omit(previous[iter, -c(1, 2, iter + 2, iter + 3)])) # keep the internal knots in the "iter"th row
       # Stage B.1 (averaging knot location)
       ll <- makenewknots(ik, 2)
       # Stage B.2
       lin <- SplineReg_LM(X = X, Y = Y, Z = Z, offset = offset, weights = weights, InterKnots = ll, n = 2, extr = extr,
-                          only_predictions = only_predictions)
+                          only_pred = only_pred)
     }
   #######################
   ## Higher order fits ##

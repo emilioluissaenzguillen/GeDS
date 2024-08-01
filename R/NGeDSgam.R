@@ -430,8 +430,11 @@ NGeDSgam <- function(formula, family = "gaussian", data, weights = NULL, offset 
   
   # Extract B-spline coefficients
   univariate_GeDS_theta <- unlist(bSpline.coef(final_model, univariate_learners = univariate_GeDS_learners))
-  bivariate_GeDS_theta <- unlist(lapply(names(bivariate_GeDS_learners), function(bl) final_model$base_learners[[bl]]$coefficients))
-  
+  bivariate_GeDS_theta <- lapply(names(bivariate_GeDS_learners),
+                                 function(bl) final_model$base_learners[[bl]]$coefficients)
+  for (i in seq_along(bivariate_GeDS_theta)) names(bivariate_GeDS_theta[[i]]) <- NULL
+  bivariate_GeDS_theta <- unlist(setNames(bivariate_GeDS_theta, names(bivariate_GeDS_learners)))
+    
   # Handle linear and factor bl/variables
   linear_coef <- NULL
   if (length(linear_variables) > 0) {
@@ -440,12 +443,14 @@ NGeDSgam <- function(formula, family = "gaussian", data, weights = NULL, offset 
     # Loop through each variable in linear_variables
     for (var in linear_variables) {
       coef <- final_model$base_learners[[var]]$coefficients
-      int <- coef$b0; slp <- unlist(coef[names(coef) != "b0"])
+      int <- coef$b0
+      slp <- unlist(coef[names(coef) != "b0"]); names(slp) <- paste0(var, names(slp))
       # Sum up the intercepts
-      intercept <- intercept + int
+      intercept <- intercept + int 
       # Vector of slopes
       slopes <- c(slopes, slp)
     }
+    names(intercept) <- "b0"
     linear_coef <- c(intercept, slopes)
   } else {
     Z <- NULL  # Set Z to NULL if there are no factor variables
@@ -593,7 +598,7 @@ backfitting <- function(z, base_learners, base_learners_list, data, wz, phi_gam_
           fit <- tryCatch(
             NGeDS(model_formula, data = data_loop, weights = wz, beta = beta, phi = phi,
                   min.intknots = 0, max.intknots = max.intknots, q = q, Xextr = NULL, Yextr = NULL,
-                  show.iters = FALSE, stoptype = "RD", higher_order = FALSE, only_predictions = TRUE),
+                  show.iters = FALSE, stoptype = "RD", higher_order = FALSE, only_pred = TRUE),
             error = function(e) {
               message(paste0("Error occurred in NGeDS() for base learner ", bl_name, ": ", e))
               error <<- TRUE

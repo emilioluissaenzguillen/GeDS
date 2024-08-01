@@ -47,7 +47,7 @@
 #' order fits (quadratic and cubic) after stage A is run. Default is
 #' \code{TRUE}.
 #' @param intknots vector of starting internal knots. Default is \code{NULL}.
-#' @param only_predictions logical, if \code{TRUE} only predictions are computed.
+#' @param only_pred logical, if \code{TRUE} only predictions are computed.
 #' 
 #' @return \code{\link{GeDS-Class}} object, i.e. a list of items that summarizes
 #' the main details of the fitted GeDS regression. See \code{\link{GeDS-Class}}
@@ -223,7 +223,7 @@
 NGeDS <- function(formula, data, weights, beta = 0.5, phi = 0.99, min.intknots = 0,
                   max.intknots = 500, q = 2, Xextr = NULL, Yextr = NULL,
                   show.iters = FALSE, stoptype = "RD", higher_order = TRUE,
-                  intknots = NULL, only_predictions = FALSE)
+                  intknots = NULL, only_pred = FALSE)
   {
   # 1. Capture current function call and use formula's environment if 'data' is missing
   save <- match.call()
@@ -324,7 +324,7 @@ NGeDS <- function(formula, data, weights, beta = 0.5, phi = 0.99, min.intknots =
                             max.intknots = max.intknots, q = q, extr = Xextr,
                             show.iters = show.iters, stoptype = stoptype,
                             higher_order = higher_order, intknots = intknots,
-                            only_predictions = only_predictions)
+                            only_pred = only_pred)
   ####################
   ## BIVARIATE GeDS ##
   ####################

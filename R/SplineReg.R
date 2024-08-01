@@ -55,7 +55,7 @@
 #' \code{SplineReg_LM} fit. See details below.
 #' @param coefficients optional vector of spline coefficients. If provided,
 #' \code{SplineReg} computes only the corresponding predicted values.
-#' @param only_predictions logical, if \code{TRUE} only \code{Theta},
+#' @param only_pred logical, if \code{TRUE} only \code{Theta},
 #' \code{Predicted}, \code{Residuals} and \code{RSS} will be computed.
 #' 
 #' @return A \code{list} containing:
@@ -83,6 +83,9 @@
 #' \code{SplineReg_LM} is used or the output of the function
 #' \code{\link{IRLSfit}} (which is similar to the output from
 #' \code{\link[stats]{glm.fit}}), if \code{SplineReg_GLM} is used.}
+#' \item{ACI}{ a list containing the lower (\code{Low}) and upper (\code{Upp})
+#' limits of the asymptotic confidence intervals computed at the sample values
+#' of the covariate(s).}
 #'
 #' @details
 #' The functions estimate the coefficients of a predictor model with a spline
@@ -109,7 +112,8 @@
 #' Hence the columns of the design matrix are seen as covariates and standard
 #' methodology relying on the \code{se.fit} option of \code{predict.lm} or
 #' \code{predict.glm} is used. In the \code{ACI} slot, asymptotic confidence
-#' intervals are provided, following Kaishev et al (2006).
+#' intervals are provided, following Kaishev et al (2006). If the variance
+#' matrix is singular the Moore-Penrose pseudo-inverse is computed instead.
 #'
 #' As mentioned, \code{SplineReg_GLM} is intensively used in Stage A of the GeDS
 #' algorithm implemented in \code{\link{GGeDS}} and in order to make it as fast
@@ -153,69 +157,70 @@
 
 SplineReg_LM <- function(X, Y, Z = NULL, offset = rep(0,length(X)), weights = rep(1,length(X)),
                          InterKnots, n, extr = range(X), prob = 0.95,
-                         coefficients = NULL, only_predictions = FALSE)
+                         coefficients = NULL, only_pred = FALSE)
   {
   # Convert spline order to integer
   n <- as.integer(n)
   # Create spline basis matrix using specified knots, evaluation points and order
-  matrice <- splineDesign(knots = sort(c(InterKnots,rep(extr,n))), x = X, ord = n,
+  basisMatrix <- splineDesign(knots = sort(c(InterKnots,rep(extr,n))), x = X, ord = n,
                           derivs = rep(0,length(X)), outer.ok = T)
   # Combine spline basis with parametric design matrix (if provided)
-  matrice2 <- cbind(matrice, Z)
+  basisMatrix2 <- cbind(basisMatrix, Z)
   
   # 1) If coefficients are NOT provided estimate the corresponding regression model
   if (is.null(coefficients)) {
     # Substract offset (if any) from Y
     Y0 <- Y - offset
     # Fit linear model without intercept, using weights
-    tmp <- lm(Y0 ~ -1 + matrice2, weights = as.numeric(weights))
+    tmp <- lm(Y0 ~ -1 + basisMatrix2, weights = as.numeric(weights))
     # Extract fitted coefficients
     theta <- coef(tmp)
     # Compute predicted values
-    predicted <- matrice2 %*% theta + offset
+    predicted <- basisMatrix2 %*% theta + offset
     
   # 2) If coefficients are provided, use them to compute predicted values directly
   } else {
     tmp <- NULL
     theta <- coefficients
-    predicted <- matrice2 %*% theta + offset
+    predicted <- basisMatrix2 %*% theta + offset
   }
   
   # Calculate residuals
   resid <- Y - predicted
   
-  if (!only_predictions) {
+  if (!only_pred) {
     # Knots for control polygon
-    nodes <- sort(c(InterKnots,rep(extr,n)))[-c(1, NCOL(matrice)+1)]
+    nodes <- sort(c(InterKnots,rep(extr,n)))[-c(1, NCOL(basisMatrix)+1)]
     polyknots <- makenewknots(nodes, degree = n)
     # Residual standard error
-    df <- if(!is.null(tmp)) tmp$df.residual else as.numeric(nrow(matrice2) - rankMatrix(matrice2)) # residual degrees of freedom
+    df <- if(!is.null(tmp)) tmp$df.residual else as.numeric(nrow(basisMatrix2) - rankMatrix(basisMatrix2)) # residual degrees of freedom
     sigma_hat <- sqrt(sum(resid^2)/df)
     # Recalculate the probability for a two-tailed test
     prob <- 1-.5*(1-prob)
     # CI_j =\hat{y_j} ± t_{α/2,df}*\hat{σ}*\sqrt{H_{jj}}; H = X(X'X)^{−1}X'
-    H_diag <- if(!is.null(tmp)) influence(tmp)$hat else stats::hat(matrice2, intercept = FALSE)
+    H_diag <- if(!is.null(tmp)) influence(tmp)$hat else stats::hat(basisMatrix2, intercept = FALSE)
     band <- qt(prob,df) * sigma_hat * H_diag^.5
     
-    # Huang's method for confidence band width (alternative approach)
-    n <- length(Y)
-    if (n < 1500) {
-      N <- NCOL(matrice)
-      matcb <- matrix(0, N, N)
-      # to be written in cpp
-      for(i in 1:n) {
-        matcb <- matcb + matrice[i,] %*% t(matrice[i,])
-        }
-      matcb <- matcb/n
+    # Huang (2003) method for confidence band width (see Theorem 6.1)
+    n_obs <- length(Y)
+    dim_threshold <- 1500
+    if (n_obs < dim_threshold) {
+      
+      # i. E_n[B(X)B^t(X)] = (1/n)*\sum_{i=1}^nB(X_i)B^t(X_i)
+      matcb <- t(basisMatrix) %*% basisMatrix / n_obs
       matcbinv <- tryCatch({
         solve(matcb)
         }, error = function(e) {
           # If there's an error with solve(), use ginv() as a fallback
           # Moore-Penrose pseudo-inverse to skip multicolinearity issues that make matcb singular
-          message("Warning message in SplineReg_LM: Matrix is singular for computing confidence intervals; using ginv() as a fallback.")
+          message("Warning message in SplineReg_LM: Variance matrix for computing asymptotic confidence intervals is singular; using ginv() as a fallback.")
           MASS::ginv(matcb)
           })
-      band_width_huang <- qnorm(prob) * n^(-.5) * diag(sigma_hat*matrice%*%matcbinv%*%t(matrice))
+      # ii. Var(\hat{f} | X) = (1/n)*B^t(x) * E_n[B(X)B^t(X)]^-1 * B(x) * \hat{σ}^2
+      conditionalVariance <- diag((1/n_obs) * basisMatrix %*% matcbinv %*% t(basisMatrix) * sigma_hat^2)
+      # iii. ± z_{1-α/2} * Var(\hat{f} | X)
+      band_width_huang <- qnorm(prob) * sqrt(conditionalVariance)
+      
       } else {
         band_width_huang <- NULL
       }
@@ -225,8 +230,8 @@ SplineReg_LM <- function(X, Y, Z = NULL, offset = rep(0,length(X)), weights = re
   
   out <- list("Theta" = theta, "Predicted" = predicted, "Residuals" = resid, "RSS" = t(resid)%*%resid,
               "NCI" = list("Upp" = predicted + band, "Low" = predicted - band),
-              "Basis" = matrice, "Polygon" = list("Kn" = polyknots,
-                                                  "Thetas" = theta[1:NCOL(matrice)]),
+              "Basis" = basisMatrix, "Polygon" = list("Kn" = polyknots,
+                                                  "Thetas" = theta[1:NCOL(basisMatrix)]),
               "temporary" = tmp, "ACI" = list("Upp" = predicted + band_width_huang,
                                               "Low" = predicted - band_width_huang))
   return(out)
@@ -255,10 +260,10 @@ SplineReg_GLM <- function(X, Y, Z, offset = rep(0,nobs), weights = rep(1,length(
   y <- Y; nobs <- NROW(Y)
   
   # Create spline basis matrix using specified knots, order, and evaluation points
-  matrice <- splineDesign(knots = sort(c(InterKnots,rep(extr,n))), x = X, ord = n,
+  basisMatrix <- splineDesign(knots = sort(c(InterKnots,rep(extr,n))), x = X, ord = n,
                           derivs = rep(0,length(X)), outer.ok = T)
   # Combine spline basis with parametric design matrix (if provided)
-  matrice2 <- cbind(matrice,Z)
+  basisMatrix2 <- cbind(basisMatrix,Z)
   
   # Initialize mustart based on input or defaults
   if (missing(mustart) || is.null(mustart)) {
@@ -270,28 +275,28 @@ SplineReg_GLM <- function(X, Y, Z, offset = rep(0,nobs), weights = rep(1,length(
       mustart <- env$mustart
     } else {
       # Validate length of 'inits'
-      if (length(inits)!= NCOL(matrice2)) stop("'inits' must be of length length(InterKnots) + n + NCOL(Z)")
+      if (length(inits)!= NCOL(basisMatrix2)) stop("'inits' must be of length length(InterKnots) + n + NCOL(Z)")
       # Calculate initial mustart based on 'inits' (initial value for spline coefficients)
-      mustart <- family$linkinv(matrice2 %*% inits)
+      mustart <- family$linkinv(basisMatrix2 %*% inits)
     }
   }
   
-  tmp <- IRLSfit(matrice2, Y, offset = offset,
+  tmp <- IRLSfit(basisMatrix2, Y, offset = offset,
                  family = family, mustart = mustart, weights = weights)
   # Extract fitted coefficients
   theta <- coef(tmp)
   # Compute predicted mean values of the response variable
-  predicted <- family$linkinv(matrice2%*%theta + offset)
+  predicted <- family$linkinv(basisMatrix2%*%theta + offset)
   # Knots for control polygon
-  nodes <- sort(c(InterKnots,rep(extr,ord)))[-c(1,NCOL(matrice)+1)]
+  nodes <- sort(c(InterKnots,rep(extr,ord)))[-c(1,NCOL(basisMatrix)+1)]
   polyknots <- makenewknots(nodes, degree = ord)
   # Extract residuals
   resid <- tmp$res2
   
   out <- list("Theta" = theta, "Predicted" = predicted, "Residuals" = resid,
-              "RSS" = tmp$lastdeviance, "Basis" = matrice, 
+              "RSS" = tmp$lastdeviance, "Basis" = basisMatrix, 
               "Polygon" = list("Kn" = polyknots,
-                               "Thetas" = theta[1:NCOL(matrice)]),
+                               "Thetas" = theta[1:NCOL(basisMatrix)]),
               "temporary" = tmp, "deviance" = tmp$deviance)
   return(out)
 }
@@ -313,9 +318,9 @@ SplineReg_GLM2 <- function(X,Y,Z,offset=rep(0,nobs),
   if(length(n) != 1) stop("'n' must have length 1")
   n <- as.integer(n)
   extr <- as.numeric(extr)
-  matrice <- splineDesign(knots=sort(c(InterKnots,rep(extr,n))),
+  basisMatrix <- splineDesign(knots=sort(c(InterKnots,rep(extr,n))),
                            derivs=rep(0,length(X)),x=X,ord=n,outer.ok = T)
-  matrice2 <- cbind(matrice,Z)
+  basisMatrix2 <- cbind(basisMatrix,Z)
   ord <- n #may cause problem the use of family$initialize e.g. binomial()
   if(missing(mustart)||is.null(mustart)){
 
@@ -326,21 +331,21 @@ SplineReg_GLM2 <- function(X,Y,Z,offset=rep(0,nobs),
 
       mustart <- env$mustart
     } else {
-      if(length(inits)!= NCOL(matrice2)) stop("'inits' must be of length length(InterKnots) + n + NCOL(Z)")
-      mustart <- family$linkinv(matrice2%*%inits)
+      if(length(inits)!= NCOL(basisMatrix2)) stop("'inits' must be of length length(InterKnots) + n + NCOL(Z)")
+      mustart <- family$linkinv(basisMatrix2%*%inits)
     }
   }
 
-  tmp <- glm.fit(matrice2, Y,
+  tmp <- glm.fit(basisMatrix2, Y,
                  family=family)
   theta <- coef(tmp)
-  nodes<-sort(c(InterKnots,rep(extr,ord)))[-c(1,NCOL(matrice)+1)]
+  nodes<-sort(c(InterKnots,rep(extr,ord)))[-c(1,NCOL(basisMatrix)+1)]
   polyknots <- makenewknots(nodes,degree=ord)
-  predicted <- matrice2%*%theta+offset
+  predicted <- basisMatrix2%*%theta+offset
   resid <- tmp$res2
   out <- list("Theta"=theta,"Predicted"=predicted,
               "Residuals"=resid,"RSS"=tmp$lastdeviance,
-              "Basis"= matrice,"Polygon"=list("Kn"=polyknots,"Thetas"=theta[1:NCOL(matrice)]),
+              "Basis"= basisMatrix,"Polygon"=list("Kn"=polyknots,"Thetas"=theta[1:NCOL(basisMatrix)]),
               "temporary"=tmp, "deviance"= tmp$deviance)
   return(out)
 }

@@ -260,9 +260,9 @@
 NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE,
                        family = mboost::Gaussian(), link = NULL, initial_learner = TRUE,
                        int.knots_init = 2L, min_iterations,
-                       max_iterations, shrinkage = 1, beta = 0.5,
-                       phi = 0.99, int.knots_boost = 500L, q = 2L,
+                       max_iterations, shrinkage = 1,
                        phi_boost_exit = 0.99, q_boost = 2L,
+                       beta = 0.5, phi = 0.99, int.knots_boost = 500L, q = 2L,
                        higher_order = TRUE, boosting_with_memory = FALSE)
   {
   # Capture the function call
@@ -672,11 +672,11 @@ NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE,
         } else {
           # Combine new intervals with coefficients from the piecewise polynomial
           new_aux <- data.frame(intervals)
-          # find the positions of elements in new_aux$end relative to the intervals defined by c(-Inf, new_int.knt, Inf)
-          new_aux$interval <- findInterval(new_aux$end, c(-Inf, new_int.knt, Inf)) 
-          # adjust the interval indices for those new_aux$end values that exactly match the knots in new_int.knt
-          # each new_int.knt yields 2 pairs of coef; the 1st pair corresponds to X < new_int.knt, the 2nd to X > new_int.knt
-          new_aux$interval[new_aux$end %in% new_int.knt] <- new_aux$interval[new_aux$end %in% new_int.knt] - 1
+          # find the positions of elements in new_aux$end relative to the intervals defined by c(-Inf, int.knt, Inf)
+          new_aux$interval <- findInterval(new_aux$end, c(-Inf, int.knt, Inf)) 
+          # adjust the interval indices for those new_aux$end values that exactly match the knots in int.knt
+          # each int.knt yields 2 pairs of coef; the 1st pair corresponds to X < int.knt, the 2nd to X > int.knt
+          new_aux$interval[new_aux$end %in% int.knt] <- new_aux$interval[new_aux$end %in% int.knt] - 1
           
           new_aux$b0 <- b0[new_aux$interval]
           new_aux$b1 <- b1[new_aux$interval]
@@ -771,7 +771,6 @@ NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE,
     }
   }
   
-  
   ## 7. Set the "final model" to be the one with lower deviance
   # 7.1. De-normalize predictions if necessary
   if (normalize_data == TRUE && family@name != "Negative Binomial Likelihood (logit link)") {
@@ -849,8 +848,8 @@ NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE,
     linear_fit <- tryCatch({
       SplineReg_Multivar(X = args$predictors[GeDS_variables], Y = args$response[[response]],
                          Z = args$predictors[linear_variables], offset = offset,
-                         base_learners = bSpline.base_learners, weights = weights,
-                         InterKnotsList = ll_list, n = 2, family = args$family, link = args$link,
+                         base_learners = bSpline.base_learners, InterKnotsList = ll_list,
+                         n = 2, family = args$family, link = args$link,
                          coefficients = theta, linear_intercept = TRUE)}, error = function(e) {
                            cat(paste0("Error computing linear fit:", e))
                            return(NULL)
@@ -862,6 +861,8 @@ NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE,
     }
     
     final_model$Linear.Fit <- linear_fit
+  } else {
+    final_model$Linear.Fit <- "When using bivariate base-learners, a single spline representation (in pp form or B-spline form) of the boosted fit is not available."
   }
   
   pred_linear <- as.numeric(final_model$Y_hat)
@@ -877,7 +878,7 @@ NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE,
     quadratic_fit <- tryCatch({
       SplineReg_Multivar(X = args$predictors[GeDS_variables], Y = args$response[[response]],
                          Z = args$predictors[linear_variables], base_learners = args$base_learners,
-                         weights = weights, InterKnotsList = qq_list,
+                         InterKnotsList = qq_list, # weights = weights: if knots were already found setting prior weights on observations, no need of weighting again
                          n = 3, family = args$family, link = args$link)}, error = function(e) {
                            cat(paste0("Error computing quadratic fit:", e))
                            return(NULL)
@@ -891,7 +892,7 @@ NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE,
     cubic_fit <- tryCatch({
       SplineReg_Multivar(X = args$predictors[GeDS_variables], Y = args$response[[response]],
                          Z = args$predictors[linear_variables], base_learners = args$base_learners,
-                         weights = weights, InterKnotsList = cc_list,
+                         InterKnotsList = cc_list, # weights = weights: if knots were already found setting prior weights on observations, no need of weighting again
                          n = 4, family = args$family, link = args$link)}, error = function(e) {
                            cat(paste0("Error computing cubic fit:", e))
                            return(NULL)
@@ -977,7 +978,7 @@ componentwise_fit <- function(bl_name, response, data, model_formula_template, f
           NGeDS(model_formula, data = data, weights = weights, beta = beta, phi = phi,
                 min.intknots = 0, max.intknots = max.intknots, q = q,
                 Xextr = NULL, Yextr = NULL, show.iters = FALSE, stoptype = "RD",
-                higher_order = FALSE, intknots = starting_intknots, only_predictions = TRUE)
+                higher_order = FALSE, intknots = starting_intknots, only_pred = TRUE)
           } else {
             GGeDS(model_formula, data = data, family = family, weights = weights,
                   beta = beta, phi = phi, min.intknots = 0, max.intknots = max.intknots,
@@ -1009,7 +1010,7 @@ componentwise_fit <- function(bl_name, response, data, model_formula_template, f
     error <- FALSE
     suppressWarnings({
       fit <- tryCatch(
-        lm(model_formula, data = data),
+        lm(model_formula, data = data, weights = weights),
         error = function(e) {
           message(paste0("Error occurred in lm() for base-learner ", bl_name, ": ", e))
           error <<- TRUE

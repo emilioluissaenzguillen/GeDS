@@ -84,17 +84,17 @@ SplineReg_LM_Multivar <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)), base
       Xextr = range(X_biv[,1])
       Yextr = range(X_biv[,2])
       knots <- InterKnotsList_biv[[learner_name]]
-      matriceX <- splineDesign(knots=sort(c(knots$ikX,rep(Xextr,n))), derivs=rep(0,length(X_biv[,1])),
+      basisMatrixX <- splineDesign(knots=sort(c(knots$ikX,rep(Xextr,n))), derivs=rep(0,length(X_biv[,1])),
                                x=X_biv[,1],ord=n,outer.ok = TRUE)
-      matriceY <- splineDesign(knots=sort(c(knots$ikY,rep(Yextr,n))),derivs=rep(0,length(X_biv[,2])),
+      basisMatrixY <- splineDesign(knots=sort(c(knots$ikY,rep(Yextr,n))),derivs=rep(0,length(X_biv[,2])),
                                x=X_biv[,2],ord=n,outer.ok = TRUE)
       
       # To help saving control polygon knots afterwards
-      matrices_biv_list_aux[[learner_name]] <- list(matriceX, matriceY)
+      matrices_biv_list_aux[[learner_name]] <- list(basisMatrixX, basisMatrixY)
       names(matrices_biv_list_aux[[learner_name]]) <- vars
       
-      matriceY_noint <- cut_int(matriceY)
-      matrices_biv_list[[learner_name]] <- tensorProd(matriceX,matriceY_noint)
+      basisMatrixY_noint <- cut_int(basisMatrixY)
+      matrices_biv_list[[learner_name]] <- tensorProd(basisMatrixX,basisMatrixY_noint)
       
       # Assign base-learner name to the columns of each of the matrices
       for (matrix_name in names(matrices_biv_list)) {
@@ -127,16 +127,16 @@ SplineReg_LM_Multivar <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)), base
       Z <- NULL
     }
   
-  matrice2 <- cbind(full_matrix, Z)
+  basisMatrix2 <- cbind(full_matrix, Z)
   
   # 1) If coefficients are NOT provided estimate the corresponding regression model
   if (is.null(coefficients)) {
     Y0 <- Y - offset
-    tmp <- lm(Y0 ~ -1 + matrice2, weights=as.numeric(weights))
+    tmp <- lm(Y0 ~ -1 + basisMatrix2, weights=as.numeric(weights))
     # the ‘-1’ serving to suppress the redundant extra intercept that would be added by default
     # 'splineDesign' already includes a basis that accounts for the intercept
     theta <- coef(tmp)
-    names(theta) <- sub("matrice2", "", names(theta))
+    names(theta) <- sub("basisMatrix2", "", names(theta))
     predicted <- tmp$fitted.values + offset
     
     # Reset environment of lm object
@@ -151,7 +151,7 @@ SplineReg_LM_Multivar <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)), base
   } else {
     tmp <- NULL
     theta <- coefficients
-    f <- if (de_mean) matrice2 %*% theta - mean(matrice2 %*% theta) else matrice2 %*% theta # to recover backfitting predictions need de_mean
+    f <- if (de_mean) basisMatrix2 %*% theta - mean(basisMatrix2 %*% theta) else basisMatrix2 %*% theta # to recover backfitting predictions need de_mean
     predicted <- f + offset
   }
   
@@ -198,39 +198,40 @@ SplineReg_LM_Multivar <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)), base
   }
   
   resid <- Y - predicted
-  df <- if(!is.null(tmp)) tmp$df.residual else as.numeric(nrow(matrice2) - rankMatrix(matrice2)) # residual degrees of freedom
+  df <- if(!is.null(tmp)) tmp$df.residual else as.numeric(nrow(basisMatrix2) - rankMatrix(basisMatrix2)) # residual degrees of freedom
   sigma_hat <- sqrt(sum(resid^2)/df)
   prob <- 1 - 0.5 * (1 - prob)
   # CI_j =\hat{y_j} ± t_{α/2,df}*\hat{σ}*\sqrt{H_{jj}}; H = X(X'X)^{−1}X'
-  H_diag <- if(!is.null(tmp)) influence(tmp)$hat else stats::hat(matrice2, intercept = FALSE)
+  H_diag <- if(!is.null(tmp)) influence(tmp)$hat else stats::hat(basisMatrix2, intercept = FALSE)
   band <- qt(prob,df) * sigma_hat * H_diag^.5
   
-  n <- length(Y)
-  N <- NCOL(full_matrix)
-  if (N != 0 && n < 1500) {
-    matcb <- matrix(0, N, N)
-    for (i in 1:n) {
-      matcb <- matcb + full_matrix[i, ] %*% t(full_matrix[i, ])
-      }
-    matcb <- matcb / n
+  # Huang (2003) method for confidence band width (see Theorem 6.1)
+  n_obs <- length(Y)
+  dim_threshold <- 1500
+  if (NCOL(full_matrix) != 0 && n_obs < dim_threshold) {
+    
+    # i. E_n[B(X)B^t(X)] = (1/n)*\sum_{i=1}^nB(X_i)B^t(X_i)
+    matcb <- t(full_matrix) %*% full_matrix / n_obs
     matcbinv <- tryCatch({
       solve(matcb)
-      }, error = function(e) {
-        # If there's an error with solve(), use ginv() as a fallback
-        # Moore-Penrose pseudo-inverse to skip multicolinearity issues that make matcb singular
-        message("Warning message in SplineReg_LM_Multivar: Matrix is singular for computing confidence intervals; using ginv() as a fallback.")
-        MASS::ginv(matcb)
-        })
-    
-    band_width_huang <- qnorm(prob) * n^(-0.5) * diag(sigma_hat * full_matrix %*% matcbinv %*% t(full_matrix))
+    }, error = function(e) {
+      # If there's an error with solve(), use ginv() as a fallback
+      # Moore-Penrose pseudo-inverse to skip multicolinearity issues that make matcb singular
+      message("Warning message in SplineReg_LM: Variance matrix for computing asymptotic confidence intervals is singular; using ginv() as a fallback.")
+      MASS::ginv(matcb)
+    })
+    # ii. Var(\hat{f} | X) = (1/n)*B^t(x) * E_n[B(X)B^t(X)]^-1 * B(x) * \hat{σ}^2
+    conditionalVariance <- diag((1/n_obs) * full_matrix %*% matcbinv %*% t(full_matrix) * sigma_hat^2)
+    # iii. ± z_{1-α/2} * Var(\hat{f} | X)
+    band_width_huang <- qnorm(prob) * sqrt(conditionalVariance)
     
     Upp = predicted + band_width_huang
     Low = predicted - band_width_huang
     
-    } else {
-      Upp = NULL
-      Low = NULL
-    }
+  } else {
+    Upp = NULL
+    Low = NULL
+  }
   
   out <- list(Fit = tmp, Theta = theta, Predicted = predicted, Residuals = resid, 
               RSS = t(resid) %*% resid, NCI = list(Upp = predicted + 
@@ -304,17 +305,17 @@ SplineReg_GLM_Multivar <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)), bas
       Xextr = range(X_biv[,1])
       Yextr = range(X_biv[,2])
       knots <- InterKnotsList_biv[[learner_name]]
-      matriceX <- splineDesign(knots=sort(c(knots$ikX,rep(Xextr,n))), derivs=rep(0,length(X_biv[,1])),
+      basisMatrixX <- splineDesign(knots=sort(c(knots$ikX,rep(Xextr,n))), derivs=rep(0,length(X_biv[,1])),
                                x=X_biv[,1],ord=n,outer.ok = TRUE)
-      matriceY <- splineDesign(knots=sort(c(knots$ikY,rep(Yextr,n))),derivs=rep(0,length(X_biv[,2])),
+      basisMatrixY <- splineDesign(knots=sort(c(knots$ikY,rep(Yextr,n))),derivs=rep(0,length(X_biv[,2])),
                                x=X_biv[,2],ord=n,outer.ok = TRUE)
       
       # To help saving control polygon knots afterwards
-      matrices_biv_list_aux[[learner_name]] <- list(matriceX, matriceY)
+      matrices_biv_list_aux[[learner_name]] <- list(basisMatrixX, basisMatrixY)
       names(matrices_biv_list_aux[[learner_name]]) <- vars
       
-      matriceY_noint <- cut_int(matriceY)
-      matrices_biv_list[[learner_name]] <- tensorProd(matriceX,matriceY_noint)
+      basisMatrixY_noint <- cut_int(basisMatrixY)
+      matrices_biv_list[[learner_name]] <- tensorProd(basisMatrixX,basisMatrixY_noint)
       
       # Assign base-learner name to the columns of each of the matrices
       for (matrix_name in names(matrices_biv_list)) {
@@ -347,7 +348,7 @@ SplineReg_GLM_Multivar <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)), bas
     Z <- NULL
   }
   
-  matrice2 <- cbind(full_matrix, Z)
+  basisMatrix2 <- cbind(full_matrix, Z)
   
   # 1) If coefficients are NOT provided estimate the corresponding regression model
   if (is.null(coefficients)) {
@@ -367,28 +368,28 @@ SplineReg_GLM_Multivar <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)), bas
         eval(family$initialize, envir = temp_env)
         mustart <- temp_env$mustart
       } else {
-        if(length(inits)!= NCOL(matrice2)) stop("'inits' must be of length length(InterKnots) + n + NCOL(Z)")
-        mustart <- family$linkinv(matrice2%*%inits)
+        if(length(inits)!= NCOL(basisMatrix2)) stop("'inits' must be of length length(InterKnots) + n + NCOL(Z)")
+        mustart <- family$linkinv(basisMatrix2%*%inits)
       }
     }
     
-    # tmp <- IRLSfit(matrice2, Y, offset = offset,
+    # tmp <- IRLSfit(basisMatrix2, Y, offset = offset,
     #                family=family, mustart = mustart, weights = weights)
-    # tmp <- glm.fit(matrice2, Y, family = family,
+    # tmp <- glm.fit(basisMatrix2, Y, family = family,
     #                weights = as.numeric(weights), mustart = mustart)
     
-    tmp <- glm(Y ~ -1 + matrice2, family = family, weights = weights)
+    tmp <- glm(Y ~ -1 + basisMatrix2, family = family, weights = weights)
     
     theta <- coef(tmp)
-    names(theta) <- sub("matrice2", "", names(theta))
-    # predicted <- family$linkinv(matrice2%*%theta + offset)
+    names(theta) <- sub("basisMatrix2", "", names(theta))
+    # predicted <- family$linkinv(basisMatrix2%*%theta + offset)
     predicted <- family$linkinv(tmp$linear.predictors + offset)
     
     # 2) If coefficients are provided, use them to compute predicted values directly
   } else {
     tmp <- NULL
     theta <- coefficients
-    f <- if (de_mean) matrice2 %*% theta - mean(matrice2 %*% theta) else matrice2 %*% theta # to recover backfitting predictions need de_mean
+    f <- if (de_mean) basisMatrix2 %*% theta - mean(basisMatrix2 %*% theta) else basisMatrix2 %*% theta # to recover backfitting predictions need de_mean
     predicted <- family_linkinv(f + offset)
   }
   

@@ -18,7 +18,7 @@ SplineReg_LM(
   extr = range(X),
   prob = 0.95,
   coefficients = NULL,
-  only_predictions = FALSE
+  only_pred = FALSE
 )
 
 SplineReg_GLM(
@@ -79,7 +79,7 @@ of \code{X}.}
 \item{coefficients}{optional vector of spline coefficients. If provided,
 \code{SplineReg} computes only the corresponding predicted values.}
 
-\item{only_predictions}{logical, if \code{TRUE} only \code{Theta},
+\item{only_pred}{logical, if \code{TRUE} only \code{Theta},
 \code{Predicted}, \code{Residuals} and \code{RSS} will be computed.}
 
 \item{family}{a description of the error distribution and link function to be
@@ -125,6 +125,9 @@ Dimitrova et al. (2023).}
 \code{SplineReg_LM} is used or the output of the function
 \code{\link{IRLSfit}} (which is similar to the output from
 \code{\link[stats]{glm.fit}}), if \code{SplineReg_GLM} is used.}
+\item{ACI}{ a list containing the lower (\code{Low}) and upper (\code{Upp})
+limits of the asymptotic confidence intervals computed at the sample values
+of the covariate(s).}
 }
 \description{
 Functions that estimate the coefficients of a predictor model involving a
@@ -156,7 +159,8 @@ approximate local bands obtained considering the knots as fixed constants.
 Hence the columns of the design matrix are seen as covariates and standard
 methodology relying on the \code{se.fit} option of \code{predict.lm} or
 \code{predict.glm} is used. In the \code{ACI} slot, asymptotic confidence
-intervals are provided, following Kaishev et al (2006).
+intervals are provided, following Kaishev et al (2006). If the variance
+matrix is singular the Moore-Penrose pseudo-inverse is computed instead.
 
 As mentioned, \code{SplineReg_GLM} is intensively used in Stage A of the GeDS
 algorithm implemented in \code{\link{GGeDS}} and in order to make it as fast

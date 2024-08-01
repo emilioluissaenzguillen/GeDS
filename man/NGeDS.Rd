@@ -19,7 +19,7 @@ NGeDS(
   stoptype = "RD",
   higher_order = TRUE,
   intknots = NULL,
-  only_predictions = FALSE
+  only_pred = FALSE
 )
 }
 \arguments{
@@ -75,7 +75,7 @@ order fits (quadratic and cubic) after stage A is run. Default is
 
 \item{intknots}{vector of starting internal knots. Default is \code{NULL}.}
 
-\item{only_predictions}{logical, if \code{TRUE} only predictions are computed.}
+\item{only_pred}{logical, if \code{TRUE} only predictions are computed.}
 }
 \value{
 \code{\link{GeDS-Class}} object, i.e. a list of items that summarizes

@@ -263,8 +263,8 @@ predict.GeDSboost_GeDSgam <- function(object, newdata, n = 2L, ...)
     ## 1.1. GeDSboost ##
     ####################
     if (inherits(object, "GeDSboost")) {
-      # Extract predictor variables from newdata
-      pred_vars <- newdata[, names(object$args$predictors)]
+      # Extract predictor variables from newdata as a data.frame
+      pred_vars <- newdata[, names(object$args$predictors), drop = FALSE]
       # family and shrinkage
       family_name <- object$args$family@name; shrinkage <- object$args$shrinkage
       
@@ -1030,81 +1030,4 @@ bl_imp.GeDSboost <- function(object, boosting_iter_only = FALSE, ...)
 
 #' @export
 bl_imp <- bl_imp.GeDSboost
-
-
-####################
-## plot.GeDSboost ##
-####################
-#' @title Plot method for non-additive GeDSboost
-#' @name plot.GeDSboost
-#' @description
-#' Plot method for GeDSboost objects. Plots GeDSboost fits.
-#' @param object the  \code{\link{GeDSboost-class}}
-#' @param n integer value (2, 3 or 4) specifying the order (\eqn{=} degree
-#' \eqn{+ 1}) of the FGB-GeDS fit whose coefficients should be
-#' extracted.
-#' @param ... potentially further arguments (required by the definition of the
-#' generic function). They will be ignored, but with a warning. 
-#' 
-#' @export
-#' @usage \method{plot}{GeDSboost}(object, n = 3L, ...)
-#' @aliases plot.GeDSboost
-#' @rdname plot.GeDSboost
-plot.GeDSboost <- function(object, n = 3L, ...)
-  {
-  
-  # Check if object is of class "GeDSboost"
-  if(!inherits(object, "GeDSboost")) {
-    stop("The input 'object' must be of class 'GeDSboost'")
-  }
-  # Check if object has only one predictor
-  if(length(object$args$predictors) > 1) {
-    stop("Visualization only available for models with a single predictor")
-  }
-  
-  Y <- object$args$response[[1]]; X <- object$args$predictors[[1]] 
-  int.knots <- object$internal_knots$linear.int.knots[[1]]
-  
-  if (n == 2) {
-    fit <- object$predictions$pred_linear
-    legend <- c("Data", "Linear")
-  } else if (n == 3) {
-    fit <- object$predictions$pred_quadratic
-    legend <- c("Data", "Quadratic")
-  } else if (n == 4) {
-    fit <- object$predictions$pred_cubic
-    legend <- c("Data", "Cubic")
-  }
-  
-  y_range <- range(Y, object$predictions$pred_linear, object$predictions$pred_quadratic, object$predictions$pred_cubic)
-  y_range <- c(y_range[1] - diff(y_range) * 0.05, y_range[2] + diff(y_range) * 0.05)
-  
-  # Capture additional parameters
-  additional_params <- list(...)
-  # Set the main title
-  main0 <- if("main" %in% names(additional_params)) {
-    additional_params$main
-  } else {
-    paste0(length(int.knots), " internal knots")
-  }
-  plot(X, Y, main = main0, ylim = y_range, ...)
-  
-  lines(X, fit, col = "red", lwd = 2, lty = 1)
-  
-  legend("topright",                           
-         legend = legend,    
-         col = c("black", "red"),
-         lty = c(NA, 1),
-         lwd = c(NA, 2),                                   
-         pch = c(1, NA),
-         bty = "n")
-  if (length(int.knots) < 20) {
-    for(int.knot in int.knots) {
-      abline(v = int.knot, col = "gray", lty = 2)
-    }
-  } else {
-    rug(int.knots)
-  }
-  
-}
 
