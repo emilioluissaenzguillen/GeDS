@@ -1,8 +1,8 @@
 Package: GeDS
 Type: Package
 Title: Geometrically Designed Spline Regression
-Version: 0.2.3
-Date: 2024-07-19
+Version: 0.2.4
+Date: 2024-08-01
 Author: Dimitrina S. Dimitrova <D.Dimitrova@city.ac.uk>,
   Emilio S. Guillen <Emilio.Saenz-Guillen@bayes.city.ac.uk>,
   Vladimir K. Kaishev <V.Kaishev@city.ac.uk>,

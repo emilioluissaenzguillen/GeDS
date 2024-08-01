@@ -704,6 +704,7 @@ setMethod("plot", signature(x = "GeDSboost"), function(x, n = 3L,...)
 #' \code{\link[graphics]{plot.default}} function.
 #' 
 #' @export 
+#' @importFrom plot3D persp3D segments3D
 #' 
 #' @aliases plot.GeDSgam
 
