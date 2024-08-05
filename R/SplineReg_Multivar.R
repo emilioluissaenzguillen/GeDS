@@ -45,10 +45,10 @@ SplineReg_LM_Multivar <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)), base
   InterKnotsList_biv <- InterKnotsList[!names(InterKnotsList) %in% names(InterKnotsList_univ)]
   
   # Select GeDS base-learners
-  base_learners =  if (length(base_learners) > 0) base_learners[sapply(base_learners, function(x) x$type == "GeDS")] else NULL
+  base_learners <- if (length(base_learners) > 0) base_learners[sapply(base_learners, function(x) x$type == "GeDS")] else NULL
   univariate_learners <- bivariate_learners <- NULL
   # Univariate
-  if (length(InterKnotsList_univ) != 0){
+  if (length(InterKnotsList_univ) != 0) {
     # Create a list to store individual design matrices
     univariate_learners <- base_learners[sapply(base_learners, function(bl) length(bl$variables)) == 1]
     univariate_vars <- sapply(univariate_learners, function(bl) bl$variables)

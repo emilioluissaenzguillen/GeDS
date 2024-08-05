@@ -283,10 +283,10 @@ setMethod("plot", signature(x = "GeDS"), function(x, f = NULL, which, DEV = FALS
         # Obtain stage A knots and perform spline regression
         ik <- na.omit(x$Stored[i,-c(1,2,(i+2),(i+3))])
         # Stage B.1 (averaging knot location)
-        knt <- if ( i> 1) makenewknots(ik, n) else NULL
+        int.knt <- if ( i> 1) makenewknots(ik, n) else NULL
         # Stage B.2
         temp <- SplineReg_LM(X = X, Y = Y, Z = Z, offset = offset, weights = weights, extr = extr,
-                             InterKnots = knt, n = n)
+                             InterKnots = int.knt, n = n)
         
         # Update results with predicted values
         results$X <- X
@@ -295,12 +295,12 @@ setMethod("plot", signature(x = "GeDS"), function(x, f = NULL, which, DEV = FALS
         # Plot the spline
         lines(X, temp$Predicted, col = col_lines, lwd = 2)
         # add vertical lines for knots
-        if (length(knt) < 20) {
-          for(knt in c(knt, rep(extr,n))) {
-            abline(v = knt, col = "gray", lty = 2)
+        if (length(int.knt) < 20) {
+          for(ik in c(int.knt, extr)) {
+            abline(v = ik, col = "gray", lty = 2)
           }
         } else {
-          rug(c(knt, rep(extr,n)))
+          rug(c(int.knt, extr))
         }
         
         ## Each branch now adds specific elements to the plot based on the selected type
@@ -379,10 +379,10 @@ setMethod("plot", signature(x = "GeDS"), function(x, f = NULL, which, DEV = FALS
         # Obtain stage A knots and perform spline regression
         ik <- na.omit(x$Stored[i,-c(1,2,(i+2),(i+3))])
         # Stage B.1 (averaging knot location)
-        knt <- makenewknots(ik, n)
+        int.knt <- makenewknots(ik, n)
         # Stage B.2
         temp <- SplineReg_GLM(X = X, Y = Y, Z = Z, offset = offset, weights = weights, extr = extr,
-                              InterKnots = knt, n = n, family = family, mustart = x$Linear$Predicted)
+                              InterKnots = int.knt, n = n, family = family, mustart = x$Linear$Predicted)
         
         # Update results with predicted values
         results$X <- X
@@ -391,12 +391,12 @@ setMethod("plot", signature(x = "GeDS"), function(x, f = NULL, which, DEV = FALS
         # Plot the spline
         lines(X, temp$Predicted, col = col_lines, lwd = 2)
         # add vertical lines for knots
-        if (length(knt) < 20) {
-          for(knt in c(knt, rep(extr,n))) {
-            abline(v = knt, col = "gray", lty = 2)
+        if (length(int.knt) < 20) {
+          for(ik in c(int.knt, extr)) {
+            abline(v = ik, col = "gray", lty = 2)
           }
         } else {
-          rug(c(knt, rep(extr,n)))
+          rug(c(int.knt, extr))
         }
         
         ## Each branch now adds specific elements to the plot based on the selected type
@@ -419,7 +419,7 @@ setMethod("plot", signature(x = "GeDS"), function(x, f = NULL, which, DEV = FALS
             x$Linear$Basis
           }
           
-          matrice <- splineDesign(knots = sort(c(knt,rep(extr,2))), derivs = rep(0,length(X)),
+          matrice <- splineDesign(knots = sort(c(int.knt,rep(extr,2))), derivs = rep(0,length(X)),
                                   x = X, ord = n, outer.ok = TRUE)
           
           temp_nci <- glm(yy ~ -1+xx, offset = offset, weights = weights, family = family, start = temp$Thetas)
@@ -743,30 +743,64 @@ setMethod("plot", signature(x = "GeDSgam"), function(x, n = 3L, ...)
     # Replace NA values with 0
     theta[is.na(theta)] <- 0
     
+    # 1. Univariate learners
     if (NCOL(X_mat) == 1) {
       
       if (bl$type == "GeDS") {
-        fit <- SplineReg_LM(Y = Y, X = X_mat, InterKnots = int.knt, n = n,
-                            coefficients = theta)
-        Predicted <- fit$Predicted
+        # Including int.knt and giving more values enhances visualization
+        X_mat <- seq(from = min(X_mat), to = max(X_mat), length.out = 1000)
+        X_mat <- sort(c(X_mat, int.knt))
+        # Create spline basis matrix using specified knots, evaluation points and order
+        basisMatrix <- splineDesign(knots = sort(c(int.knt,rep(range(X_mat),n))),
+                                    x = X_mat, ord = n, derivs = rep(0,length(X_mat)),
+                                    outer.ok = T)
+        # To recover backfitting predictions need de_mean
+        if (n == 2) de_mean <- TRUE else de_mean <- FALSE
+        # To recover backfitting predictions need de_mean
+        Predicted <- if (de_mean) basisMatrix %*% theta - mean(basisMatrix %*% theta) else basisMatrix %*% theta 
         ylab <-  bl_name
       } else if (bl$type == "linear") {
-        Predicted <- theta * X_mat
+        # Linear
+        if (!is.factor(X_mat)) {
+          Predicted <- theta * X_mat
+          # Factor
+        } else {
+          names(theta) <- levels(X_mat)[-1]
+          theta[levels(X_mat)[1]] <- 0 # set baseline coef to 0
+        }
         ylab <- bquote(beta[1] %*% .(bl_name))
       }
       
-      plot_data <- data.frame(X_mat, Predicted)
-      plot_data <- plot_data[order(plot_data$X_mat),]
-      
-      plot(plot_data, type = "l", xlab = bl$variables, ylab = ylab, ...)
-      
-      if (length(int.knt) < 20) {
-        for(int.knot in int.knt) {
-          abline(v = int.knot, col = "gray", lty = 2)
+      if  (!is.factor(X_mat)) {
+        
+        plot_data <- data.frame(X_mat, Predicted)
+        plot_data <- plot_data[order(plot_data$X_mat),]
+        
+        plot(plot_data, type = "l", col = "steelblue",
+             xlab = bl$variables, ylab = ylab,
+             xlim = range(X_mat), ylim = range(Predicted), ...)
+        
+        if (length(int.knt) < 20) {
+          knt <- c(int.knt, range(X_mat))
+          for(k in knt) {
+            abline(v = k, col = "gray", lty = 2)
+          }
+        } else {
+          rug(int.knt)
         }
+        
       } else {
-        rug(int.knt)
+        original_par <- par(no.readonly = TRUE)
+        par(mar = c(7.1, 4.1, 4.1, 2.1))
+        barplot(theta,
+                las = 2,
+                col = "steelblue",
+                main = bl_name,
+                ylab = bquote(beta))
+        par(original_par)
       }
+      
+      # 2. Bivariate learners
     } else if (NCOL(X_mat) == 2) {
       
       Xextr <- range(X_mat[,1])
@@ -802,13 +836,15 @@ setMethod("plot", signature(x = "GeDSgam"), function(x, n = 3L, ...)
               ticktype = "detailed", expand = 0.5, colkey = FALSE, border = "black", ...)
       
       # Add rug plots to the x axis
-      segments3D(x0 = int.knt$ikX, y0 = rep(min(newY), length(int.knt$ikX)), z0 = rep(min(f_hat_XY_val), length(int.knt$ikX)),
-                 x1 = int.knt$ikX, y1 = rep(min(newY), length(int.knt$ikX)), z1 = rep(max(f_hat_XY_val), length(int.knt$ikX)),
+      kntX <- c(int.knt$ikX, Xextr)
+      segments3D(x0 = kntX, y0 = rep(min(newY), length(kntX)), z0 = rep(min(f_hat_XY_val), length(kntX)),
+                 x1 = kntX, y1 = rep(min(newY), length(kntX)), z1 = rep(max(f_hat_XY_val), length(kntX)),
                  add = TRUE, col = "black", lty = 2)
       
       # Add rug plots to the y axis
-      segments3D(x0 = rep(max(newX), length(int.knt$ikY)), y0 = int.knt$ikY, z0 = rep(min(f_hat_XY_val), length(int.knt$ikY)),
-                 x1 = rep(max(newX), length(int.knt$ikY)), y1 = int.knt$ikY, z1 = rep(max(f_hat_XY_val), length(int.knt$ikY)),
+      kntY <- c(int.knt$ikY, Yextr)
+      segments3D(x0 = rep(max(newX), length(kntY)), y0 = kntY, z0 = rep(min(f_hat_XY_val), length(kntY)),
+                 x1 = rep(max(newX), length(kntY)), y1 = kntY, z1 = rep(max(f_hat_XY_val), length(kntY)),
                  add = TRUE, col = "black", lty = 2)
     }
     
