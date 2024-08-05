@@ -121,8 +121,9 @@ SplineReg_LM_Multivar <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)), base
     if (linear_intercept) {
       Z <- model.matrix(~ ., data = Z)
       } else {
-        Z <- model.matrix(~ . -1, data = Z)
-        }
+        Z <- model.matrix(~ ., data = Z)
+        Z <-  Z[, colnames(Z) != "(Intercept)"]
+      }
     } else {
       Z <- NULL
     }
