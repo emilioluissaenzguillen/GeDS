@@ -790,14 +790,13 @@ setMethod("plot", signature(x = "GeDSgam"), function(x, n = 3L, ...)
         }
         
       } else {
-        original_par <- par(no.readonly = TRUE)
         par(mar = c(7.1, 4.1, 4.1, 2.1))
         barplot(theta,
                 las = 2,
                 col = "steelblue",
                 main = bl_name,
                 ylab = bquote(beta))
-        par(original_par)
+        par(mar = c(5.1, 4.1, 4.1,2.1))
       }
       
       # 2. Bivariate learners
