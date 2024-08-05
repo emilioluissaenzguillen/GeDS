@@ -118,12 +118,8 @@ SplineReg_LM_Multivar <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)), base
   
   # Convert any factor columns in Z to dummy variables
   if (!is.null(Z) && NCOL(Z) > 0) {
-    if (linear_intercept) {
-      Z <- model.matrix(~ ., data = Z)
-      } else {
-        Z <- model.matrix(~ ., data = Z)
-        Z <-  Z[, colnames(Z) != "(Intercept)"]
-      }
+    Z <- model.matrix(~ ., data = Z)
+    if (!linear_intercept) Z <-  Z[, colnames(Z) != "(Intercept)"]
     } else {
       Z <- NULL
     }
@@ -340,14 +336,11 @@ SplineReg_GLM_Multivar <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)), bas
   
   # Convert any factor columns in Z to dummy variables
   if (!is.null(Z) && NCOL(Z) > 0) {
-    if (linear_intercept) {
-      Z <- model.matrix(~ ., data = Z)
+    Z <- model.matrix(~ ., data = Z)
+    if (!linear_intercept) Z <-  Z[, colnames(Z) != "(Intercept)"]
     } else {
-      Z <- model.matrix(~ . -1, data = Z)
+      Z <- NULL
     }
-  } else {
-    Z <- NULL
-  }
   
   basisMatrix2 <- cbind(full_matrix, Z)
   

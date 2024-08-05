@@ -525,7 +525,10 @@ predict.GeDSboost_GeDSgam <- function(object, newdata, n = 2L, ...)
       full_matrix <- matrix(ncol = 0, nrow = nrow(Z))
     }
     # Convert any factor columns in Z to dummy variables
-    if (NCOL(Z) != 0) Z <- model.matrix(~ . - 1, data = Z)
+    if (NCOL(Z) != 0) {
+      Z <- model.matrix(~ ., data = Z)
+      Z <-  Z[, colnames(Z) != "(Intercept)"]
+    }
     
     matrice2 <- cbind(full_matrix, as.matrix(Z))
     
