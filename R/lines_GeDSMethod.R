@@ -84,15 +84,13 @@ setMethod("lines", signature(x = "GeDS"),  function(x , n=3L,
   }
   
   # Extract fit
-  if(n == 3L){
-    temp <- object$Quadratic
-  }
-  if(n == 4L){
-    temp <- object$Cubic
-  }
-  if(n == 2L){
-    temp <- object$Linear
-  }
+  if(n == 2L) {
+    temp <- object$Linear.Fit
+    } else if (n == 3L) {
+      temp <- object$Quadratic.Fit
+      } else if(n == 4L) {
+        temp <- object$Cubic.Fit
+      }
   
   kn <- knots.GeDS(Fn = object, n = n, options= "internal")
   fitters <- F

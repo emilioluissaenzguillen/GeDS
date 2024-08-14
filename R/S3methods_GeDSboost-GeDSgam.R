@@ -473,7 +473,13 @@ predict.GeDSboost_GeDSgam <- function(object, newdata, n = 2L, ...)
     # Exclude linear learners
     InterKnotsList <- InterKnotsList[setdiff(names(InterKnotsList), names(Z))]
     # GeDS learners
-    InterKnotsList_univ <- InterKnotsList[sapply(InterKnotsList, is.atomic)]
+    InterKnotsList_univ <- list()
+    for (bl in names(InterKnotsList)) {
+      # Check if the length of the variables is equal to 1
+      if (length(base_learners[[bl]]$variables) == 1) {
+        InterKnotsList_univ[bl] <- InterKnotsList[bl]
+      }
+    }
     InterKnotsList_biv <- InterKnotsList[!names(InterKnotsList) %in% names(InterKnotsList_univ)]
     
     # Select GeDS base-learners

@@ -271,6 +271,9 @@ NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE,
   # Models list
   models <- list()
   
+  # Convert integer variables to numeric
+  data <- data.frame(lapply(data, function(x) if(is.integer(x)) as.numeric(x) else x))
+  
   # Formula
   read.formula <- read.formula.boost(formula, data)
   response <- read.formula$response
@@ -846,14 +849,17 @@ NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE,
     if (args$initial_learner) offset <- rep(0, NROW(args$response[[response]])) else offset <- models$model0$F_hat
 
     linear_fit <- tryCatch({
-      SplineReg_Multivar(X = args$predictors[GeDS_variables], Y = args$response[[response]],
-                         Z = args$predictors[linear_variables], offset = offset,
-                         base_learners = bSpline.base_learners, InterKnotsList = ll_list,
-                         n = 2, family = args$family, link = args$link,
-                         coefficients = theta, linear_intercept = TRUE)}, error = function(e) {
-                           cat(paste0("Error computing linear fit:", e))
-                           return(NULL)
-                           })
+      suppressMessages(
+        SplineReg_Multivar(X = args$predictors[GeDS_variables], Y = args$response[[response]],
+                           Z = args$predictors[linear_variables], offset = offset,
+                           base_learners = bSpline.base_learners, InterKnotsList = ll_list,
+                           n = 2, family = args$family, link = args$link,
+                           coefficients = theta, linear_intercept = TRUE)
+        )
+      }, error = function(e) {
+        cat(paste0("Error computing linear fit:", e))
+        return(NULL)
+        })
     
     # De-normalize if necessary
     if (normalize_data == TRUE && family@name != "Negative Binomial Likelihood (logit link)") {
@@ -876,13 +882,16 @@ NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE,
     qq_list <- compute_avg_int.knots(final_model, base_learners = base_learners,
                                    args$X_sd, args$X_mean, normalize_data, n = 3)
     quadratic_fit <- tryCatch({
-      SplineReg_Multivar(X = args$predictors[GeDS_variables], Y = args$response[[response]],
-                         Z = args$predictors[linear_variables], base_learners = args$base_learners,
-                         InterKnotsList = qq_list, # weights = weights: if knots were already found setting prior weights on observations, no need of weighting again
-                         n = 3, family = args$family, link = args$link)}, error = function(e) {
-                           cat(paste0("Error computing quadratic fit:", e))
-                           return(NULL)
-                           })
+      suppressMessages(
+        SplineReg_Multivar(X = args$predictors[GeDS_variables], Y = args$response[[response]],
+                           Z = args$predictors[linear_variables], base_learners = args$base_learners,
+                           InterKnotsList = qq_list, # weights = weights: if knots were already found setting prior weights on observations, no need of weighting again
+                           n = 3, family = args$family, link = args$link)
+        )
+      }, error = function(e) {
+        cat(paste0("Error computing quadratic fit:", e))
+        return(NULL)
+        })
     final_model$Quadratic.Fit <- quadratic_fit
     pred_quadratic <- as.numeric(quadratic_fit$Predicted)
     
@@ -890,13 +899,16 @@ NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE,
     cc_list <- compute_avg_int.knots(final_model, base_learners = base_learners,
                                    args$X_sd, args$X_mean, normalize_data, n = 4)
     cubic_fit <- tryCatch({
-      SplineReg_Multivar(X = args$predictors[GeDS_variables], Y = args$response[[response]],
-                         Z = args$predictors[linear_variables], base_learners = args$base_learners,
-                         InterKnotsList = cc_list, # weights = weights: if knots were already found setting prior weights on observations, no need of weighting again
-                         n = 4, family = args$family, link = args$link)}, error = function(e) {
-                           cat(paste0("Error computing cubic fit:", e))
-                           return(NULL)
-                           })
+      suppressMessages(
+        SplineReg_Multivar(X = args$predictors[GeDS_variables], Y = args$response[[response]],
+                           Z = args$predictors[linear_variables], base_learners = args$base_learners,
+                           InterKnotsList = cc_list, # weights = weights: if knots were already found setting prior weights on observations, no need of weighting again
+                           n = 4, family = args$family, link = args$link)
+        )
+      }, error = function(e) {
+        cat(paste0("Error computing cubic fit:", e))
+        return(NULL)
+        })
     final_model$Cubic.Fit <- cubic_fit
     pred_cubic <- as.numeric(cubic_fit$Predicted)
     
@@ -966,9 +978,16 @@ componentwise_fit <- function(bl_name, response, data, model_formula_template, f
   
   ## (A) GeDS base-learners
   if (base_learners[[bl_name]]$type == "GeDS") {
-    max.intknots <- if (length(pred_vars) == 1) internal_knots + length(starting_intknots)
-    else if (length(pred_vars) == 2 && internal_knots == 0) stop("internal_knots must be > 0 for bivariate learners")
-    else internal_knots + length(starting_intknots$ikX) + length(starting_intknots$ikY)
+    
+    max.intknots <- if (length(pred_vars) == 1) {
+      internal_knots + length(starting_intknots)
+      } else if (length(pred_vars) == 2) {
+        if (internal_knots == 0) {
+          stop("internal_knots must be > 0 for bivariate learners")
+          } else {
+            internal_knots + length(starting_intknots$ikX) + length(starting_intknots$ikY)
+          }
+      }
     
     model_formula <- formula(paste0(model_formula_template, bl_name))
     error <- FALSE

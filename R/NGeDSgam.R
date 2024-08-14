@@ -178,6 +178,9 @@ NGeDSgam <- function(formula, family = "gaussian", data, weights = NULL, offset 
   if (missing(data)) 
     data <- environment(formula)
   
+  # Convert integer variables to numeric
+  data <- data.frame(lapply(data, function(x) if(is.integer(x)) as.numeric(x) else x))
+  
   # Formula
   read.formula <- read.formula.gam(formula, data)
   terms <-  read.formula$terms
@@ -459,14 +462,17 @@ NGeDSgam <- function(formula, family = "gaussian", data, weights = NULL, offset 
   theta <- c(univariate_GeDS_theta, bivariate_GeDS_theta, linear_coef)
   
   linear_fit <- tryCatch({
-    SplineReg_Multivar(X = args$predictors[GeDS_variables], Y = args$response[[response]],
-                       Z = args$predictors[linear_variables], offset = args$offset + mean(final_model$Y_hat$z),
-                       base_learners = args$base_learners, weights = weights, InterKnotsList = ll_list,
-                       n = 2, family = args$family,
-                       coefficients = theta, linear_intercept = TRUE, de_mean = TRUE)}, error = function(e) {
-                         cat(paste0("Error computing linear fit:", e))
-                         return(NULL)
-                       })
+    suppressMessages(
+      SplineReg_Multivar(X = args$predictors[GeDS_variables], Y = args$response[[response]],
+                         Z = args$predictors[linear_variables], offset = args$offset + mean(final_model$Y_hat$z),
+                         base_learners = args$base_learners, weights = weights,
+                         InterKnotsList = ll_list, n = 2, family = args$family,
+                         coefficients = theta, linear_intercept = TRUE, de_mean = TRUE)
+      )
+    }, error = function(e) {
+      cat(paste0("Error computing linear fit:", e))
+      return(NULL)
+      })
   
   # De-normalize if necessary
   if (normalize_data == TRUE && family@name != "Negative Binomial Likelihood (logit link)") {
@@ -486,13 +492,16 @@ NGeDSgam <- function(formula, family = "gaussian", data, weights = NULL, offset 
     qq_list <- compute_avg_int.knots(final_model, base_learners = base_learners,
                                    args$X_sd, args$X_mean, normalize_data, n = 3)
     quadratic_fit <- tryCatch({
-      SplineReg_Multivar(X = args$predictors[GeDS_variables], Y = args$response[[response]],
-                         Z = args$predictors[linear_variables], offset = args$offset,
-                         base_learners = args$base_learners, weights = weights, InterKnotsList = qq_list,
-                         n = 3, family = family)}, error = function(e) {
-                           cat(paste0("Error computing quadratic fit:", e))
-                           return(NULL)
-                           })
+      suppressMessages(
+        SplineReg_Multivar(X = args$predictors[GeDS_variables], Y = args$response[[response]],
+                           Z = args$predictors[linear_variables], offset = args$offset,
+                           base_learners = args$base_learners, weights = weights,
+                           InterKnotsList = qq_list, n = 3, family = family)
+        )
+      }, error = function(e) {
+        cat(paste0("Error computing quadratic fit:", e))
+        return(NULL)
+        })
     final_model$Quadratic.Fit <- quadratic_fit
     pred_quadratic <- as.numeric(quadratic_fit$Predicted)
     
@@ -500,13 +509,16 @@ NGeDSgam <- function(formula, family = "gaussian", data, weights = NULL, offset 
     cc_list <- compute_avg_int.knots(final_model, base_learners = base_learners,
                                      args$X_sd, args$X_mean, normalize_data, n = 4)
     cubic_fit <- tryCatch({
-      SplineReg_Multivar(X = args$predictors[GeDS_variables], Y = args$response[[response]],
-                         Z = args$predictors[linear_variables], offset = args$offset,
-                         base_learners = args$base_learners, weights = weights, InterKnotsList = cc_list,
-                         n = 4, family = family)}, error = function(e) {
-                           cat(paste0("Error computing cubic fit:", e))
-                           return(NULL)
-                           })
+      suppressMessages(
+        SplineReg_Multivar(X = args$predictors[GeDS_variables], Y = args$response[[response]],
+                           Z = args$predictors[linear_variables], offset = args$offset,
+                           base_learners = args$base_learners, weights = weights,
+                           InterKnotsList = cc_list, n = 4, family = family)
+        )
+      }, error = function(e) {
+        cat(paste0("Error computing cubic fit:", e))
+        return(NULL)
+        })
     final_model$Cubic.Fit <- cubic_fit
     pred_cubic <- as.numeric(cubic_fit$Predicted)
     
@@ -586,11 +598,15 @@ backfitting <- function(z, base_learners, base_learners_list, data, wz, phi_gam_
       
       pred_vars <- base_learners[[bl_name]]$variables
       data_loop <- cbind(partial_resid = partial_resid, data[pred_vars])
+      
       # (A) GeDS base-learners
       if (base_learners[[bl_name]]$type == "GeDS") {
-        max.intknots <- max.intknots <- if (length(pred_vars) == 1) {internal_knots
-        } else if (length(pred_vars) == 2 && internal_knots == 0) {stop("internal_knots must be > 0 for bivariate learners")
-            } else {internal_knots}
+        
+        if (length(pred_vars) == 2 && internal_knots == 0) {
+          stop("internal_knots must be > 0 for bivariate learners")
+        } else {
+          max.intknots <- internal_knots
+        }
         
         model_formula <- formula(paste0(model_formula_template, bl_name))
         error <- FALSE
@@ -611,7 +627,7 @@ backfitting <- function(z, base_learners, base_learners_list, data, wz, phi_gam_
           next
           }
         # Compute predictions
-        pred <- if(length(pred_vars) == 1){
+        pred <- if (length(pred_vars) == 1) {
           predict_GeDS_linear(fit, data_loop[[pred_vars]])
           } else if (length(pred_vars) == 2) {
             predict_GeDS_linear(fit, X = data[pred_vars[1]], Y = data[pred_vars[2]], Z = data_loop[["partial_resid"]])
@@ -619,7 +635,7 @@ backfitting <- function(z, base_learners, base_learners_list, data, wz, phi_gam_
         
         ## Update knots and coefficients ##
         # UNIVARIATE BASE-LEARNERS
-        if(length(base_learners[[bl_name]]$variables) == 1) {
+        if (length(base_learners[[bl_name]]$variables) == 1) {
           base_learners_list[[bl_name]]$knots <- pred$knt
           base_learners_list[[bl_name]]$coefficients$b0 <- pred$b0
           base_learners_list[[bl_name]]$coefficients$b1 <- pred$b1

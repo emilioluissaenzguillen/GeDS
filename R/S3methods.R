@@ -91,27 +91,27 @@ coef.GeDS <- function(object, n = 3L, onlySpline = TRUE, ...)
   
   # 1. Linear
   if(n == 2L) {
-    theta <- object$Linear$Theta
+    theta <- object$Linear.Fit$Theta
     if (object$Type == "LM - Univ" || object$Type == "GLM - Univ") {
-      nth <- length(object$Linear$Polygon$Kn)
+      nth <- length(object$Linear.Fit$Polygon$Kn)
       } else if (object$Type == "LM - Biv" || object$Type == "GLM - Biv") {
-        nth <- NCOL(object$Linear$XBasis) * NCOL(object$Linear$YBasis)
+        nth <- NCOL(object$Linear.Fit$XBasis) * NCOL(object$Linear.Fit$YBasis)
         }
   # 2. Quadratic
     } else if (n == 3L) {
-      theta <- object$Quadratic$Theta
+      theta <- object$Quadratic.Fit$Theta
       if (object$Type == "LM - Univ" || object$Type == "GLM - Univ") {
-        nth <- length(object$Quadratic$Polygon$Kn)
+        nth <- length(object$Quadratic.Fit$Polygon$Kn)
         } else if (object$Type == "LM - Biv" || object$Type == "GLM - Biv") {
-          nth <- NCOL(object$Quadratic$XBasis) * NCOL(object$Quadratic$YBasis)
+          nth <- NCOL(object$Quadratic.Fit$XBasis) * NCOL(object$Quadratic.Fit$YBasis)
           }
   # 3. Cubic
       } else if (n == 4L) {
-        theta <- object$Cubic$Theta
+        theta <- object$Cubic.Fit$Theta
         if (object$Type == "LM - Univ" || object$Type == "GLM - Univ") {
-          nth <- length(object$Cubic$Polygon$Kn)
+          nth <- length(object$Cubic.Fit$Polygon$Kn)
           } else if (object$Type == "LM - Biv" || object$Type == "GLM - Biv") {
-            nth <- NCOL(object$Cubic$XBasis) * NCOL(object$Cubic$YBasis)
+            nth <- NCOL(object$Cubic.Fit$XBasis) * NCOL(object$Cubic.Fit$YBasis)
           }
       }
   
@@ -183,13 +183,13 @@ deviance.GeDS <- function(object, n = 3L, ...)
   
   # 1. Linear
   if(n == 2L) {
-    dev <- object$Linear$RSS
+    dev <- object$Linear.Fit$RSS
   # 2. Quadratic
     } else if (n == 3L) {
-      dev <- object$Quadratic$RSS
+      dev <- object$Quadratic.Fit$RSS
   # 3. Cubic
       } else if(n == 4L) {
-        dev <- object$Cubic$RSS
+        dev <- object$Cubic.Fit$RSS
       }
   
   dev <- as.numeric(dev)

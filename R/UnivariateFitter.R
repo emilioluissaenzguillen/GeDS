@@ -289,7 +289,8 @@ UnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0,NROW(Y)),
     ## STEP 4: calculate the normalized within-cluster means and ranges ##
     ######################################################################
     means <- means/max(means)
-    wc.range <- wc.range/max(wc.range)
+    # If the residual clusters are all singletons then all the wc.ranges will equal 0, and we cannot divide by 0
+    if (max(wc.range) != 0) wc.range <- wc.range/max(wc.range) 
     
     ###########################################
     ## STEP 5: calculate the cluster weights ##
@@ -301,6 +302,10 @@ UnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0,NROW(Y)),
     ###############
     newknot <- Knotnew(wht = w, restmp = res.weighted, x = distinctX, dcm = dcum,
                        oldknots = c(rep(extr, 2 + 1), intknots), tol = tol)[1]
+    if (newknot %in% extr || is.na(newknot)){
+      
+      break
+    }
     intknots <- c(intknots, newknot)
     
     # Print iteration
@@ -327,11 +332,11 @@ UnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0,NROW(Y)),
     iter <- j
     } else if (j <= max.intknots) {
       # Eliminate NAs in previous
-      previous <- previous[-((j+1):(max.intknots+1)), ] # eliminate all the NA rows
-      previous <- previous[ ,-((j+4):(max.intknots+4))] #  k = j - 1 internal knots (i.e. k + 4 = j + 3 knots) in the last iteration
+      previous <- previous[-((j+1):(max.intknots+1)), , drop = FALSE] # eliminate all the NA rows
+      previous <- previous[ ,-((j+4):(max.intknots+4)), drop = FALSE] #  k = j - 1 internal knots (i.e. k + 4 = j + 3 knots) in the last iteration
       # Eliminate NAs in oldcoef
-      oldcoef  <- oldcoef[-((j+1):(max.intknots+1)), ]  # eliminate all the NA rows
-      oldcoef  <- oldcoef[ ,1:(j+1+nz)]                 # p = n + k = j + 1  B-splines
+      oldcoef  <- oldcoef[-((j+1):(max.intknots+1)), , drop = FALSE]  # eliminate all the NA rows
+      oldcoef  <- oldcoef[ , 1:(j+1+nz), drop = FALSE]                # p = n + k = j + 1  B-splines
       iter <- j - q
     }
   
@@ -381,7 +386,7 @@ UnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0,NROW(Y)),
   
   out <- list("Type" = "LM - Univ", "Linear.IntKnots" = ll, "Quadratic.IntKnots" = qq, "Cubic.IntKnots" = cc,
               "Dev.Linear" = lin$RSS, "Dev.Quadratic" = squ$RSS, "Dev.Cubic" = cub$RSS,
-              "RSS" = RSSnew, "Linear" = lin, "Quadratic" = squ, "Cubic" = cub, "Stored" = previous,
+              "RSS" = RSSnew, "Linear.Fit" = lin, "Quadratic.Fit" = squ, "Cubic.Fit" = cub, "Stored" = previous,
               "Args"= args, "Call"= save, "Nintknots" = iter - 1, "iters" = j, "Guesses" = NULL,
               "Coefficients" = oldcoef, stopinfo = list("phis" = phis, "phis_star" = phis_star, "oldintc" = oldintc, "oldslp" = oldslp))
 
@@ -604,7 +609,8 @@ GenUnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)),
     ## STEP 5: calculate the normalized within-cluster means and ranges ##
     ######################################################################
     means    <- means/max(means)
-    wc.range <- wc.range/max(wc.range)
+    # If the residual clusters are all singletons then all the wc.ranges will equal 0, and we cannot divide by 0
+    if (max(wc.range) != 0) wc.range <- wc.range/max(wc.range)
     
     ###########################################
     ## STEP 6: calculate the cluster weights ##
@@ -648,11 +654,11 @@ GenUnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)),
     iter <- j
   } else if (j <= max.intknots) {
     # Eliminate NAs in previous
-    previous <- previous[-((j+1):(max.intknots+1)), ] # eliminate all the NA rows
-    previous <- previous[ ,-((j+4):(max.intknots+4))] #  k = j - 1 internal knots (i.e. k + 4 = j + 3 knots) in the last iteration
+    previous <- previous[-((j+1):(max.intknots+1)), , drop = FALSE] # eliminate all the NA rows
+    previous <- previous[ ,-((j+4):(max.intknots+4)), drop = FALSE] #  k = j - 1 internal knots (i.e. k + 4 = j + 3 knots) in the last iteration
     # Eliminate NAs in oldcoef
-    oldcoef  <- oldcoef[-((j+1):(max.intknots+1)), ]  # eliminate all the NA rows
-    oldcoef  <- oldcoef[ ,1:(j+1+nz)]                 # p = n + k = j + 1  B-splines
+    oldcoef  <- oldcoef[-((j+1):(max.intknots+1)), , drop = FALSE]  # eliminate all the NA rows
+    oldcoef  <- oldcoef[ ,1:(j+1+nz), drop = FALSE]                 # p = n + k = j + 1  B-splines
     iter <- j - q
   }
   
@@ -719,7 +725,7 @@ GenUnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)),
   
   out <- list("Type" = "GLM - Univ", "Linear.IntKnots" = ll, "Quadratic.IntKnots" = qq, "Cubic.IntKnots" = cc,
               "Dev.Linear" = lin$RSS, "Dev.Quadratic" = squ$RSS, "Dev.Cubic" = cub$RSS, "Knots" = intknots,
-              "RSS" = RSSnew, "Linear" = lin, "Quadratic" = squ, "Cubic" = cub, "Stored" = previous,
+              "RSS" = RSSnew, "Linear.Fit" = lin, "Quadratic.Fit" = squ, "Cubic.Fit" = cub, "Stored" = previous,
               "Args" = args, "Call" = save, "Nintknots" = iter - 1, "iters" = j, "Guesses" = oldguess,
               "Coefficients" = oldcoef, "deviance" = devianceTracking, "iterIrls" = irlsAccumIterCount,
               stopinfo = list("phis" = phis,"phis_star" = phis_star, "oldintc" = oldintc, "oldslp" = oldslp))

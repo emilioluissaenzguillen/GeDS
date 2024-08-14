@@ -41,7 +41,13 @@ SplineReg_LM_Multivar <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)), base
 {
   n <- as.integer(n)
   
-  InterKnotsList_univ <- InterKnotsList[sapply(InterKnotsList, is.atomic)]
+  InterKnotsList_univ <- list()
+  for (bl in names(InterKnotsList)) {
+    # Check if the length of the variables is equal to 1
+    if (length(base_learners[[bl]]$variables) == 1) {
+      InterKnotsList_univ[bl] <- InterKnotsList[bl]
+    }
+  }
   InterKnotsList_biv <- InterKnotsList[!names(InterKnotsList) %in% names(InterKnotsList_univ)]
   
   # Select GeDS base-learners
@@ -214,7 +220,7 @@ SplineReg_LM_Multivar <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)), base
     }, error = function(e) {
       # If there's an error with solve(), use ginv() as a fallback
       # Moore-Penrose pseudo-inverse to skip multicolinearity issues that make matcb singular
-      message("Warning message in SplineReg_LM: Variance matrix for computing asymptotic confidence intervals is singular; using ginv() as a fallback.")
+      message("Warning message in SplineReg_LM_Multivar: Variance matrix for computing asymptotic confidence intervals is singular; using ginv() as a fallback.")
       MASS::ginv(matcb)
     })
     # ii. Var(\hat{f} | X) = (1/n)*B^t(x) * E_n[B(X)B^t(X)]^-1 * B(x) * \hat{σ}^2
@@ -259,7 +265,13 @@ SplineReg_GLM_Multivar <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)), bas
     family_linkinv <- family$linkinv
   }
   
-  InterKnotsList_univ <- InterKnotsList[sapply(InterKnotsList, is.atomic)]
+  InterKnotsList_univ <- list()
+  for (bl in names(InterKnotsList)) {
+    # Check if the length of the variables is equal to 1
+    if (length(base_learners[[bl]]$variables) == 1) {
+      InterKnotsList_univ[bl] <- InterKnotsList[bl]
+    }
+  }
   InterKnotsList_biv <- InterKnotsList[!names(InterKnotsList) %in% names(InterKnotsList_univ)]
   
   # Select GeDS base-learners

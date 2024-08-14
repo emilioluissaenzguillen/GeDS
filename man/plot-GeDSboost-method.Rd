@@ -18,5 +18,5 @@ be extracted.}
 \code{\link[graphics]{plot.default}} function.}
 }
 \description{
-Plot method for GeDSboost object with a single base-learner (i.e. non-additive model).
+Plots the component functions of a GeDSboost object fitted using \code{\link{NGeDSboost}}.
 }

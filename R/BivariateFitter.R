@@ -344,12 +344,12 @@ BivariateFitter <- function(X, Y, Z, W, weights = rep(1,length(X)), Indicator,
   
   # Keep the non-NA columns from the "j"th row
   toBeSaved <- sum(!is.na(previousX[j,]))
-  previousX <- previousX[ ,-((toBeSaved + 1):max(max.intknots + 4, toBeSaved + 1))]
+  previousX <- previousX[ ,-((toBeSaved + 1):max(max.intknots + 4, toBeSaved + 1)), drop = FALSE]
   toBeSaved <- sum(!is.na(previousY[j,]))
-  previousY <- previousY[ ,-((toBeSaved + 1):max(max.intknots + 4, toBeSaved + 1))]
+  previousY <- previousY[ ,-((toBeSaved + 1):max(max.intknots + 4, toBeSaved + 1)), drop = FALSE]
   
   # Keep the corresponding (intknotsX + 2) * (intknotsY + 2) coefficients
-  oldcoef <- oldcoef[, 1:((NCOL(previousX) - 4 + 2) * (NCOL(previousY) - 4 + 2))]
+  oldcoef <- oldcoef[, 1:((NCOL(previousX) - 4 + 2) * (NCOL(previousY) - 4 + 2)), drop = FALSE]
   
   if (j == max.intknots + 1) {
     warning("Maximum number of iterations exceeded")
@@ -358,9 +358,9 @@ BivariateFitter <- function(X, Y, Z, W, weights = rep(1,length(X)), Indicator,
     iter <- j
     } else {
       # Delete from the "j+1th" row until the "max.intknots+1th" row (i.e. keep the j first rows)
-      previousX <- previousX[-((j+1):(max.intknots+1)), ] 
-      previousY <- previousY[-((j+1):(max.intknots+1)), ]
-      oldcoef   <- oldcoef[-((j+1):(max.intknots+1)),]
+      previousX <- previousX[-((j+1):(max.intknots+1)), , drop = FALSE] 
+      previousY <- previousY[-((j+1):(max.intknots+1)), , drop = FALSE]
+      oldcoef   <- oldcoef[-((j+1):(max.intknots+1)), , drop = FALSE]
       
       lastXknots <- sum(!is.na(previousX[j-q, ]))
       lastYknots <- sum(!is.na(previousY[j-q, ]))
@@ -415,7 +415,7 @@ BivariateFitter <- function(X, Y, Z, W, weights = rep(1,length(X)), Indicator,
   
   out <- list("Type" = "LM - Biv", "Linear.IntKnots" = list("Xk" = llX, "Yk" = llY), "Quadratic.IntKnots" = list("Xk" = qqX, "Yk" = qqY),
               "Cubic.IntKnots" = list("Xk" = ccX,"Yk" = ccY),"Dev.Linear" = lin$RSS, "Dev.Quadratic" = squ$RSS, "Dev.Cubic" = cub$RSS,
-              "RSS" = RSSnew, "Linear" = lin, "Quadratic" = squ, "Cubic" = cub, "Stored" = list("previousX" = previousX, "previousY" = previousY),
+              "RSS" = RSSnew, "Linear.Fit" = lin, "Quadratic.Fit" = squ, "Cubic.Fit" = cub, "Stored" = list("previousX" = previousX, "previousY" = previousY),
               "Args" = args, "Call" = save, "Nintknots" = list("X" = length(llX), "Y" = length(llY)), "iters" = j, "Guesses" = NULL,
               "Coefficients" = oldcoef)
   class(out) <- "GeDS"
@@ -724,12 +724,12 @@ GenBivariateFitter <- function(X, Y, Z, W, family = family, weights = rep(1,leng
   
   # Keep the non-NA columns from the "j"th row
   toBeSaved <- sum(!is.na(previousX[j,]))
-  previousX <- previousX[ ,-((toBeSaved + 1):max(max.intknots + 4, toBeSaved + 1))]
+  previousX <- previousX[ ,-((toBeSaved + 1):max(max.intknots + 4, toBeSaved + 1)), drop = FALSE]
   toBeSaved <- sum(!is.na(previousY[j,]))
-  previousY <- previousY[ ,-((toBeSaved + 1):max(max.intknots + 4, toBeSaved + 1))]
+  previousY <- previousY[ ,-((toBeSaved + 1):max(max.intknots + 4, toBeSaved + 1)), drop = FALSE]
   
   # Keep the corresponding (intknotsX + 2) * (intknotsY + 2) coefficients
-  oldcoef <- oldcoef[, 1:((NCOL(previousX) - 4 + 2) * (NCOL(previousY) - 4 + 2))]
+  oldcoef <- oldcoef[, 1:((NCOL(previousX) - 4 + 2) * (NCOL(previousY) - 4 + 2)), drop = FALSE]
   
   if (j == max.intknots + 1) {
     warning("Maximum number of iterations exceeded")
@@ -738,9 +738,9 @@ GenBivariateFitter <- function(X, Y, Z, W, family = family, weights = rep(1,leng
     iter <- j
   } else {
     # Delete from the "j+1th" row until the "max.intknots+1th" row (i.e. keep the j first rows)
-    previousX <- previousX[-((j+1):(max.intknots+1)), ] 
-    previousY <- previousY[-((j+1):(max.intknots+1)), ]
-    oldcoef   <- oldcoef[-((j+1):(max.intknots+1)),]
+    previousX <- previousX[-((j+1):(max.intknots+1)), , drop = FALSE] 
+    previousY <- previousY[-((j+1):(max.intknots+1)), , drop = FALSE]
+    oldcoef   <- oldcoef[-((j+1):(max.intknots+1)), , drop = FALSE]
     
     lastXknots <- sum(!is.na(previousX[j-q, ]))
     lastYknots <- sum(!is.na(previousY[j-q, ]))
@@ -812,7 +812,7 @@ GenBivariateFitter <- function(X, Y, Z, W, family = family, weights = rep(1,leng
   
   out <- list("Type" = "GLM - Biv", "Linear.IntKnots" = list("Xk" = llX, "Yk" = llY), "Quadratic.IntKnots" = list("Xk" = qqX, "Yk" = qqY),
               "Cubic.IntKnots" = list("Xk" = ccX, "Yk" = ccY), "Dev.Linear" = lin$RSS, "Dev.Quadratic" = squ$RSS, "Dev.Cubic" = cub$RSS,
-              "RSS" = RSSnew, "Linear" = lin, "Quadratic" = squ, "Cubic" = cub, "Stored" = list("previousX" = previousX, "previousY" = previousY),
+              "RSS" = RSSnew, "Linear.Fit" = lin, "Quadratic.Fit" = squ, "Cubic.Fit" = cub, "Stored" = list("previousX" = previousX, "previousY" = previousY),
               "Args"= args, "Call" = save, "Nintknots" = list("X"= length(llX), "Y"= length(llY)), "iters" = j, "Guesses" = NULL,
               "Coefficients" = oldcoef)
   class(out) <- "GeDS"
@@ -900,7 +900,8 @@ placeKnot <- function(Dim, Dim.intknots, matr, Indicator, FixedDim, ordFixedDim,
   }
   # (Step 4 - UnivariateFitter) Calculate the normalized within-cluster means and ranges 
   Dim.mean  <- Dim.mean/max(Dim.mean)
-  Dim.width <- Dim.width/max(Dim.width)
+  # If the residual clusters are all singletons then all the Dim.widths will equal 0, and we cannot divide by 0
+  if (max(Dim.width) != 0) Dim.width <- Dim.width/max(Dim.width)
   # Calculate the cluster weights (Step 5 - UnivariateFitter)
   Dim.weights <- beta*Dim.mean + (1 - beta)*Dim.width
   

@@ -292,15 +292,15 @@
 #' Xextr = c(0, 3), Yextr = c(0, 3))
 #' 
 #' # MSEs w.r.t data
-#' mean((Z-BivGeDS$Linear$Predicted)^2)
-#' mean((Z-BivGeDS$Quadratic$Predicted)^2)
-#' mean((Z-BivGeDS$Cubic$Predicted)^2)
+#' mean((Z-BivGeDS$Linear.Fit$Predicted)^2)
+#' mean((Z-BivGeDS$Quadratic.Fit$Predicted)^2)
+#' mean((Z-BivGeDS$Cubic.Fit$Predicted)^2)
 #' 
 #' # MSEs w.r.t true function
 #' f_XY <- apply(cbind(X, Y), 1, function(row) doublesin(matrix(row, ncol = 2)))
-#' mean((f_XY - BivGeDS$Linear$Predicted)^2)
-#' mean((f_XY - BivGeDS$Quadratic$Predicted)^2)
-#' mean((f_XY - BivGeDS$Cubic$Predicted)^2)
+#' mean((f_XY - BivGeDS$Linear.Fit$Predicted)^2)
+#' mean((f_XY - BivGeDS$Quadratic.Fit$Predicted)^2)
+#' mean((f_XY - BivGeDS$Cubic.Fit$Predicted)^2)
 #' 
 #' # Surface plot of the generating function (doublesin)
 #' plot(BivGeDS, f = doublesin)
