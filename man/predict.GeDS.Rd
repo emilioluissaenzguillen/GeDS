@@ -21,7 +21,7 @@ default it is equal to \code{"response"}, i.e. the result is on the scale of
 the response variable. See details for the other options.}
 
 \item{n}{integer value (2, 3 or 4) specifying the order (\eqn{=} degree
-\eqn{+ 1}) of the GeDS fit whose predicted values should be computed. By
+\eqn{ + 1}) of the GeDS fit whose predicted values should be computed. By
 default equal to \code{3L}. Non-integer values will be passed to the function
 \code{\link{as.integer}}.}
 

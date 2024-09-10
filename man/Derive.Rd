@@ -20,7 +20,7 @@ function \code{\link{as.integer}}.}
 which the derivatives of order \code{order} should be computed.}
 
 \item{n}{integer value (2, 3 or 4) specifying the order (\eqn{=} degree
-\eqn{+ 1}) of the GeDS fit to be differentiated. By default equal to
+\eqn{ + 1}) of the GeDS fit to be differentiated. By default equal to
 \code{3L}.}
 }
 \description{

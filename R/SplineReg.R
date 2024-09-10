@@ -281,8 +281,14 @@ SplineReg_GLM <- function(X, Y, Z, offset = rep(0,nobs), weights = rep(1,length(
     }
   }
   
-  tmp <- IRLSfit(basisMatrix2, Y, offset = offset,
-                 family = family, mustart = mustart, weights = weights)
+  Y0 <- Y - offset
+  # Fit linear model without intercept, using weights
+  # tmp <- IRLSfit(basisMatrix2, Y0, offset = offset,
+  #                family = family, mustart = mustart, weights = weights)
+  # tmp <- glm.fit(basisMatrix2, Y0, family = family,
+  #                weights = weights, mustart = mustart)
+  tmp <- glm(Y0 ~ -1 + basisMatrix2, family = family, weights = weights, mustart = mustart)
+  
   # Extract fitted coefficients
   theta <- coef(tmp)
   # Compute predicted mean values of the response variable
@@ -291,13 +297,13 @@ SplineReg_GLM <- function(X, Y, Z, offset = rep(0,nobs), weights = rep(1,length(
   nodes <- sort(c(InterKnots,rep(extr,ord)))[-c(1,NCOL(basisMatrix)+1)]
   polyknots <- makenewknots(nodes, degree = ord)
   # Extract residuals
-  resid <- tmp$res2
+  resid <- tmp$residuals
   
   out <- list("Theta" = theta, "Predicted" = predicted, "Residuals" = resid,
-              "RSS" = tmp$lastdeviance, "Basis" = basisMatrix, 
+              "RSS" = tmp$deviance, "Basis" = basisMatrix, 
               "Polygon" = list("Kn" = polyknots,
                                "Thetas" = theta[1:NCOL(basisMatrix)]),
-              "temporary" = tmp, "deviance" = tmp$deviance)
+              "temporary" = tmp)
   return(out)
 }
 

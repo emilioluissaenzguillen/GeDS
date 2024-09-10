@@ -6,9 +6,10 @@
 \title{Barium-Ferrum-Arsenide Powder Diffraction Data}
 \format{
 A \code{data.frame} with 1151 cases and 2 variables:
-\describe{
-  \item{angle}{ the dispersion angle, viewed as the independent variable.}
-  \item{intensity}{ the neutron diffraction intensity, viewed as the response variable.}
+\itemize{
+  \item{angle}: the dispersion angle, viewed as the independent variable.
+  \item{intensity}: the neutron diffraction intensity, viewed as the response
+  variable.
 }
 }
 \source{

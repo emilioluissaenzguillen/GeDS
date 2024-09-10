@@ -5,7 +5,7 @@
 \alias{UnivariateFitter}
 \alias{Fitters}
 \alias{GenUnivariateFitter}
-\title{Functions used to fit GeDS objects w/univariate spline regression
+\title{Functions used to fit GeDS objects with an univariate spline regression
 component}
 \usage{
 UnivariateFitter(

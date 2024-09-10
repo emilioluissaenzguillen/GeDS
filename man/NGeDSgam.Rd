@@ -23,12 +23,13 @@ NGeDSgam(
 )
 }
 \arguments{
-\item{formula}{a description of the structure of the model to be fitted,
-including the dependent and independent variables. Unlike \code{\link{NGeDS}}
-and \code{\link{GGeDS}}, the formula specified allows for multiple additive
-GeD spline regression components (as well as linear components) to be included
-(e.g., \code{Y ~ f(X1) + f(X2) + X3}). See \code{\link[=formula.GeDS]{formula}}
-for further details.}
+\item{formula}{a description of the model structure to be fitted,
+specifying both the dependent and independent variables. Unlike \code{\link{NGeDS}}
+and \code{\link{GGeDS}}, this formula supports multiple additive (normal) GeD
+spline regression components as well as linear components. For example, setting
+\code{formula = Y ~ f(X1) + f(X2) + X3} implies using a normal linear GeD
+spline as the smoother for \code{X1} and for \code{X2}, while for \code{X3} a
+linear model would be used.}
 
 \item{family}{a character string indicating the response variable distribution
 and link function to be used. Default is \code{"gaussian"}. This should be a
@@ -70,15 +71,17 @@ Both algorithms stop when the relative change in the deviance is below this
 threshold. Default is \code{0.995}.}
 
 \item{q_gam}{numeric parameter which allows to fine-tune the stopping rule of
-local-scoring/backfitting, by default equal to \code{2L}.}
+the local-scoring and backfitting iterations. By default equal to \code{2L}.}
 
 \item{beta}{numeric parameter in the interval \eqn{[0,1]}
-tuning the knot placement in stage A of GeDS. Default is equal to \code{0.5}.
+tuning the knot placement in stage A of GeDS, for each of the GeD spline
+components of the model. Default is equal to \code{0.5}.
 See details in \code{\link{NGeDS}}.}
 
 \item{phi}{numeric parameter in the interval \eqn{[0,1]} specifying the
-threshold for the stopping rule  (model selector) in stage A of GeDS. Default
-is equal to \code{0.99}. See details in \code{\link{NGeDS}}.}
+threshold for the stopping rule  (model selector) in stage A of GeDS, for each
+of the GeD spline components of the model. Default is equal to \code{0.99}.
+See details in \code{\link{NGeDS}}.}
 
 \item{internal_knots}{The maximum number of internal knots that can be added
 by the GeDS base-learners in each boosting iteration, effectively setting the
@@ -86,7 +89,8 @@ value of \code{max.intknots} in \code{\link{NGeDS}} at each backfitting
 iteration. Default is \code{500L}.}
 
 \item{q}{numeric parameter which allows to fine-tune the stopping rule of
-stage A of GeDS, by default equal to \code{2L}. See details in \code{\link{NGeDS}}.}
+stage A of GeDS, for each of the GeD spline components of the model. By
+default equal to \code{2L}. See details in \code{\link{NGeDS}}.}
 
 \item{higher_order}{a logical that defines whether to compute the higher order
 fits (quadratic and cubic) after the local-scoring algorithm is run. Default
@@ -102,8 +106,10 @@ order to make these objects tractable, such as
 }
 \description{
 Implements the Local Scoring Algorithm (Hastie and Tibshirani
-(1986)), applying normal GeD splines (i.e., \code{\link{NGeDS}} function) to
-fit the targets within the backfitting iterations.
+(1986)), applying normal linear GeD splines (i.e., \code{\link{NGeDS}}
+function) to fit the targets within each backfitting iteration. Higher order 
+fits are computed by pursuing stage B of GeDS after the local-scoring algorithm
+is run.
 }
 \details{
 The  \code{NGeDSgam} function employs the local scoring algorithm to fit a
@@ -116,7 +122,7 @@ Schoenberg’s variation diminishing spline (VDS) approximation of the linear
 fit.
 
 On the one hand, \code{NGeDSgam} includes all the parameters of
-\code{\link{NGeDS}}, which in this case tune the smoother fit at each
+\code{\link{NGeDS}}, which in this case tune the function smoother fit at each
 backfitting iteration. On the other hand, \code{NGeDSgam} includes some
 additional parameters proper to the local-scoring procedure. We describe
 the main ones as follows. 

@@ -2,14 +2,17 @@
 #' @name NGeDSgam
 #' @description
 #' Implements the Local Scoring Algorithm (Hastie and Tibshirani
-#' (1986)), applying normal GeD splines (i.e., \code{\link{NGeDS}} function) to
-#' fit the targets within the backfitting iterations.
-#' @param formula a description of the structure of the model to be fitted,
-#' including the dependent and independent variables. Unlike \code{\link{NGeDS}}
-#' and \code{\link{GGeDS}}, the formula specified allows for multiple additive
-#' GeD spline regression components (as well as linear components) to be included
-#' (e.g., \code{Y ~ f(X1) + f(X2) + X3}). See \code{\link[=formula.GeDS]{formula}}
-#' for further details.
+#' (1986)), applying normal linear GeD splines (i.e., \code{\link{NGeDS}}
+#' function) to fit the targets within each backfitting iteration. Higher order 
+#' fits are computed by pursuing stage B of GeDS after the local-scoring algorithm
+#' is run.
+#' @param formula a description of the model structure to be fitted,
+#' specifying both the dependent and independent variables. Unlike \code{\link{NGeDS}}
+#' and \code{\link{GGeDS}}, this formula supports multiple additive (normal) GeD
+#' spline regression components as well as linear components. For example, setting
+#' \code{formula = Y ~ f(X1) + f(X2) + X3} implies using a normal linear GeD
+#' spline as the smoother for \code{X1} and for \code{X2}, while for \code{X3} a
+#' linear model would be used.
 #' @param family a character string indicating the response variable distribution
 #' and link function to be used. Default is \code{"gaussian"}. This should be a
 #' character or a family object.
@@ -42,19 +45,22 @@
 #' Both algorithms stop when the relative change in the deviance is below this
 #' threshold. Default is \code{0.995}.
 #' @param q_gam numeric parameter which allows to fine-tune the stopping rule of
-#' local-scoring/backfitting, by default equal to \code{2L}.
+#' the local-scoring and backfitting iterations. By default equal to \code{2L}.
 #' @param beta numeric parameter in the interval \eqn{[0,1]}
-#' tuning the knot placement in stage A of GeDS. Default is equal to \code{0.5}.
+#' tuning the knot placement in stage A of GeDS, for each of the GeD spline
+#' components of the model. Default is equal to \code{0.5}.
 #' See details in \code{\link{NGeDS}}.
 #' @param phi numeric parameter in the interval \eqn{[0,1]} specifying the
-#' threshold for the stopping rule  (model selector) in stage A of GeDS. Default
-#' is equal to \code{0.99}. See details in \code{\link{NGeDS}}.
+#' threshold for the stopping rule  (model selector) in stage A of GeDS, for each
+#' of the GeD spline components of the model. Default is equal to \code{0.99}.
+#' See details in \code{\link{NGeDS}}.
 #' @param internal_knots The maximum number of internal knots that can be added
 #' by the GeDS base-learners in each boosting iteration, effectively setting the
 #' value of \code{max.intknots} in \code{\link{NGeDS}} at each backfitting
 #' iteration. Default is \code{500L}.
 #' @param q numeric parameter which allows to fine-tune the stopping rule of
-#' stage A of GeDS, by default equal to \code{2L}. See details in \code{\link{NGeDS}}.
+#' stage A of GeDS, for each of the GeD spline components of the model. By
+#' default equal to \code{2L}. See details in \code{\link{NGeDS}}.
 #' @param higher_order a logical that defines whether to compute the higher order
 #' fits (quadratic and cubic) after the local-scoring algorithm is run. Default
 #' is \code{TRUE}.
@@ -77,7 +83,7 @@
 #' fit.
 #' 
 #' On the one hand, \code{NGeDSgam} includes all the parameters of
-#' \code{\link{NGeDS}}, which in this case tune the smoother fit at each
+#' \code{\link{NGeDS}}, which in this case tune the function smoother fit at each
 #' backfitting iteration. On the other hand, \code{NGeDSgam} includes some
 #' additional parameters proper to the local-scoring procedure. We describe
 #' the main ones as follows. 
@@ -475,7 +481,7 @@ NGeDSgam <- function(formula, family = "gaussian", data, weights = NULL, offset 
       })
   
   # De-normalize if necessary
-  if (normalize_data == TRUE && family@name != "Negative Binomial Likelihood (logit link)") {
+  if (normalize_data == TRUE && family$family != "binomial") {
     linear_fit$Predicted <- as.numeric(linear_fit$Predicted) * args$Y_sd + args$Y_mean
   }
   

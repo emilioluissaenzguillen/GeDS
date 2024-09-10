@@ -19,19 +19,20 @@ equal to \code{3L}. Non-integer values will be passed to the function
 \code{\link{as.integer}}.}
 
 \item{onlySpline}{logical variable specifying whether only the coefficients
-for the GeDS  component of the fitted multivariate regression model should be
-extracted or alternatively also the coefficients of the parametric component
+for the GeDS  component of a fitted multivariate regression model should be
+extracted or if, alternatively, also the coefficients of the parametric component
 should also be extracted.}
 
 \item{...}{potentially further arguments (required by the definition of the
-generic function). They will be ignored, but with a warning.}
+generic function). These will be ignored, but with a warning.}
 }
 \value{
 A named vector containing the required coefficients of the fitted
-multivariate predictor model. The coefficients corresponding to the variables
-that enter the parametric component of the fitted multivariate predictor model
-are named as the variables themselves. The  coefficients of the GeDS component
-are coded as "\code{N}" followed by the index of the corresponding B-spline.
+univariate or multivariate predictor model. The coefficients corresponding to
+the variables that enter the parametric component of the fitted multivariate
+predictor model are named as the variables themselves. The  coefficients of
+the GeDS component are coded as "\code{N}" followed by the index of the
+corresponding B-spline.
 }
 \description{
 Methods for the functions \code{\link[stats]{coef}} and
@@ -49,11 +50,12 @@ which GeDS regression coefficients are required via the input argument
 \code{n}.
 
 As mentioned in the details of \code{\link[=formula.GeDS]{formula}}, the
-predictor model may be multivariate and it may include a GeD spline component
-whereas the remaining variables may be part of a parametric component. If the
-\code{onlySpline} argument is set to \code{TRUE} (the default value), only
-the coefficients corresponding to the GeD spline component of order \code{n}
-of the multivariate predictor model are extracted.
+predictor model may be multivariate and it may include a (univariate or
+bivariate) GeD spline component whereas the remaining variables may be part
+of a parametric component. If the \code{onlySpline} argument is set to
+\code{TRUE} (the default value), only the coefficients corresponding to the
+GeD spline component of order \code{n} of the multivariate predictor model 
+are extracted.
 }
 \examples{
 # Generate a data sample for the response variable

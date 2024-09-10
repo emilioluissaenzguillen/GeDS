@@ -16,7 +16,7 @@
 #' argument \code{to}. If left unspecified, by default it is set to the left-most
 #' limit of the interval embedding the observations of the independent variable.
 #' @param n integer value (2, 3 or 4) specifying the order (\eqn{=} degree
-#' \eqn{+ 1}) of the GeDS fit to be integrated. By default equal to \code{3L}.
+#' \eqn{ + 1}) of the GeDS fit to be integrated. By default equal to \code{3L}.
 #' Non-integer values will be passed to the function \code{\link{as.integer}}.
 #'
 #' @details
@@ -124,7 +124,7 @@ Integrate <- function(object, to, from, n = 3L)
 #' @param x numeric vector containing values of the independent variable at
 #' which the derivatives of order \code{order} should be computed.
 #' @param n integer value (2, 3 or 4) specifying the order (\eqn{=} degree
-#' \eqn{+ 1}) of the GeDS fit to be differentiated. By default equal to
+#' \eqn{ + 1}) of the GeDS fit to be differentiated. By default equal to
 #' \code{3L}.
 #' @details The function is based on \code{\link[splines]{splineDesign}} and it
 #' computes the exact derivative of the fitted GeDS regression.

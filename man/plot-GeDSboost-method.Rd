@@ -3,20 +3,35 @@
 \name{plot,GeDSboost-method}
 \alias{plot,GeDSboost-method}
 \alias{plot.GeDSboost}
+\alias{plot,GeDSboost,ANY-method}
 \title{Plot method for GeDSboost objects.}
 \usage{
-\S4method{plot}{GeDSboost}(x, n = 3L, ...)
+\S4method{plot}{GeDSboost,ANY}(x, n = 3L, ...)
 }
 \arguments{
-\item{x}{a \code{\link{GeDSboost-class}} object from which the GeDSboost fit(s) should
-be extracted.}
+\item{x}{a \code{\link{GeDSboost-class}} object from which the GeDSboost fit
+should be extracted.}
 
 \item{n}{integer value (2, 3 or 4) specifying the order (\eqn{=} degree
-\eqn{+ 1}) of the FGB-GeDS fit.}
+\eqn{+ 1}) of the FGB-GeDS fit to be extracted.}
 
 \item{...}{further arguments to be passed to the
 \code{\link[graphics]{plot.default}} function.}
 }
 \description{
-Plots the component functions of a GeDSboost object fitted using \code{\link{NGeDSboost}}.
+#' Plots the component functions of a GeDSboost object fitted using
+#' \code{\link{NGeDSboost}}. If the model has a single base-learner, the plot
+will be returned on the response scale. Otherwise, plots are produced on the
+linear predictor scale. Note that only univariate base-learner plots are
+returned, as representation of the boosted model as a single spline model is
+available only for univariate base-learners (see Dimitrova et al. (2024)). In
+addition since component-wise gradient boosting inherently performs base-learner
+selection, you should only expect plots for the base-learners that where selected
+across the boosting iterations.
+}
+\references{
+Dimitrova, D. S., Guillen, E. S. and Kaishev, V. K.  (2024).
+\pkg{GeDS}: An \proglang{R} Package for Regression, Generalized Additive
+Models and Functional Gradient Boosting, based on Geometrically Designed
+(GeD) Splines. \emph{Manuscript submitted for publication.}
 }

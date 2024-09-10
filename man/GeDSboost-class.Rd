@@ -6,9 +6,9 @@
 \alias{GeDSboost-Class}
 \title{GeDSboost Class}
 \description{
-A fitted GeDSboost object returned by the function \code{\link{NGeDSboost}}
-inheriting the methods from class \code{"GeDSboost"}. Methods for functions
-\code{coef}, \code{knots}, \code{print}, \code{predict},
+A fitted GeDSboost object returned by the function \code{\link{NGeDSboost}},
+inheriting the methods for class \code{"GeDSboost"}. Methods for functions
+\code{coef}, \code{knots}, \code{plot}, \code{print}, \code{predict},
 \code{visualize_boosting}, and \code{bl_imp} are available.
 }
 \section{Slots}{
@@ -16,63 +16,50 @@ inheriting the methods from class \code{"GeDSboost"}. Methods for functions
 \describe{
 \item{\code{extcall}}{call to the \code{\link{NGeDSboost}} function.}
 
-\item{\code{formula}}{A formula object representing the model to be fitted.}
+\item{\code{formula}}{a formula object representing the model to be fitted.}
 
-\item{\code{args}}{A list containing the arguments passed to the \code{\link{NGeDSboost}}
+\item{\code{args}}{a list containing the arguments passed to the \code{\link{NGeDSboost}}
 function. This list includes:
 \itemize{
-  \item \code{response}: \code{data.frame} containing observations of the
-  response variable.
-  \item \code{predictors}: \code{data.frame} containing observations of the
-  vector of predictor variables included in the model.
+  \item \code{response}: \code{data.frame} containing the response variable
+  observations.
+  \item \code{predictors}: \code{data.frame} containing the observations
+  corresponding to the predictor variables included in the model.
   \item \code{base_learners}: description of model's base learners.
-  \item \code{family}: the statistical family. The possible options are
+  \item \code{family}: the statistical family; the possible options are
   \itemize{
-  \item \code{mboost::AdaExp()}
-  \item \code{mboost::AUC()}
   \item \code{mboost::Binomial(type = c("adaboost", "glm"),
   link = c("logit", "probit", "cloglog", "cauchit", "log"), ...)}
   \item \code{mboost::Gaussian()}
-  \item \code{mboost::Huber(d = NULL)}
-  \item \code{mboost::Laplace()}
   \item \code{mboost::Poisson()}
   \item \code{mboost::GammaReg(nuirange = c(0, 100))}
-  \item \code{mboost::CoxPH()}
-  \item \code{mboost::QuantReg(tau = 0.5, qoffset = 0.5)}
-  \item \code{mboost::ExpectReg(tau = 0.5)}
-  \item \code{mboost::NBinomial(nuirange = c(0, 100))}
-  \item \code{mboost::PropOdds(nuirange = c(-0.5, -1), offrange = c(-5, 5))}
-  \item \code{mboost::Weibull(nuirange = c(0, 100))}
-  \item \code{mboost::Loglog(nuirange = c(0, 100))}
-  \item \code{mboost::Lognormal(nuirange = c(0, 100))}
-  \item \code{mboost::Gehan()}
-  \item \code{mboost::Hurdle(nuirange = c(0, 100))}
-  \item \code{mboost::Multinomial()}
-  \item \code{mboost::Cindex(sigma = 0.1, ipcw = 1)}
-  \item \code{mboost::RCG(nuirange = c(0, 1), offrange = c(-5, 5))}   
-  }   
-  \item \code{initial_learner}: if \code{TRUE} a \code{\link{NGeDS}} fit was
-  used as initial learner; otherwise, the empirical risk minimizer
-  corresponding to the selected \code{family} was employed.
-  \item \code{int.knots_init}: if \code{initial_learner = TRUE} the maximum
-  number of internal knots set to the \code{\link{NGeDS}} function before the
-  initial learner fit.
+  }
+  Other \code{mboost} families may be suitable; however, these have not yet
+  been thoroughly tested and are therefore not recommended for use.
+  \item \code{initial_learner}: if \code{TRUE} a \code{\link{NGeDS}} or
+  \code{\link{GGeDS}} fit was used as the initial learner; otherwise, the
+  empirical risk minimizer corresponding to the selected \code{family}
+  was employed.
+  \item \code{int.knots_init}: if \code{initial_learner = TRUE}, this
+  corresponds to the maximum number of internal knots set in the
+  \code{\link{NGeDS}}/\code{\link{GGeDS}} function before the initial learner
+  fit.
   \item \code{shrinkage}: shrinkage/step-length/learning rate utilized
   throughout the boosting iterations.
   \item \code{normalize_data}: if \code{TRUE}, then response and predictors
   were standardized before running the FGB algorithm.
   \item \code{X_mean}: mean of the predictor variables (only if
-  \code{normalize_data = TRUE}).
+  \code{normalize_data = TRUE}, otherwise this is \code{NULL}).
   \item \code{X_sd}: standard deviation of the predictors (only if
-  \code{normalize_data = TRUE}).
+  \code{normalize_data = TRUE}, otherwise this is \code{NULL}).
   \item \code{Y_mean}: mean of the response variable (only if
-  \code{normalize_data = TRUE}).
+  \code{normalize_data = TRUE}, otherwise this is \code{NULL}).
   \item \code{Y_sd}: standard deviation of the response variable (only if
-  \code{normalize_data = TRUE}).
+  \code{normalize_data = TRUE}, otherwise this is \code{NULL}).
 }}
 
 \item{\code{models}}{A list containing the 'model' generated at each boosting
-iteration. Each of these models includes:
+iteration. Each of these \code{models} includes:
 \itemize{
  \item \code{best_bl}: fit of the base learner that minimized the residual
  sum of squares (RSS) in fitting the gradient at the \emph{i}-th boosting
@@ -103,11 +90,11 @@ gradient descent algorithm is run:
  object (see \code{\link{SplineReg}} for details).
  }}
 
-\item{\code{predictions}}{A list containing the predicted values obtained (linear,
-quadratic, and cubic).}
+\item{\code{predictions}}{a list containing the predicted values obtained for each of
+the fits (linear, quadratic and cubic).}
 
-\item{\code{internal_knots}}{A list detailing the internal knots obtained for the fits
-of different order (linear, quadratic, and cubic).}
+\item{\code{internal_knots}}{a list detailing the internal knots obtained for each of
+the different order fits (linear, quadratic, and cubic).}
 }}
 
 \references{

@@ -3,9 +3,10 @@
 \name{plot,GeDSgam-method}
 \alias{plot,GeDSgam-method}
 \alias{plot.GeDSgam}
+\alias{plot,GeDSgam,ANY-method}
 \title{Plot method for GeDSgam objects.}
 \usage{
-\S4method{plot}{GeDSgam}(x, n = 3L, ...)
+\S4method{plot}{GeDSgam,ANY}(x, n = 3L, ...)
 }
 \arguments{
 \item{x}{a \code{\link{GeDSgam-class}} object from which the GeDSgam fit(s) should
@@ -18,5 +19,6 @@ be extracted.}
 \code{\link[graphics]{plot.default}} function.}
 }
 \description{
-Plots the component functions of a GeDSgam object fitted using \code{\link{NGeDSgam}}.
+Plots on the linear predictor scale the component functions of a GeDSgam
+object fitted using \code{\link{NGeDSgam}}.
 }

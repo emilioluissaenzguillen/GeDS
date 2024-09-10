@@ -2,12 +2,27 @@ Package: GeDS
 Type: Package
 Title: Geometrically Designed Spline Regression
 Version: 0.2.4
-Date: 2024-08-01
-Author: Dimitrina S. Dimitrova <D.Dimitrova@city.ac.uk>,
-  Emilio S. Guillen <Emilio.Saenz-Guillen@bayes.city.ac.uk>,
-  Vladimir K. Kaishev <V.Kaishev@city.ac.uk>,
-  Andrea Lattuada <andrea.lattuada@hotmail.com> and
-  Richard J. Verrall <R.J.Verrall@city.ac.uk>
+Date: 2024-09-10
+Authors@R: c(person(given = c("Dimitrina", "S."),
+                      family = "Dimitrova",
+                      role = "aut",
+                      email = "D.Dimitrova@city.ac.uk"),
+               person(given = c("Emilio", "S."),
+                      family = "Guillen",
+                      role = c("aut", "cre"),
+                      email = "Emilio.Saenz-Guillen@bayes.city.ac.uk"),
+               person(given = c("Vladimir", "K."),
+                      family = "Kaishev",
+                      role = "aut",
+                      email = "V.Kaishev@city.ac.uk"),
+               person(given = "Andrea",
+                      family = "Lattuada",
+                      role = "aut",
+                      email = "andrea.lattuada@hotmail.com"),
+               person(given = c("Richard", "J."),
+                      family = "Verrall",
+                      role = "aut",
+                      email = "R.J.Verrall@city.ac.uk"))
 Maintainer: Emilio S. Guillen <Emilio.Saenz-Guillen@bayes.city.ac.uk>
 Description: Spline Regression, Generalized Additive Models, and Component-wise Gradient
   Boosting, utilizing Geometrically Designed (GeD) Splines. GeDS regression is a
@@ -26,7 +41,7 @@ License: GPL-3
 URL: https://github.com/emilioluissaenzguillen/GeDS
 BugReports: https://github.com/emilioluissaenzguillen/GeDS/issues
 LazyData: TRUE
-Depends: R (>= 3.0.1), Rcpp (>= 0.12.1), splines, stats, utils, Matrix, methods, Rmpfr
+Depends: R (>= 3.0.1), Rcpp (>= 0.12.1), splines, stats, utils, Matrix, methods, mi, Rmpfr
 LinkingTo: Rcpp
 RoxygenNote: 7.3.2
 Encoding: UTF-8

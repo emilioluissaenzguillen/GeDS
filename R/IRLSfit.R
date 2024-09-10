@@ -7,21 +7,21 @@
 #' @name IRLSfit
 #' @description
 #' This function is an implementation of the IRLS estimation algorithm adjusted
-#' to the specific usage in the function \code{\link{SplineReg_GLM}}.
+#' to the specific usage within the function \code{\link{SplineReg_GLM}}.
 #' @param x a matrix of regression functions (e.g. B-splines and/or terms of the
 #' parametric part) evaluated at the sample values of the covariate(s).
 #' @param y a vector of size \eqn{N} containing the observed values of the
 #' response variable \eqn{y}.
-#' @param weights an optional vector of `prior weights' to be put on the
-#' observations in case the user requires weighted IRLS fitting. It is a vector
-#' of 1s by default.
+#' @param weights an optional vector of prior weights for the observations,
+#' used when weighted IRLS fitting is required. By default, this is a vector of
+#' 1s.
 #' @param mustart initial values for the vector of means of the response
 #' variable in the IRLS regression estimation. Must be a vector of length \eqn{N}.
 #' @param offset a vector of size \eqn{N} that can be used to specify a fixed
 #' covariate to be included in the predictor model  avoiding the estimation of
-#' its corresponding regression coefficient. In case  more than one covariate is
-#' fixed, the user should sum the corresponding coordinates of the fixed
-#' covariates to produce one common \eqn{N}-vector of coordinates.
+#' its corresponding regression coefficient. In the case that more than one
+#' covariate is fixed, the user should sum the corresponding coordinates of the
+#' fixed covariates to produce one common \eqn{N}-vector of coordinates.
 #' @param family a description of the error distribution and link function to be
 #' used in the model. This can be a character string naming a family function
 #' (e.g. \code{"gaussian"}), the family function itself (e.g.
@@ -35,11 +35,11 @@
 #' @return A list containing:
 #' \item{coefficients}{a named vector containing the estimated regression
 #' coefficients;}
-#' \item{residuals}{the `working' residuals, that are the residuals in the final
-#' iteration of the IRLS fit. Since cases with zero weights are omitted, their
-#' working residuals are \code{NA};}
+#' \item{residuals}{the working residuals, which are the residuals from the 
+#' final iteration of the IRLS fit. Cases with zero weights are omitted, and
+#' their working residuals are \code{NA};}
 #' \item{res2}{the working residuals after the final IRLS iteration. They are
-#' used within the  knot placement steps of stage A of GeDS;}
+#' used within the knot placement steps of stage A of GeDS;}
 #' \item{fitted.values}{the fitted mean values, obtained by transforming the
 #' predictor by the inverse of the link function;}
 #' \item{rank}{the numeric rank of the fitted linear model;}
@@ -83,6 +83,7 @@
 #' is time consuming, but they could be run for inspection purposes.
 #' 
 #' @seealso \code{\link[stats]{glm.fit}}
+#' 
 #' @export
 
 IRLSfit <- function (x, y, weights = rep(1, nobs), mustart = NULL,

@@ -22,12 +22,11 @@ extracted. By default equal to \code{3L}. Non-integer values will be passed
 to the function \code{\link{as.integer}}.}
 
 \item{...}{potentially further arguments (required by the definition of the
-generic function). They will be ignored, but with a warning.}
+generic function). These will be ignored, but with a warning.}
 }
 \value{
 A numeric value corresponding to the  deviance of the selected
 GeDS/GeDSboost/GeDSgam fit.
-#'
 }
 \description{
 Method for the function \code{\link[stats]{deviance}} that allows the user to

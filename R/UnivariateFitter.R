@@ -3,7 +3,7 @@
 ############################## Univariate Fitters ##############################
 ################################################################################
 ################################################################################
-#' @title Functions used to fit GeDS objects w/univariate spline regression
+#' @title Functions used to fit GeDS objects with an univariate spline regression
 #' component
 #' @name UnivariateFitters
 #' @aliases Fitters UnivariateFitter GenUnivariateFitter
@@ -517,7 +517,7 @@ GenUnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)),
     
     # Store residuals and deviance 
     res.tmp <- first.deg$Residuals
-    RSS.tmp <- first.deg$temporary$lastdeviance
+    RSS.tmp <- first.deg$temporary$deviance
     RSSnew <- c(RSSnew, RSS.tmp)
     # Working weights (weights in the final iteration of the IRLS fit)
     working.weights <- first.deg$temporary$weights  

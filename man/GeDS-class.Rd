@@ -6,92 +6,97 @@
 \alias{GeDS-Class}
 \title{GeDS Class}
 \description{
-A fitted GeDS object returned by the functions \code{\link{NGeDS}} or
-\code{\link{GGeDS}} inheriting the methods from class \code{"GeDS"}. Methods
-for functions \code{coef}, \code{knots}, \code{print}, \code{predict},
+A fitted GeDS object returned by the function \code{\link{NGeDS}} or
+\code{\link{GGeDS}}, inheriting the methods for class \code{"GeDS"}.
+Methods for functions \code{coef}, \code{knots}, \code{print}, \code{predict},
 \code{plot}, and \code{lines} are available.
 }
 \section{Slots}{
 
 \describe{
-\item{\code{Type}}{Character string indicating the type of the regression performed.
-One of \code{"LM - Univ"}, \code{"LM - Biv"} or \code{"GLM - Univ"}
-corresponding to the Normal univariate GeDS, the Normal bivariate GeDS
-performed by \code{\link{NGeDS}} and the generalized (GNM-GLM) univariate
-GeDS performed by \code{\link{GGeDS}}.}
+\item{\code{Type}}{Character string indicating the type of regression performed.
+This can be \code{"LM - Univ"}/\code{"LM - Biv"} or
+#' \code{"GLM - Univ"}/\code{"GLM - Biv"}, respectively corresponding to Normal
+univariate/bivariate GeDS (implemented by \code{\link{NGeDS}}), and to
+generalized (GNM-GLM) univariate/bivariate GeDS (implemented by
+\code{\link{GGeDS}}).}
 
-\item{\code{Linear.Knots}}{Vector containing the locations of the knots of the
-second order GeDS spline fit generated at stage A.}
+\item{\code{Linear.Knots}}{vector containing the locations of the knots of the
+second order GeD spline fit produced at stage A.}
 
-\item{\code{Quadratic.Knots}}{Vector containing the locations of the knots of the
-third order GeDS spline fitted in stage B.}
+\item{\code{Quadratic.Knots}}{vector containing the locations of the knots of the
+third order GeD spline fit produced in stage B.}
 
 \item{\code{Cubic.knots}}{Vector containing the locations of the knots of the fourth
-order GeDS spline fitted in stage B.}
+order GeD spline fit produced in stage B.}
 
-\item{\code{Dev.Linear}}{Deviance of the second order GeD spline fit of stage A.}
-
-\item{\code{Dev.Quadratic}}{Deviance of the third order GeD spline fit of stage B.}
-
-\item{\code{Dev.Cubic}}{Deviance of the fourth order GeD spline fit of stage B.}
-
-\item{\code{RSS}}{Vector containing the deviances of the second order spline
-fits computed at each GeDS iteration in stage A.}
-
-\item{\code{Linear}}{List containing the results from running a \code{\link{SplineReg}}
-function used to fit the second order spline of stage A.}
-
-\item{\code{Quadratic}}{List containing the results from running \code{\link{SplineReg}}
-function used to fit the third order spline in stage B.}
-
-\item{\code{Cubic}}{List containing the results from a \code{\link{SplineReg}}
-function used to fit the fourth order spline in stage B.}
-
-\item{\code{Stored}}{Matrix containing the knot locations estimated at each step of
+\item{\code{Dev.Linear}}{deviance of the second order GeD spline fit, produced in
 stage A.}
 
-\item{\code{Args}}{List containing the input arguments passed on the
+\item{\code{Dev.Quadratic}}{deviance of the third order GeD spline fit, produced in
+stage B.}
+
+\item{\code{Dev.Cubic}}{deviance of the fourth order GeD spline fit, produced in
+stage B.}
+
+\item{\code{RSS}}{vector containing the deviances of the second order spline
+fits computed at each stage A's GeDS iteration.}
+
+\item{\code{Linear}}{list containing the results from running \code{\link{SplineReg}}
+function to fit the second order spline fit of stage A.}
+
+\item{\code{Quadratic}}{list containing the results from running \code{\link{SplineReg}}
+function used to fit the third order spline fit in stage B.}
+
+\item{\code{Cubic}}{list containing the results from a \code{\link{SplineReg}}
+function used to fit the fourth order spline fit in stage B.}
+
+\item{\code{Stored}}{Matrix containing the knot locations estimated at each iteration
+of stage A.}
+
+\item{\code{Args}}{list containing the input arguments passed on the
 \code{\link{Fitters}} functions.}
 
 \item{\code{Call}}{\code{call} to the \code{\link{Fitters}} functions.}
 
-\item{\code{Nintknots}}{The final number of internal knots of the second order GeD
-spline fit of stage A.}
+\item{\code{Nintknots}}{the final number of internal knots of the second order GeD
+spline fit produced in stage A.}
 
-\item{\code{iters}}{Number of iterations performed in stage A  of the GeDS fitting
+\item{\code{iters}}{number of iterations performed during stage A of the GeDS fitting
 procedure.}
 
-\item{\code{Guesses}}{Initial values for the coefficients used at each iteration of
+\item{\code{Guesses}}{initial values for the coefficients used at each iteration of
 stage A in order to estimate the spline coefficients. Since the initial
 values are used only in the IRLS procedure, this slot is empty if the object
 is not created by \code{\link{GGeDS}} or \code{\link{GenUnivariateFitter}}
 functions.}
 
-\item{\code{Coefficients}}{Matrix containing the fitted coefficients of the GeD
-spline regression  component and the parametric component at each iteration
+\item{\code{Coefficients}}{matrix containing the fitted coefficients of the GeD
+spline regression component and the parametric component at each iteration
 of stage A.}
 
-\item{\code{deviance}}{Vector containing the deviances of the second order spline
-fits computed at each IRLS iteration in stage A.  Since the IRLS procedure is
+\item{\code{deviance}}{vector containing the deviances of the second order spline
+fits computed at each IRLS iteration in stage A. Since the IRLS procedure is
 used only in \code{\link{GGeDS}} or \code{\link{GenUnivariateFitter}}, this
 slot is empty if the object is not created by one of these functions.}
 
-\item{\code{iterIrls}}{Vector containing the numbers of IRLS iterations for all
+\item{\code{iterIrls}}{vector containing the numbers of IRLS iterations for all
 iterations of stage A cumulatively. Since the IRLS procedure is used only in
 \code{\link{GGeDS}} or \code{\link{GenUnivariateFitter}}, this slot is empty
 if the object is not created by one of these functions.}
 
-\item{\code{stopinfo}}{List of values providing information related to the stopping
+\item{\code{stopinfo}}{list of values providing information related to the stopping
 rule of stage A of GeDS. The sub-slots of \code{stopinfo} are \code{phis},
 \code{phis_star}, \code{oldintc} and \code{oldslp}. The sub-slot \code{phis}
 is a vector containing the values of the ratios of deviances (or the
 difference of deviances if the \code{LR} stopping rule was chosen). The
 sub-slots \code{phis_star}, \code{oldintc} and \code{oldslp} are non-empty
-slots if the \code{SR} stopping rule was chosen. They contain respectively
-\eqn{\hat{\phi}_{\kappa}}, \eqn{\hat{\gamma}_0} and \eqn{\hat{\gamma}_1}
-computed at each iteration of stage A, see Dimitrova et al. (2023).}
+slots if the \code{SR} stopping rule was chosen. These respectively contain
+the values at each iteration of stage A of \eqn{\hat{\phi}_{\kappa}},
+\eqn{\hat{\gamma}_0} and \eqn{\hat{\gamma}_1}. See Dimitrova et al. (2023)
+for further details on these parameters.}
 
-\item{\code{Formula}}{The model \code{\link[=formula.GeDS]{formula}}.}
+\item{\code{Formula}}{the model \code{\link[=formula.GeDS]{formula}}.}
 
 \item{\code{extcall}}{\code{call} to the \code{\link{NGeDS}} or \code{\link{GGeDS}}
 functions.}

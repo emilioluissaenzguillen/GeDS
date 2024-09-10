@@ -6,68 +6,73 @@
 #' @title GeDS Class
 #' @name GeDS-class
 #' @description
-#' A fitted GeDS object returned by the functions \code{\link{NGeDS}} or
-#' \code{\link{GGeDS}} inheriting the methods from class \code{"GeDS"}. Methods
-#' for functions \code{coef}, \code{knots}, \code{print}, \code{predict},
+#' A fitted GeDS object returned by the function \code{\link{NGeDS}} or
+#' \code{\link{GGeDS}}, inheriting the methods for class \code{"GeDS"}.
+#' Methods for functions \code{coef}, \code{knots}, \code{print}, \code{predict},
 #' \code{plot}, and \code{lines} are available.
 #'
-#' @slot Type Character string indicating the type of the regression performed.
-#' One of \code{"LM - Univ"}, \code{"LM - Biv"} or \code{"GLM - Univ"}
-#' corresponding to the Normal univariate GeDS, the Normal bivariate GeDS
-#' performed by \code{\link{NGeDS}} and the generalized (GNM-GLM) univariate
-#' GeDS performed by \code{\link{GGeDS}}.
-#' @slot Linear.Knots  Vector containing the locations of the knots of the
-#' second order GeDS spline fit generated at stage A.
-#' @slot Quadratic.Knots  Vector containing the locations of the knots of the
-#' third order GeDS spline fitted in stage B.
+#' @slot Type Character string indicating the type of regression performed.
+#' This can be \code{"LM - Univ"}/\code{"LM - Biv"} or
+#' #' \code{"GLM - Univ"}/\code{"GLM - Biv"}, respectively corresponding to Normal
+#' univariate/bivariate GeDS (implemented by \code{\link{NGeDS}}), and to
+#' generalized (GNM-GLM) univariate/bivariate GeDS (implemented by
+#' \code{\link{GGeDS}}).
+#' @slot Linear.Knots vector containing the locations of the knots of the
+#' second order GeD spline fit produced at stage A.
+#' @slot Quadratic.Knots vector containing the locations of the knots of the
+#' third order GeD spline fit produced in stage B.
 #' @slot Cubic.knots  Vector containing the locations of the knots of the fourth
-#' order GeDS spline fitted in stage B.
-#' @slot Dev.Linear Deviance of the second order GeD spline fit of stage A.
-#' @slot Dev.Quadratic Deviance of the third order GeD spline fit of stage B.
-#' @slot Dev.Cubic Deviance of the fourth order GeD spline fit of stage B.
-#' @slot RSS Vector containing the deviances of the second order spline
-#' fits computed at each GeDS iteration in stage A.
-#' @slot Linear List containing the results from running a \code{\link{SplineReg}}
-#' function used to fit the second order spline of stage A.
-#' @slot Quadratic List containing the results from running \code{\link{SplineReg}}
-#' function used to fit the third order spline in stage B.
-#' @slot Cubic List containing the results from a \code{\link{SplineReg}}
-#' function used to fit the fourth order spline in stage B.
-#' @slot Stored Matrix containing the knot locations estimated at each step of
+#' order GeD spline fit produced in stage B.
+#' @slot Dev.Linear deviance of the second order GeD spline fit, produced in
 #' stage A.
-#' @slot Args List containing the input arguments passed on the
+#' @slot Dev.Quadratic deviance of the third order GeD spline fit, produced in
+#' stage B.
+#' @slot Dev.Cubic deviance of the fourth order GeD spline fit, produced in
+#' stage B.
+#' @slot RSS vector containing the deviances of the second order spline
+#' fits computed at each stage A's GeDS iteration. 
+#' @slot Linear list containing the results from running \code{\link{SplineReg}}
+#' function to fit the second order spline fit of stage A.
+#' @slot Quadratic list containing the results from running \code{\link{SplineReg}}
+#' function used to fit the third order spline fit in stage B.
+#' @slot Cubic list containing the results from a \code{\link{SplineReg}}
+#' function used to fit the fourth order spline fit in stage B.
+#' @slot Stored Matrix containing the knot locations estimated at each iteration
+#' of stage A.
+#' @slot Args list containing the input arguments passed on the
 #' \code{\link{Fitters}} functions.
 #' @slot Call \code{call} to the \code{\link{Fitters}} functions.
-#' @slot Nintknots The final number of internal knots of the second order GeD
-#' spline fit of stage A.
-#' @slot iters Number of iterations performed in stage A  of the GeDS fitting
+#' @slot Nintknots the final number of internal knots of the second order GeD
+#' spline fit produced in stage A.
+#' @slot iters number of iterations performed during stage A of the GeDS fitting
 #' procedure.
-#' @slot Guesses Initial values for the coefficients used at each iteration of
+#' @slot Guesses initial values for the coefficients used at each iteration of
 #' stage A in order to estimate the spline coefficients. Since the initial
 #' values are used only in the IRLS procedure, this slot is empty if the object
 #' is not created by \code{\link{GGeDS}} or \code{\link{GenUnivariateFitter}}
 #' functions.
-#' @slot Coefficients Matrix containing the fitted coefficients of the GeD
-#' spline regression  component and the parametric component at each iteration
+#' @slot Coefficients matrix containing the fitted coefficients of the GeD
+#' spline regression component and the parametric component at each iteration
 #' of stage A.
-#' @slot deviance Vector containing the deviances of the second order spline
-#' fits computed at each IRLS iteration in stage A.  Since the IRLS procedure is
+#' @slot deviance vector containing the deviances of the second order spline
+#' fits computed at each IRLS iteration in stage A. Since the IRLS procedure is
 #' used only in \code{\link{GGeDS}} or \code{\link{GenUnivariateFitter}}, this
 #' slot is empty if the object is not created by one of these functions.
-#' @slot iterIrls Vector containing the numbers of IRLS iterations for all
+#' @slot iterIrls vector containing the numbers of IRLS iterations for all
 #' iterations of stage A cumulatively. Since the IRLS procedure is used only in
 #' \code{\link{GGeDS}} or \code{\link{GenUnivariateFitter}}, this slot is empty
 #' if the object is not created by one of these functions.
-#' @slot stopinfo List of values providing information related to the stopping
+#' @slot stopinfo list of values providing information related to the stopping
 #' rule of stage A of GeDS. The sub-slots of \code{stopinfo} are \code{phis},
 #' \code{phis_star}, \code{oldintc} and \code{oldslp}. The sub-slot \code{phis}
 #' is a vector containing the values of the ratios of deviances (or the
 #' difference of deviances if the \code{LR} stopping rule was chosen). The
 #' sub-slots \code{phis_star}, \code{oldintc} and \code{oldslp} are non-empty
-#' slots if the \code{SR} stopping rule was chosen. They contain respectively
-#' \eqn{\hat{\phi}_{\kappa}}, \eqn{\hat{\gamma}_0} and \eqn{\hat{\gamma}_1}
-#' computed at each iteration of stage A, see Dimitrova et al. (2023).
-#' @slot Formula The model \code{\link[=formula.GeDS]{formula}}.
+#' slots if the \code{SR} stopping rule was chosen. These respectively contain
+#' the values at each iteration of stage A of \eqn{\hat{\phi}_{\kappa}},
+#' \eqn{\hat{\gamma}_0} and \eqn{\hat{\gamma}_1}. See Dimitrova et al. (2023)
+#' for further details on these parameters.
+#' @slot Formula the model \code{\link[=formula.GeDS]{formula}}.
 #' @slot extcall \code{call} to the \code{\link{NGeDS}} or \code{\link{GGeDS}}
 #' functions.
 #' @slot terms \code{terms} object containing information on the model frame.
@@ -104,68 +109,55 @@ setClass(
 #' @title GeDSboost Class
 #' @name GeDSboost-class
 #' @description
-#' A fitted GeDSboost object returned by the function \code{\link{NGeDSboost}}
-#' inheriting the methods from class \code{"GeDSboost"}. Methods for functions
-#' \code{coef}, \code{knots}, \code{print}, \code{predict},
+#' A fitted GeDSboost object returned by the function \code{\link{NGeDSboost}},
+#' inheriting the methods for class \code{"GeDSboost"}. Methods for functions
+#' \code{coef}, \code{knots}, \code{plot}, \code{print}, \code{predict},
 #' \code{visualize_boosting}, and \code{bl_imp} are available.
 #' 
 #' @slot extcall call to the \code{\link{NGeDSboost}} function.
-#' @slot formula A formula object representing the model to be fitted.
+#' @slot formula a formula object representing the model to be fitted.
 #' @slot args 
-#' A list containing the arguments passed to the \code{\link{NGeDSboost}}
+#' a list containing the arguments passed to the \code{\link{NGeDSboost}}
 #' function. This list includes:
 #' \itemize{
-#'   \item \code{response}: \code{data.frame} containing observations of the
-#'   response variable.
-#'   \item \code{predictors}: \code{data.frame} containing observations of the
-#'   vector of predictor variables included in the model.
+#'   \item \code{response}: \code{data.frame} containing the response variable
+#'   observations.
+#'   \item \code{predictors}: \code{data.frame} containing the observations
+#'   corresponding to the predictor variables included in the model.
 #'   \item \code{base_learners}: description of model's base learners.
-#'   \item \code{family}: the statistical family. The possible options are
+#'   \item \code{family}: the statistical family; the possible options are
 #'   \itemize{
-#'   \item \code{mboost::AdaExp()}
-#'   \item \code{mboost::AUC()}
 #'   \item \code{mboost::Binomial(type = c("adaboost", "glm"),
 #'   link = c("logit", "probit", "cloglog", "cauchit", "log"), ...)}
 #'   \item \code{mboost::Gaussian()}
-#'   \item \code{mboost::Huber(d = NULL)}
-#'   \item \code{mboost::Laplace()}
 #'   \item \code{mboost::Poisson()}
 #'   \item \code{mboost::GammaReg(nuirange = c(0, 100))}
-#'   \item \code{mboost::CoxPH()}
-#'   \item \code{mboost::QuantReg(tau = 0.5, qoffset = 0.5)}
-#'   \item \code{mboost::ExpectReg(tau = 0.5)}
-#'   \item \code{mboost::NBinomial(nuirange = c(0, 100))}
-#'   \item \code{mboost::PropOdds(nuirange = c(-0.5, -1), offrange = c(-5, 5))}
-#'   \item \code{mboost::Weibull(nuirange = c(0, 100))}
-#'   \item \code{mboost::Loglog(nuirange = c(0, 100))}
-#'   \item \code{mboost::Lognormal(nuirange = c(0, 100))}
-#'   \item \code{mboost::Gehan()}
-#'   \item \code{mboost::Hurdle(nuirange = c(0, 100))}
-#'   \item \code{mboost::Multinomial()}
-#'   \item \code{mboost::Cindex(sigma = 0.1, ipcw = 1)}
-#'   \item \code{mboost::RCG(nuirange = c(0, 1), offrange = c(-5, 5))}   
-#'   }   
-#'   \item \code{initial_learner}: if \code{TRUE} a \code{\link{NGeDS}} fit was
-#'   used as initial learner; otherwise, the empirical risk minimizer
-#'   corresponding to the selected \code{family} was employed.
-#'   \item \code{int.knots_init}: if \code{initial_learner = TRUE} the maximum
-#'   number of internal knots set to the \code{\link{NGeDS}} function before the
-#'   initial learner fit.
+#'   }
+#'   Other \code{mboost} families may be suitable; however, these have not yet
+#'   been thoroughly tested and are therefore not recommended for use.
+#'   \item \code{initial_learner}: if \code{TRUE} a \code{\link{NGeDS}} or
+#'   \code{\link{GGeDS}} fit was used as the initial learner; otherwise, the
+#'   empirical risk minimizer corresponding to the selected \code{family}
+#'   was employed.
+#'   \item \code{int.knots_init}: if \code{initial_learner = TRUE}, this
+#'   corresponds to the maximum number of internal knots set in the
+#'   \code{\link{NGeDS}}/\code{\link{GGeDS}} function before the initial learner
+#'   fit.
 #'   \item \code{shrinkage}: shrinkage/step-length/learning rate utilized
 #'   throughout the boosting iterations.
 #'   \item \code{normalize_data}: if \code{TRUE}, then response and predictors
 #'   were standardized before running the FGB algorithm.
 #'   \item \code{X_mean}: mean of the predictor variables (only if
-#'   \code{normalize_data = TRUE}).
+#'   \code{normalize_data = TRUE}, otherwise this is \code{NULL}).
 #'   \item \code{X_sd}: standard deviation of the predictors (only if
-#'   \code{normalize_data = TRUE}).
+#'   \code{normalize_data = TRUE}, otherwise this is \code{NULL}).
 #'   \item \code{Y_mean}: mean of the response variable (only if
-#'   \code{normalize_data = TRUE}).
+#'   \code{normalize_data = TRUE}, otherwise this is \code{NULL}).
 #'   \item \code{Y_sd}: standard deviation of the response variable (only if
-#'   \code{normalize_data = TRUE}).
+#'   \code{normalize_data = TRUE}, otherwise this is \code{NULL}).
 #'}
 #' @slot models A list containing the 'model' generated at each boosting
-#' iteration. Each of these models includes:
+#' iteration. Each of these \code{models} includes:
 #' \itemize{
 #'  \item \code{best_bl}: fit of the base learner that minimized the residual
 #'  sum of squares (RSS) in fitting the gradient at the \emph{i}-th boosting
@@ -195,11 +187,11 @@ setClass(
 #'  object (see \code{\link{SplineReg}} for details).
 #'  }
 #'   
-#' @slot predictions A list containing the predicted values obtained (linear,
-#' quadratic, and cubic).
+#' @slot predictions a list containing the predicted values obtained for each of
+#' the fits (linear, quadratic and cubic).
 #'
-#' @slot internal_knots A list detailing the internal knots obtained for the fits
-#' of different order (linear, quadratic, and cubic).
+#' @slot internal_knots a list detailing the internal knots obtained for each of
+#' the different order fits (linear, quadratic, and cubic).
 #'
 #' @aliases GeDSboost-Class GeDSboost-class
 #' @rdname GeDSboost-class
@@ -237,20 +229,21 @@ setClass(
 #' @title GeDSgam Class
 #' @name GeDSgam-class
 #' @description
-#' A fitted GeDSgam object returned by the function \code{\link{NGeDSgam}}
-#' inheriting the methods from class \code{"GeDSgam"}. Methods for functions
-#' \code{coef}, \code{knots}, \code{print} and \code{predict}.
+#' A fitted GeDSgam object returned by the function \code{\link{NGeDSgam}},
+#' inheriting the methods for class \code{"GeDSgam"}. Methods for functions
+#' \code{coef}, \code{knots}, \code{plot}, \code{print} and \code{predict} are 
+#' available.
 #' 
 #' @slot extcall call to the \code{\link{NGeDSgam}} function.
-#' @slot formula A formula object representing the model to be fitted.
+#' @slot formula a formula object representing the model to be fitted.
 #' @slot args 
-#' A list containing the arguments passed to the \code{\link{NGeDSgam}}
+#' a list containing the arguments passed to the \code{\link{NGeDSgam}}
 #' function. This list includes:
 #' \itemize{
-#'   \item \code{response}: \code{data.frame} containing observations of the
-#'   response variable.
-#'   \item \code{predictors}: \code{data.frame} containing observations of the
-#'   vector of predictor variables included in the model.
+#'   \item \code{response}: \code{data.frame} containing the response variable
+#'   observations.
+#'   \item \code{predictors}: \code{data.frame} containing the corresponding 
+#'   observations of the predictor variables included in the model.
 #'   \item \code{base_learners}: description of the model's base learners
 #'   ('smooth functions').
 #'   \item \code{family}: the statistical family. The possible options are
@@ -269,22 +262,22 @@ setClass(
 #'   \item \code{X_mean}: mean of the predictor variables (only if
 #'   \code{normalize_data = TRUE}).
 #'   \item \code{X_sd}: standard deviation of the predictors (only if
-#'   \code{normalize_data = TRUE}).
+#'   \code{normalize_data = TRUE}, else is \code{NULL}).
 #'   \item \code{Y_mean}: mean of the response variable (only if
-#'   \code{normalize_data = TRUE}).
+#'   \code{normalize_data = TRUE}, else is \code{NULL}).
 #'   \item \code{Y_sd}: standard deviation of the response variable (only if
-#'   \code{normalize_data = TRUE}).
+#'   \code{normalize_data = TRUE}, else is \code{NULL}).
 #'}
 #' @slot final_model A list detailing the final GeDSgam model selected after
 #' running the local scoring algorithm. The chosen model minimizes deviance
 #' across all models generated by each local-scoring iteration. This list
 #' includes:
 #' \itemize{
-#'   \item \code{model_name}: local-scoring iteration that yielded the best
+#'   \item \code{model_name}: local-scoring iteration that yielded the "best"
 #'   model. Note that when \code{family = "gaussian"}, it will always correspond
 #'   to \code{iter1}, as only one local-scoring iteration is conducted in this
 #'   scenario. This occurs because, with \code{family = "gaussian"}, the
-#'   algorithm is equivalent to simply backfitting.
+#'   algorithm is tantamount to directly implementing backfitting.
 #'   \item \code{DEV}: the deviance for the fitted predictor model, defined as
 #'   in Dimitrova et al. (2023), which for \code{family = "gaussian"} coincides
 #'   with the Residual Sum of Squares.
@@ -295,20 +288,20 @@ setClass(
 #'      \item \code{z}: adjusted dependent variable.      
 #'   }
 #'   \item \code{base_learners}: a list containing, for each base-learner, the
-#'   corresponding piecewise linear fit polynomial coefficients. It includes the
+#'   corresponding linear fit piecewise polynomial coefficients. It includes the
 #'   knots for each order fit, resulting from computing the averaging knot
 #'   location. Although if the number of internal knots of the final linear fit
 #'   is less than $n-1$, the averaging knot location is not computed.
 #'   \item \code{Linear.Fit}: final model linear fit in B-spline form.
-#'   See for details \code{\link{SplineReg}}.
+#'   See \code{\link{SplineReg}} for details.
 #'   \item \code{Quadratic.Fit}: quadratic fit obtained via Schoenberg variation
-#'   diminishing spline approximation. See for details \code{\link{SplineReg}}.
+#'   diminishing spline approximation. See \code{\link{SplineReg}} for details.
 #'   \item \code{Cubic.Fit}: cubic fit obtained via Schoenberg variation
-#'   diminishing spline approximation. See for details \code{\link{SplineReg}}.
+#'   diminishing spline approximation. See \code{\link{SplineReg}} for details.
 #' } 
-#' @slot predictions A list containing the predicted values obtained (linear,
-#' quadratic, and cubic). Each of the predictions contains both the additive
-#' predictor \code{eta} and the vector of means \code{mu}.
+#' @slot predictions A list containing the predicted values obtained for each of
+#' the fits (linear, quadratic, and cubic). Each of the predictions contains
+#' both the additive predictor \code{eta} and the vector of means \code{mu}.
 #'
 #' @slot internal_knots A list detailing the internal knots obtained for the fits
 #' of different order (linear, quadratic, and cubic).

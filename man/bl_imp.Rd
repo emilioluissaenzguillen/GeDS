@@ -8,11 +8,11 @@
 \method{bl_imp}{GeDSboost}(object, boosting_iter_only = FALSE, ...)
 }
 \arguments{
-\item{object}{an object of class \code{\link{GeDSboost-Class}}.}
+\item{object}{an object of class \code{\link{GeDSboost-class}}.}
 
 \item{boosting_iter_only}{logical value, if \code{TRUE} then base-learner
 in-bag risk reduction is only computed across boosting iterations, i.e.,
-without taking into account the initial learner.}
+without taking into account a potential initial GeDS learner.}
 
 \item{...}{potentially further arguments.}
 }
@@ -21,15 +21,14 @@ An object of class \code{varimp} with available \code{plot},
 \code{print} and \code{as.data.frame} methods.
 }
 \description{
-This function calculates the in-bag mean squared error (MSE) reduction
-ascribable to each of the base-learners with regards to the final prediction
-of the component-wise gradient boosted model encapsulated in a
-\code{\link{GeDSboost-Class}} object. Essentially, it measures the decrease
-in MSE attributable to each base-learner for every time it is selected across
-the boosting iterations, and aggregates them. This provides a measure on how
-much each base-learner contributes to the overall improvement in the model's
-accuracy, as reflected by the decrease in MSE. This function is adapted from
-\code{\link[mboost]{varimp}} and is compatible with the available
+S3 method for \code{\link{GeDSboost-class}} objects that calculates the
+in-bag risk reduction ascribable to each base-learner of an FGB-GeDS model.
+Essentially, it measures and aggregates the decrease in the empirical risk
+attributable to each base-learner for every time it is selected across the
+boosting iterations. This provides a measure on how much each base-learner
+contributes to the overall improvement in the model's accuracy, as reflectedp
+by the decrease in the empiral risk (loss function). This function is adapted
+from \code{\link[mboost]{varimp}} and is compatible with the available
 \code{\link[mboost]{mboost-package}} methods for \code{\link[mboost]{varimp}},
 including \code{plot}, \code{print} and \code{as.data.frame}.
 }

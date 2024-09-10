@@ -34,12 +34,12 @@ used in the model. This can be a character string naming a family function
 functions.}
 
 \item{data}{an optional data frame, list or environment containing the
-variables of the predictor model. In case the variables are not found in
+variables of the predictor model. If the formula variables are not found in
 \code{data}, they are taken from \code{environment(formula)}, typically the
 environment from which \code{GGeDS} is called.}
 
 \item{weights}{an optional vector of `prior weights' to be put on the
-observations in the fitting process in case the user requires weighted GeDS
+observations during the fitting process in case the user requires weighted GeDS
 fitting. It is \code{NULL} by default.}
 
 \item{beta}{numeric parameter in the interval \eqn{[0,1]} tuning the knot
@@ -50,12 +50,12 @@ threshold for the stopping rule  (model selector) in stage A of GeDS. See
 also \code{stoptype} and details below.}
 
 \item{min.intknots}{optional parameter allowing the user to set a minimum
-number of internal knots required. By default equal to zero.}
+number of internal knots to be fit in stage A. By default equal to zero.}
 
 \item{max.intknots}{optional parameter allowing the user to set a maximum
-number of internal knots to be added by the GeDS estimation algorithm. By
-default equal to the number of knots for the saturated GeDS model (i.e.
-\eqn{N-2}, where \eqn{N} is the number of observations).}
+number of internal knots to be added by the stage A's GeDS estimation
+algorithm. By default equal to the number of knots for the saturated GeDS
+model (i.e. \eqn{N-2}, where \eqn{N} is the number of observations).}
 
 \item{q}{numeric parameter which allows to fine-tune the stopping rule of
 stage A of GeDS, by default equal to 2. See details below.}
@@ -66,10 +66,10 @@ independent variable. See details.}
 
 \item{Yextr}{numeric vector of 2 elements representing the left-most and
 right-most limits of the interval embedding the observations of the second
-independent variable (if the bivariate GeDS is run). See details.}
+independent variable (if bivariate GeDS is run). See details.}
 
 \item{show.iters}{logical variable indicating whether or not to print
-information at each step. By default equal to \code{FALSE}.}
+information of the fit at each GeDS iteration. By default equal to \code{FALSE}.}
 
 \item{stoptype}{a character string indicating the type of GeDS stopping rule
 to be used. It should be either one of \code{"SR"}, \code{"RD"} or 
@@ -90,18 +90,18 @@ as well as S4 methods for \code{\link[=lines.GeDS]{lines}} and
 \code{\link[=plot.GeDS]{plot}}.
 }
 \description{
-\code{GGeDS} constructs a Geometrically Designed (univariate) variable knots
-spline regression model for the predictor  in the context of Generalized
-(Non-)Linear Models, referred to as a GeDS model, for a response with a
-pre-specified distribution from the Exponential Family.
+\code{GGeDS} constructs a Geometrically Designed (univariate or bivariate)
+variable knots spline regression model for the predictor in the context of
+Generalized (Non-)Linear Models. This is referred to as a GeDS model for a
+response with a distribution from the Exponential Family.
 }
 \details{
-The  \code{GGeDS} function extends the GeDS methodology, recently developed
-by Kaishev et al. (2016) and implemented in the \code{\link{NGeDS}} function
+The  \code{GGeDS} function extends the GeDS methodology, developed by
+Kaishev et al. (2016) and implemented in the \code{\link{NGeDS}} function
 for the Normal case, to the more general GNM (GLM) context, allowing for the
 response to have any distribution from the Exponential Family. Under the
 GeDS-GNM approach the (non-)linear predictor is viewed as a spline with 
-variable knots which are estimated along with the regression coefficients and
+variable knots that are estimated along with the regression coefficients and
 the order of the spline, using a two stage procedure. In stage A, a linear
 variable-knot spline is fitted to the data applying iteratively re-weighted
 least squares (see \code{\link{IRLSfit}} function). In stage B, a Schoenberg
@@ -112,11 +112,11 @@ A detailed description of the underlying algorithm can be found in
 Dimitrova et al. (2023).
 
 As noted in \code{\link[=formula.GeDS]{formula}}, the argument \code{formula}
-allows the user to specify predictor models with two components, a spline
+allows the user to specify predictor models with two components: a spline
 regression (non-parametric) component involving part of the independent
-variables identified through the function \code{f} and an optional parametric
+variables identified through the function \code{f}, and an optional parametric
 component involving the remaining independent variables. For \code{GGeDS}
-only one independent variable is allowed for the spline component and
+only one or two independent variables are allowed for the spline component and
 arbitrary many independent variables for the parametric component of the
 predictor. Failure to specify the independent variable for the  spline
 regression component through the function \code{f} will return an error.
@@ -128,15 +128,16 @@ regression coefficients equal to 1. These terms should be identified via the
 function \code{\link[stats]{offset}}.
 
 The parameter \code{beta} tunes the placement of a new knot in stage A of the
-algorithm. Once a current second-order  spline is fitted to the data the
-'working' residuals (see \code{\link{IRLSfit}}) are computed and grouped by
-their sign. A new knot is placed  at a location defined by the group for
-which a certain measure attains its maximum. The latter measure is defined as
-a weighted linear combination of the range of each group and the  mean of the
+algorithm. At the beginning of each GeDS iteration, a second-order spline is 
+fitted to the data. As follows, the 'working' residuals
+(see \code{\link{IRLSfit}}) are computed and grouped by their sign. A new knot
+is then placed at a location defined by the cluster that maximizes a certain
+measure. This measure is defined as a weighted linear combination of the range
+of the independent variable at each cluster and the  mean of the
 absolute residuals within it. The parameter \code{beta} determines the
-weights in this measure correspondingly as  \code{beta} and \code{1 - beta}.
-The  higher it is, the more weight is put to the mean of the residuals and
-the less to the range of their corresponding x-values (see
+weights in this measure correspondingly: \code{beta} and \code{1 - beta}.
+The higher \code{beta} is, the more weight is put to the mean of the
+residuals and the less to the range of their corresponding x-values (see
 Kaishev et al., 2016, for further details).
 
 The default values of \code{beta} are \code{beta = 0.5} if the response is
@@ -146,9 +147,9 @@ reflect our experience of running GeDS for different underlying functional
 dependencies.
 
 The argument \code{stoptype} allows to choose between three alternative
-stopping rules for the knot selection in stage A of GeDS, the \code{"RD"},
-that stands for \emph{Ratio of Deviances}, the \code{"SR"}, that stands for
-\emph{Smoothed Ratio} of deviances and the \code{"LR"}, that stands for
+stopping rules for the knot selection in stage A of GeDS: \code{"RD"},
+that stands for \emph{Ratio of Deviances}; \code{"SR"}, that stands for
+\emph{Smoothed Ratio} of deviances; and \code{"LR"}, that stands for
 \emph{Likelihood Ratio}. The latter is based on the difference of deviances
 rather than on their ratio as in the case of \code{"RD"} and \code{"SR"}.
 Therefore \code{"LR"} can be viewed as a log likelihood ratio test performed
@@ -164,14 +165,13 @@ the lower \code{phi} is, more knots are included in the spline regression.
 Further details for each of the three alternative stopping rules can be found
 in Dimitrova et al. (2023).
 
-The argument \code{q} is an input parameter that allows to fine-tune the
-stopping rule in stage A. It identifies the number of consecutive iterations
-over which the deviance should exhibit stable convergence so as the knot
-placement in stage A is terminated. More precisely, under any of the rules
-\code{"RD"}, \code{"SR"} or \code{"LR"} the deviance at the current iteration
-is compared to the deviance computed \code{q} iterations before, i.e. before
-selecting the last \code{q} knots. Setting a higher \code{q} will lead to
-more knots being added before exiting stage A of GeDS.
+The argument \code{q} is an input parameter that fine-tunes the stopping rule
+in stage A. It specifies the number of consecutive iterations over which the
+deviance must exhibit stable convergence to terminate knot placement in stage
+A. Specifically, under any of the rules \code{"RD"}, \code{"SR"} or
+\code{"LR"} the deviance at the current iteration is compared to the deviance
+computed \code{q} iterations before, i.e. before
+introducing the last \code{q} knots.
 }
 \examples{
 ######################################################################

@@ -18,25 +18,29 @@
 \method{coefficients}{GeDSgam}(object, n = 3L, ...)
 }
 \arguments{
-\item{object}{the  \code{\link{GeDSboost-class}} or
-\code{\link{GeDSgam-Class}} object from which the coefficients should be
+\item{object}{the \code{\link{GeDSboost-class}} or
+\code{\link{GeDSgam-class}} object from which the coefficients should be
 extracted.}
 
 \item{n}{integer value (2, 3 or 4) specifying the order (\eqn{=} degree
-\eqn{+ 1}) of the FGB-GeDS/GAM-GeDS fit whose coefficients should be
-extracted. If \code{n = 2L} piecewise polynomial coefficients of the
-univariate GeDS base-learners are provided. In the case of bivariate GeDS
-base learners and \code{class(object) == "GeDSboost"}, the B-spline
-coefficients for each iteration where a particular base-learner was selected
-are provided. In the case of bivariate base learners and
-\code{class(object) == "GeDSgam"}, the final local-scoring B-spline
-coefficients for each base-learner are provided. If \code{n = 3L} or
-\code{n = 4L} B-spline coefficients are provided. By default \code{n} is
-equal to \code{3L}. Non-integer values will be passed to the function
-\code{\link{as.integer}}.}
+\eqn{ + 1}) of the FGB-GeDS/GAM-GeDS fit whose coefficients should be
+extracted. 
+\itemize{
+ \item If \code{n = 2L} the piecewise polynomial coefficients of the univariate
+ GeDS base-learners are provided. For bivariate GeDS base-learners, and if
+  \code{class(object) == "GeDSboost"}, the B-spline coefficients for each
+ iteration where the corresponding bivariate base-learner was selected are
+ provided. For bivariate base-learners, and if
+  \code{class(object) == "GeDSgam"}, the final local-scoring B-spline
+  coefficients are provided.
+  \item If \code{n = 3L} or \code{n = 4L} B-spline coefficients are provided
+ for both univariate and bivariate GeDS learners.
+}
+By default \code{n} is equal to \code{3L}. Non-integer values will be passed
+to the function \code{\link{as.integer}}.}
 
 \item{...}{potentially further arguments (required by the definition of the
-generic function). They will be ignored, but with a warning.}
+generic function). These will be ignored, but with a warning.}
 }
 \value{
 A named vector containing the required coefficients of the fitted
@@ -45,7 +49,7 @@ multivariate predictor model.
 \description{
 Methods for the functions \code{\link[stats]{coef}} and
 \code{\link[stats]{coefficients}} that allow to extract the estimated
-coefficients of \code{\link{GeDSboost-Class}} or \code{\link{GeDSgam-Class}}
+coefficients of a \code{\link{GeDSboost-class}} or \code{\link{GeDSgam-class}}
 object.
 }
 \seealso{

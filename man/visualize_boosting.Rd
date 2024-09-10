@@ -8,7 +8,7 @@
 \method{visualize_boosting}{GeDSboost}(object, iters = NULL, final_fits = FALSE)
 }
 \arguments{
-\item{object}{a \code{\link{GeDSboost-Class}} object.}
+\item{object}{a \code{\link{GeDSboost-class}} object.}
 
 \item{iters}{numeric, specifies the iteration(s) number.}
 
@@ -18,9 +18,9 @@ cubic fits should be plotted.}
 \description{
 This function plots the \code{\link{NGeDSboost}} fit to the data at the
 beginning of a given boosting iteration and then plots the subsequent
-\code{\link{NGeDS}} fit on the corresponding residual (negative gradient).
-Note: Applicable only for \code{\link{NGeDSboost}} models with one covariate
-and \code{family = mboost::Gaussian()}.
+\code{\link{NGeDS}} fit on the corresponding negative gradient.
+Note: Applicable only for \code{\link{NGeDSboost}} models with a single
+univariate base-learner.
 }
 \examples{
 # Load packages

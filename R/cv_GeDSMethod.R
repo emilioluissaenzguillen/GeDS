@@ -6,25 +6,25 @@
 #' @title k-fold cross-validation
 #' @name crossv_GeDS
 #' @description
-#' \code{crossv_GeDS} implements k-fold cross-validation for the relevant
-#' parameters of \code{NGeDS},
-#' \code{GGeDS}, \code{NGeDSgam} and \code{NGeDSboost}
-#' @param formula a description of the structure of the model to be fitted,
+#' \code{crossv_GeDS} performs k-fold cross-validation for tuning the relevant
+#' parameters of the \code{NGeDS}, \code{GGeDS}, \code{NGeDSgam}, and
+#' \code{NGeDSboost} models.
+#' @param formula a description of the structure of the model structure,
 #' including the dependent and independent variables.
 #' @param data a data frame containing the variables referenced in the formula.
 #' @param model_fun the GeDS model to be fitted, that is, \code{NGeDS},
 #' \code{GGeDS}, \code{NGeDSgam} or \code{NGeDSboost}.
-#' @param parameters to cross-validate. \code{beta}, \code{phi} and \code{q} in
-#' the case of \code{NGeDS}, \code{GGeDS} and \code{NGeDSgam}. In addition, for
-#' \code{NGeDSboost}, \code{int.knots_init}, \code{shrinkage} can also be tuned.
-#' Default values are \code{int.knots_init_grid = c(0, 1, 2)},
+#' @param parameters to tune via cross-validation. These are: \code{beta}, \code{phi} and
+#' \code{q} in the case of \code{NGeDS}, \code{GGeDS} and \code{NGeDSgam}. In
+#' addition, for \code{NGeDSboost}, \code{int.knots_init} and \code{shrinkage}
+#' can also be tuned. Default values are \code{int.knots_init_grid = c(0, 1, 2)},
 #' \code{shrinkage_grid = c(0.1, 0.5, 1)}, \code{beta_grid = c(0.3, 0.5, 0.7)},
 #' \code{phi_grid = c(0.9, 0.95, 0.99)}, \code{q_grid = c(2, 3))}.
 #'
 #' @return Two data frames, \code{best_params} and \code{results}.
 #' \code{best_params} contains the best combination of parameters according to
 #' the cross-validated MSE. \code{results} presents the results for each of the
-#' possible combinations of parameters, given the input \code{paramters}.
+#' possible combinations of parameters, given the input \code{parameters}.
 #' @export
 #' @importFrom foreach foreach %dopar%
 #' @importFrom doParallel registerDoParallel

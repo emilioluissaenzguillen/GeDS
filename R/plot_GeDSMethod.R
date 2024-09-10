@@ -611,17 +611,31 @@ setMethod("plot", signature(x = "GeDS"), function(x, f = NULL, which, DEV = FALS
 #' @title Plot method for GeDSboost objects.
 #' @name plot,GeDSboost-method
 #' @description
-#' Plots the component functions of a GeDSboost object fitted using \code{\link{NGeDSboost}}.
-#' @param x a \code{\link{GeDSboost-class}} object from which the GeDSboost fit(s) should
-#' be extracted.
+#' #' Plots the component functions of a GeDSboost object fitted using
+#' #' \code{\link{NGeDSboost}}. If the model has a single base-learner, the plot
+#' will be returned on the response scale. Otherwise, plots are produced on the
+#' linear predictor scale. Note that only univariate base-learner plots are
+#' returned, as representation of the boosted model as a single spline model is
+#' available only for univariate base-learners (see Dimitrova et al. (2024)). In
+#' addition since component-wise gradient boosting inherently performs base-learner
+#' selection, you should only expect plots for the base-learners that where selected
+#' across the boosting iterations.
+#' @param x a \code{\link{GeDSboost-class}} object from which the GeDSboost fit
+#' should be extracted.
 #' @param n integer value (2, 3 or 4) specifying the order (\eqn{=} degree
-#' \eqn{+ 1}) of the FGB-GeDS fit.
+#' \eqn{+ 1}) of the FGB-GeDS fit to be extracted.
 #' @param ... further arguments to be passed to the
 #' \code{\link[graphics]{plot.default}} function.
 #' 
 #' @export 
 #' 
-#' @aliases plot.GeDSboost
+#' @aliases plot.GeDSboost plot,GeDSboost-method plot,GeDSboost,ANY-method
+#' 
+#' @references
+#' Dimitrova, D. S., Guillen, E. S. and Kaishev, V. K.  (2024).
+#' \pkg{GeDS}: An \proglang{R} Package for Regression, Generalized Additive
+#' Models and Functional Gradient Boosting, based on Geometrically Designed
+#' (GeD) Splines. \emph{Manuscript submitted for publication.}
 
 setMethod("plot", signature(x = "GeDSboost"), function(x, n = 3L,...)
 {
@@ -700,7 +714,8 @@ setMethod("plot", signature(x = "GeDSboost"), function(x, n = 3L,...)
     
     # Plot only base-learners that were selected
     bl_selected <- unique(unlist(lapply(x$models, function(model) model$best_bl$name)))
-    base_learners <- base_learners[bl_selected]
+    # Keep the order of base_learners, but only include those that are in bl_selected
+    base_learners <- base_learners[names(sapply(base_learners, function(learner) learner$name %in% bl_selected))]
     
     Y <- x$args$response[[1]]; pred_vars <- x$args$predictors
     
@@ -789,7 +804,8 @@ setMethod("plot", signature(x = "GeDSboost"), function(x, n = 3L,...)
 #' @title Plot method for GeDSgam objects.
 #' @name plot,GeDSgam-method
 #' @description
-#' Plots the component functions of a GeDSgam object fitted using \code{\link{NGeDSgam}}.
+#' Plots on the linear predictor scale the component functions of a GeDSgam
+#' object fitted using \code{\link{NGeDSgam}}.
 #' 
 #' @param x a \code{\link{GeDSgam-class}} object from which the GeDSgam fit(s) should
 #' be extracted.
@@ -802,7 +818,7 @@ setMethod("plot", signature(x = "GeDSboost"), function(x, n = 3L,...)
 #' @importFrom plot3D persp3D segments3D
 #' @importFrom graphics barplot par
 #' 
-#' @aliases plot.GeDSgam
+#' @aliases plot.GeDSgam plot,GeDSgam-method plot,GeDSgam,ANY-method
 
 setMethod("plot", signature(x = "GeDSgam"), function(x, n = 3L, ...)
 {

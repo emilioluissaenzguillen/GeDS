@@ -31,8 +31,7 @@ NGeDSboost(
 including the dependent and independent variables. Unlike \code{\link{NGeDS}}
 and \code{\link{GGeDS}}, the formula specified allows for multiple additive
 GeD spline regression components (as well as linear components) to be
-included (e.g., \code{Y ~ f(X1) + f(X2) + X3}).
-See \code{\link[=formula.GeDS]{formula}} for further details.}
+included (e.g., \code{Y ~ f(X1) + f(X2) + X3}).}
 
 \item{data}{a data frame containing the variables referenced in the formula.}
 
@@ -44,9 +43,9 @@ formula.}
 \item{normalize_data}{a logical that defines whether the data should be
 normalized (standardized) before fitting the baseline linear model, i.e.,
 before running the FGB algorithm. Normalizing the data involves scaling the
-predictor variables to have a mean of 0 and a standard deviation of 1. This
-process alters the scale and interpretation of the knots and coefficients
-estimated. Default is equal to \code{FALSE}.}
+predictor variables to have a mean of 0 and a standard deviation of 1. Note
+that this process alters the scale and interpretation of the knots and
+coefficients estimated. Default is equal to \code{FALSE}.}
 
 \item{family}{determines the loss function to be optimized by the boosting
 algorithm. In case \code{initial_learner = FALSE} it also determines the
@@ -54,14 +53,13 @@ corresponding empirical risk minimizer to be used as offset initial learner.
 By default, it is set to \code{mboost::Gaussian()}. Users can specify any
 \code{\link[mboost]{Family}} object from the \pkg{mboost} package.}
 
-\item{link}{in case the \code{\link[mboost]{Family}} object has not the desired
-link function you can specify it here.}
+\item{link}{in case the \code{\link[mboost]{Family}} object has not
+the desired link function you can specify it here.}
 
 \item{initial_learner}{a logical value. If set to \code{TRUE}, the model's
-initial learner will be a normal GeD spline. If set to FALSE, then the
+initial learner will be a GeD spline. If set to \code{FALSE}, then the
 initial predictor will consist of the empirical risk minimizer corresponding
-to the specified family. Note that if \code{initial_learner = TRUE},
-\code{family} must be \code{mboost::Gaussian()}.}
+to the specified \code{family}.}
 
 \item{int.knots_init}{optional parameter allowing the user to set a
 maximum number of internal knots to be added by the initial GeDS learner in
@@ -131,7 +129,7 @@ order to make these objects tractable, such as
 (\code{\link[=visualize_boosting.GeDSboost]{visualize_boosting}}).
 }
 \description{
-\code{NGeDSboost} performs component-wise gradient boosting (Bühlmann and Yu
+\code{NGeDSboost} implements component-wise gradient boosting (Bühlmann and Yu
 (2003), Bühlmann and Hothorn (2007)) using normal GeD splines (i.e., fitted
 with \code{\link{NGeDS}} function) as base-learners (see Dimitrova et al. (2024)).
 }

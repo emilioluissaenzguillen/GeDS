@@ -7,8 +7,8 @@
 #' @name BivariateFitters
 #' @aliases BivariateFitters BivariateFitter
 #' @description
-#' These are computing engines called by \code{\link{NGeDS}}, needed for the
-#' underlying fitting procedures.
+#' These are computing engines called by \code{\link{NGeDS}} and
+#' \code{\link{GGeDS}}, needed for the underlying fitting procedures.
 #' @param X a numeric vector containing \eqn{N} sample values of the first
 #' independent variable chosen to enter the spline regression component of the
 #' predictor model.
@@ -30,7 +30,8 @@
 #' \code{\link[stats]{gaussian}}) or the result of a call to a family function
 #' (e.g. \code{gaussian()}). See \link[stats]{family} for details on family
 #' functions.
-#' @param Indicator contingency table of \code{X} and \code{Y}.
+#' @param Indicator contingency table (i.e., frequency of observations) for the
+#' independent variables \code{X} and \code{Y}.
 #' @param beta numeric parameter in the interval \eqn{[0,1]} tuning the knot
 #' placement in stage A of GeDS. See the description of \code{\link{NGeDS}} or
 #' \code{\link{GGeDS}}.
@@ -38,12 +39,12 @@
 #' threshold for the stopping rule  (model selector) in stage A of GeDS. See
 #' also \code{stoptype} and details in the description of \code{\link{NGeDS}} or
 #' \code{\link{GGeDS}}.
-#' @param min.intknots optional parameter allowing the user to set a minimum
-#' number of internal knots required. By default equal to zero.
+#' @param min.intknots optional parameter specifying the minimum number of
+#' internal knots required in Stage A's fit. Default is zero.
 #' @param max.intknots optional parameter allowing the user to set a maximum
-#' number of internal knots to be added by the GeDS estimation algorithm. By
-#' default equal to the number of internal knots \eqn{\kappa} for the saturated
-#' GeDS model (i.e. \eqn{\kappa=N-2}).
+#' number of internal knots to be added in Stage A by the GeDS estimation
+#' algorithm. Default equals the number of internal knots \eqn{\kappa} for the
+#' saturated GeDS model (i.e. \eqn{\kappa=N-2}).
 #' @param q numeric parameter which allows to fine-tune the stopping rule of
 #' stage A of GeDS, by default equal to 2. See details in the description of
 #' \code{\link{NGeDS}} or \code{\link{GGeDS}}.
@@ -51,8 +52,8 @@
 #' the range of \code{X}.
 #' @param Yextr boundary knots in the \code{Y} direction. By default equal to
 #' the range of \code{Y}.
-#' @param show.iters logical variable indicating whether or not to print 
-#' information at each step. By default equal to \code{FALSE}.
+#' @param show.iters logical variable indicating whether or not to print fitting
+#' information at each step. Default is \code{FALSE}.
 #' @param stoptype a character string indicating the type of GeDS stopping rule
 #' to be used. It should be either \code{"SR"}, \code{"RD"} or \code{"LR"},
 #' partial match allowed. See details of \code{\link{NGeDS}} or
@@ -60,18 +61,22 @@
 #' @param tol numeric value indicating the tolerance to be used in checking
 #' whether two knots should be considered different during the knot placement
 #' steps in stage A.
-#' @param higher_order a logical that defines whether to compute the higher
+#' @param higher_order a logical defining whether to compute the higher
 #' order fits (quadratic and cubic) after stage A is run. Default is
 #' \code{TRUE}.
-#' @param Xintknots vector of starting internal knots in the \code{X} direction.
-#' Default is \code{NULL}.
-#' @param Yintknots vector of starting internal knots in the \code{Y} direction.
-#' Default is \code{NULL}.
+#' @param Xintknots a vector of starting internal knots in the \code{X} direction. 
+#' Allows the user to begin Stage A's GeDS algorithm with a linear spline fit
+#' using a predefined vector of internal \code{X} knots, instead of starting with
+#' a straight line fit. Default is \code{NULL}.
+#' @param Yintknots a vector of starting internal knots in the \code{Y} direction. 
+#' Allows the user to begin Stage A's GeDS algorithm with a linear spline fit
+#' using a predefined vector of internal \code{X} knots, instead of starting with
+#' a straight line fit. Default is \code{NULL}.
 #' 
 #' @return A \code{\link{GeDS-Class}} object, but without the \code{Formula},
 #' \code{extcall}, \code{terms} and \code{znames} slots.
 #' 
-#' @seealso \code{\link{NGeDS}} and \code{\link{UnivariateFitters}}.
+#' @seealso \code{\link{NGeDS}}, \code{\link{GGeDS}} and \code{\link{UnivariateFitters}}.
 #' 
 #' @export
 #' @rdname BivariateFitters

@@ -125,7 +125,7 @@ SplineReg_LM_Multivar <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)), base
   # Convert any factor columns in Z to dummy variables
   if (!is.null(Z) && NCOL(Z) > 0) {
     Z <- model.matrix(~ ., data = Z)
-    if (!linear_intercept) Z <-  Z[, colnames(Z) != "(Intercept)"]
+    if (!linear_intercept) Z <-  Z[, colnames(Z) != "(Intercept)", drop = FALSE]
     } else {
       Z <- NULL
     }
@@ -382,12 +382,13 @@ SplineReg_GLM_Multivar <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)), bas
     # tmp <- IRLSfit(basisMatrix2, Y, offset = offset,
     #                family=family, mustart = mustart, weights = weights)
     # tmp <- glm.fit(basisMatrix2, Y, family = family,
-    #                weights = as.numeric(weights), mustart = mustart)
+    #                weights = weights, mustart = mustart)
+    tmp <- glm(Y ~ -1 + basisMatrix2, family = family, weights = weights, mustart = mustart)
     
-    tmp <- glm(Y ~ -1 + basisMatrix2, family = family, weights = weights)
-    
+    # Extract fitted coefficients
     theta <- coef(tmp)
     names(theta) <- sub("basisMatrix2", "", names(theta))
+    # Compute predicted mean values of the response variable
     # predicted <- family$linkinv(basisMatrix2%*%theta + offset)
     predicted <- family$linkinv(tmp$linear.predictors + offset)
     

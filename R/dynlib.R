@@ -45,9 +45,10 @@ NULL
 #' order to model the diffraction profile.
 #' 
 #' @format A \code{data.frame} with 1151 cases and 2 variables:
-#' \describe{
-#'   \item{angle}{ the dispersion angle, viewed as the independent variable.}
-#'   \item{intensity}{ the neutron diffraction intensity, viewed as the response variable.}
+#' \itemize{
+#'   \item{angle}: the dispersion angle, viewed as the independent variable.
+#'   \item{intensity}: the neutron diffraction intensity, viewed as the response
+#'   variable.
 #' }
 #' @usage data(BaFe2As2)
 #' @source \href{https://openaccess.city.ac.uk/12418/}{openaccess.city.ac.uk}
@@ -92,9 +93,9 @@ NULL
 #' 
 #' @format A \code{data.frame} with 112 entries, corresponding to the
 #' years from 1850 to 1962. Each entry has:
-#' \describe{
-#'   \item{accidents}{ number of severe accidents that have occurred each year.}
-#'   \item{years}{ year during which accidents occurred.}
+#' \itemize{
+#'   \item{accidents}: number of severe accidents that have occurred each year.
+#'   \item{years}: year during which the accidents occurred.
 #' }
 #' @usage data(coalMining)
 #' @source \url{https://people.reed.edu/~jones/141/Coal.html}

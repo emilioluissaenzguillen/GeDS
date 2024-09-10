@@ -21,7 +21,7 @@ covariates, specification of further arguments will return an error.}
 }
 \description{
 In general the GeDS predictor model may include a GeD spline regression
-component with respect to part of the independent variables and a parametric
+component with respect to one or two independent variables and a parametric
 component in which the remaining covariates may enter as additive terms.
 
 The function \code{f} is to be used in the
