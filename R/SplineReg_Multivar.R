@@ -275,67 +275,71 @@ SplineReg_GLM_Multivar <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)), bas
   InterKnotsList_biv <- InterKnotsList[!names(InterKnotsList) %in% names(InterKnotsList_univ)]
   
   # Select GeDS base-learners
-  base_learners =  base_learners[sapply(base_learners, function(x) x$type == "GeDS")]
-  univariate_learners <- bivariate_learners <- NULL
-  # Univariate
-  if (length(InterKnotsList_univ) != 0){
-    # Create a list to store individual design matrices
-    univariate_learners <- base_learners[sapply(base_learners, function(bl) length(bl$variables)) == 1]
-    univariate_vars <- sapply(univariate_learners, function(bl) bl$variables)
-    X_univ <- X[, univariate_vars, drop = FALSE]
-    extrList = lapply(X_univ, range)
-    matrices_univ_list <- vector("list", length = ncol(X_univ))
-    # Generate design matrices for each predictor
-    for (j in 1:ncol(X_univ)) {
-      matrices_univ_list[[j]] <- splineDesign(knots = sort(c(InterKnotsList_univ[[j]], rep(extrList[[j]], n))),
-                                              derivs = rep(0, length(X_univ[,j])), x = X_univ[,j], ord = n, outer.ok = TRUE)
-    }
-    names(matrices_univ_list) <- names(univariate_learners)
-    
-    # Assign base-learner name to the columns of each of the matrices
-    for (matrix_name in names(matrices_univ_list)) {
-      num_cols <- ncol(matrices_univ_list[[matrix_name]])
-      col_names <- paste(matrix_name, 1:num_cols, sep = "_")
-      colnames(matrices_univ_list[[matrix_name]]) <- col_names
-    }
-    
-  } else {
-    matrices_univ_list <- NULL
-  }
-  # Bivariate
-  if (length(InterKnotsList_biv) != 0){
-    bivariate_learners <- base_learners[sapply(base_learners, function(bl) length(bl$variables)) == 2]
-    matrices_biv_list <- list()
-    matrices_biv_list_aux <- list()
-    
-    for(learner_name in names(bivariate_learners)){
-      vars <- bivariate_learners[[learner_name]]$variables
-      X_biv <- X[, vars, drop = FALSE]
-      Xextr = range(X_biv[,1])
-      Yextr = range(X_biv[,2])
-      knots <- InterKnotsList_biv[[learner_name]]
-      basisMatrixX <- splineDesign(knots=sort(c(knots$ikX,rep(Xextr,n))), derivs=rep(0,length(X_biv[,1])),
-                               x=X_biv[,1],ord=n,outer.ok = TRUE)
-      basisMatrixY <- splineDesign(knots=sort(c(knots$ikY,rep(Yextr,n))),derivs=rep(0,length(X_biv[,2])),
-                               x=X_biv[,2],ord=n,outer.ok = TRUE)
-      
-      # To help saving control polygon knots afterwards
-      matrices_biv_list_aux[[learner_name]] <- list(basisMatrixX, basisMatrixY)
-      names(matrices_biv_list_aux[[learner_name]]) <- vars
-      
-      basisMatrixY_noint <- cut_int(basisMatrixY)
-      matrices_biv_list[[learner_name]] <- tensorProd(basisMatrixX,basisMatrixY_noint)
+  if (length(base_learners) != 0) {
+    base_learners =  base_learners[sapply(base_learners, function(x) x$type == "GeDS")]
+    univariate_learners <- bivariate_learners <- NULL
+    # Univariate
+    if (length(InterKnotsList_univ) != 0){
+      # Create a list to store individual design matrices
+      univariate_learners <- base_learners[sapply(base_learners, function(bl) length(bl$variables)) == 1]
+      univariate_vars <- sapply(univariate_learners, function(bl) bl$variables)
+      X_univ <- X[, univariate_vars, drop = FALSE]
+      extrList = lapply(X_univ, range)
+      matrices_univ_list <- vector("list", length = ncol(X_univ))
+      # Generate design matrices for each predictor
+      for (j in 1:ncol(X_univ)) {
+        matrices_univ_list[[j]] <- splineDesign(knots = sort(c(InterKnotsList_univ[[j]], rep(extrList[[j]], n))),
+                                                derivs = rep(0, length(X_univ[,j])), x = X_univ[,j], ord = n, outer.ok = TRUE)
+      }
+      names(matrices_univ_list) <- names(univariate_learners)
       
       # Assign base-learner name to the columns of each of the matrices
-      for (matrix_name in names(matrices_biv_list)) {
-        num_cols <- ncol(matrices_biv_list[[matrix_name]])
+      for (matrix_name in names(matrices_univ_list)) {
+        num_cols <- ncol(matrices_univ_list[[matrix_name]])
         col_names <- paste(matrix_name, 1:num_cols, sep = "_")
-        colnames(matrices_biv_list[[matrix_name]]) <- col_names
+        colnames(matrices_univ_list[[matrix_name]]) <- col_names
       }
       
+    } else {
+      matrices_univ_list <- NULL
+    }
+    # Bivariate
+    if (length(InterKnotsList_biv) != 0) {
+      bivariate_learners <- base_learners[sapply(base_learners, function(bl) length(bl$variables)) == 2]
+      matrices_biv_list <- list()
+      matrices_biv_list_aux <- list()
+      
+      for(learner_name in names(bivariate_learners)){
+        vars <- bivariate_learners[[learner_name]]$variables
+        X_biv <- X[, vars, drop = FALSE]
+        Xextr = range(X_biv[,1])
+        Yextr = range(X_biv[,2])
+        knots <- InterKnotsList_biv[[learner_name]]
+        basisMatrixX <- splineDesign(knots=sort(c(knots$ikX,rep(Xextr,n))), derivs=rep(0,length(X_biv[,1])),
+                                     x=X_biv[,1],ord=n,outer.ok = TRUE)
+        basisMatrixY <- splineDesign(knots=sort(c(knots$ikY,rep(Yextr,n))),derivs=rep(0,length(X_biv[,2])),
+                                     x=X_biv[,2],ord=n,outer.ok = TRUE)
+        
+        # To help saving control polygon knots afterwards
+        matrices_biv_list_aux[[learner_name]] <- list(basisMatrixX, basisMatrixY)
+        names(matrices_biv_list_aux[[learner_name]]) <- vars
+        
+        basisMatrixY_noint <- cut_int(basisMatrixY)
+        matrices_biv_list[[learner_name]] <- tensorProd(basisMatrixX,basisMatrixY_noint)
+        
+        # Assign base-learner name to the columns of each of the matrices
+        for (matrix_name in names(matrices_biv_list)) {
+          num_cols <- ncol(matrices_biv_list[[matrix_name]])
+          col_names <- paste(matrix_name, 1:num_cols, sep = "_")
+          colnames(matrices_biv_list[[matrix_name]]) <- col_names
+        }
+        
+      }
+    } else {
+      matrices_biv_list <- NULL
     }
   } else {
-    matrices_biv_list <- NULL
+    matrices_univ_list <- matrices_biv_list <- NULL
   }
   
   # Combine all matrices side-by-side
@@ -383,7 +387,12 @@ SplineReg_GLM_Multivar <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)), bas
     #                family=family, mustart = mustart, weights = weights)
     # tmp <- glm.fit(basisMatrix2, Y, family = family,
     #                weights = weights, mustart = mustart)
-    tmp <- glm(Y ~ -1 + basisMatrix2, family = family, weights = weights, mustart = mustart)
+    tmp <- tryCatch({
+      glm(Y ~ -1 + basisMatrix2, family = family, weights = weights, mustart = mustart)
+      }, error = function(e) {
+        # If glm throws an error, fallback to IRLSfit
+        IRLSfit(basisMatrix2, Y, offset = offset, family = family, mustart = mustart, weights = weights)
+        })
     
     # Extract fitted coefficients
     theta <- coef(tmp)

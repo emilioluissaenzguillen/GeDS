@@ -847,30 +847,30 @@ placeKnot <- function(Dim, Dim.intknots, matr, Indicator, FixedDim, ordFixedDim,
   # Initialize counter for clusters
   kk <- 1
   
-  # Loop through each FixedDim interval to form clusters and determine Dim knot placement
+  # Loop through each FixedDim strip to form clusters and determine Dim knot placement
   for (i in 1:nintFixedDim) {
-    # Check if the current FixedDim interval contains data points
+    # Check if the current FixedDim strip contains data points
     if (!zeroesFixedDim[i]) {
-      # i. Handle the first FixedDim interval separately
+      # i. Handle the first FixedDim strip separately
       if (i == 1) {
-        # Extract the Dim values corresponding to the first FixedDim interval
+        # Extract the Dim values corresponding to the first FixedDim strip
         tmpDim <- matrFixedDim[1:dcumFixedDim[i], Dim.index]
-        # If the interval contains more than one data point, sort the matrix by Dim values
+        # If the strip contains more than one data point, sort the matrix by Dim values
         if (length(tmpDim) > 1) {
           matrFixedDim[1:dcumFixedDim[i],] <- matrFixedDim[1:dcumFixedDim[i],][order(tmpDim),]
         }
-        # Extract the residuals within the first FixedDim interval
+        # Extract the residuals within the first FixedDim strip
         tmpR <- matrFixedDim[1:dcumFixedDim[i], 3]
         
         # ii. Rest of FixedDim intervals
       } else {
-        # Extract the Dim values corresponding to the current FixedDim interval
+        # Extract the Dim values corresponding to the current FixedDim strip
         tmpDim <- matrFixedDim[(dcumFixedDim[i - 1] + 1):dcumFixedDim[i], Dim.index]
-        # If the interval contains more than one data point, sort the matrix by Dim values
+        # If the strip contains more than one data point, sort the matrix by Dim values
         if (length(tmpDim) > 1) {
           matrFixedDim[(dcumFixedDim[i - 1] + 1):dcumFixedDim[i],] <- matrFixedDim[(dcumFixedDim[i - 1] + 1):dcumFixedDim[i],][order(tmpDim),]
         }
-        # Extract the residuals within the current FixedDim interval
+        # Extract the residuals within the current FixedDim strip
         tmpR <- matrFixedDim[(dcumFixedDim[i - 1] + 1):dcumFixedDim[i], 3]
       }
       # Group the consecutive residuals into clusters by their sign
@@ -930,19 +930,34 @@ placeKnot <- function(Dim, Dim.intknots, matr, Indicator, FixedDim, ordFixedDim,
     inf <- matrFixedDim[dcumInf, Dim.index]
     
     # (Step 7 - UnivariateFitter) Compute the new Dim knot as a weighted average of Dim values
-    # within the selected cluster, weighted by their residuals 
+    # within the selected cluster, weighted by their residuals
     Dim.newknot <- matrFixedDim[dcumSup:dcumInf, 3]%*%matrFixedDim[dcumSup:dcumInf, Dim.index]/sum(matrFixedDim[dcumSup:dcumInf, 3])
-    
+
     # Check conditions to ensure the new knot is valid and does not conflict with existing knots
     # This involves ensuring there are no existing knots within the bounds of the selected cluster
-    if (
-      (((dcumSup - dcumInf) != 0) && (!any((Dim.intknots >= inf) * (Dim.intknots <= sup))))  ||
-      ((dcumSup - dcumInf) == 0 && (dcumInf == 1 || dcumSup == length(FixedDim))) # for the case in which the entire set is within one cluster
-    ) {
+    cond1 <- (dcumSup - dcumInf) != 0
+    cond2 <- !any( Dim.intknots >= inf & Dim.intknots <= sup ) # no previous knot within the cluster
+    cond3 <- !any( abs(inf - c(Dim.intknots, range(matr[,Dim.index])) ) < as.double(1e-12) ) # no previous knot arbitrarily close to the singleton
+
+    if ( cond1 && cond2 || !cond1 && cond3 ) {
       break # If conditions are met, exit the loop as a valid knot has been found
     } else {
       Dim.weights[indice] <- -Inf # Invalidate the current cluster by setting its weight to negative infinity and continue the search
     }
+    
+    
+    # # Check conditions to ensure the new knot is valid and does not conflict with existing knots
+    # # This involves 
+    # cond1 <- (dcumSup - dcumInf) != 0
+    # cond2 <- !any((Dim.intknots >= inf) & (Dim.intknots <= sup)) # ensure there are no previous knots within the bounds of the selected cluster
+    # cond3 <- dcumInf == 1 || dcumSup == length(FixedDim) # for the case in which the entire set is within one cluster
+    # if ( (cond1 && cond2) || ( !cond1 && cond3 ) ) {
+    #   break # If conditions are met, exit the loop as a valid knot has been found
+    # } else {
+    #   Dim.weights[indice] <- -Inf # Invalidate the current cluster by setting its weight to negative infinity and continue the search
+    # }
+    
+    
   }
   
   weightDim <- Dim.weights[indice] # Store the weight of the selected cluster for further use

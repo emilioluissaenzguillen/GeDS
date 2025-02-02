@@ -9,12 +9,19 @@
 #' This function computes defined integrals of a fitted GeDS regression model.
 #' @param object the \code{\link{GeDS-class}} object containing the  GeDS fit
 #' which should be integrated. It should be the result of fitting a univariate
-#' GeDS regression via \code{\link{NGeDS}} or \code{\link{GGeDS}}.
-#' @param to numeric vector containing the upper limit(s) of integration.
+#' GeDS regression via \code{\link{NGeDS}} or \code{\link{GGeDS}}. If this is
+#' provided, the \code{knots} and \code{coef} parameters will be automatically
+#' extracted from the \code{GeDS} object. If \code{object} is \code{NULL}, the
+#' user must provide the \code{knots} and \code{coef} vectors explicitly.
+#' @param knots a numeric vector of knots. This is required if \code{object} is 
+#'   \code{NULL}. If a \code{GeDS} object is provided, this parameter is ignored.
+#' @param coef a numeric vector of coefficients. This is required if \code{object} is 
+#'   \code{NULL}. If a \code{GeDS} object is provided, this parameter is ignored
 #' @param from optional numeric vector containing the lower limit(s) of
 #' integration. It should be either of size one or of the same size as the
 #' argument \code{to}. If left unspecified, by default it is set to the left-most
 #' limit of the interval embedding the observations of the independent variable.
+#' @param to numeric vector containing the upper limit(s) of integration.
 #' @param n integer value (2, 3 or 4) specifying the order (\eqn{=} degree
 #' \eqn{ + 1}) of the GeDS fit to be integrated. By default equal to \code{3L}.
 #' Non-integer values will be passed to the function \code{\link{as.integer}}.
@@ -74,32 +81,58 @@
 #' De Boor, C. (2001). \emph{A Practical Guide to Splines (Revised Edition)}.
 #' Springer, New York.
 
-Integrate <- function(object, to, from, n = 3L)
-  {
-  if (!inherits(object, "GeDS")) stop("incorrect object class")
+Integrate <- function(object = NULL, knots = NULL, coef = NULL, from, to, n = 3L)
+{
+  # If object is not NULL, check if it's a GeDS object
+  if (!is.null(object)) {
+    if (!inherits(object, "GeDS")) stop("Incorrect object class")
+    if(!is.null(knots) || !is.null(coef)) {
+      warning("object and knots/coefficients were providely simultaneously, integral will be computed from object")
+    }
+    
+    # Extract knots and coefficients from the GeDS object
+    kn <- knots(object, n=n, options="all")
+    lastkn <- length(kn)
+    theta <- coef(object, n = n)
+  } else {
+    # If object is NULL, ensure knots and coefficients are provided
+    if (is.null(knots) || is.null(coef)) {
+      stop("Either provide a GeDS object or specify knots and coefficients")
+    }
+    if ( length(coef) != length(knots)-n ) stop("length(coef) should be equal to length(knots)-n!")
+    kn <- knots; lastkn <- length(kn); theta <- coef
+  }
+  
+  n <- as.integer(n)
+  if(!(n %in% 2L:4L)) {
+    n <- 3L
+    warning("'n' incorrectly specified. Set to 3.")
+  }
+  
   to <- as.numeric(to)
-  l <- length(to)
-  n <- as.numeric(n)
-  if(missing(from)){
-    from = min(knots(object, n=n, options="all"))
+  if (missing(from)) {
+    from = min(kn)
   } else {
     from <- as.numeric(from)
   }
-  if(!length(from) %in% c(1,length(to))) stop("length of argument 'from' must be either 1 or length(to)")
-
-  kn <- knots(object , options = "all", n = n)
-  lastkn <- length(kn)
-  thetas <- coef(object, n = n)
-
-  newtheta <- numeric(length(thetas))
+  
+  if (!length(from) %in% c(1,length(to))) stop("length of argument 'from' must be either 1 or length(to)")
+  
+  # coefficents
+  p <- length(theta)
+  newtheta <- numeric(p)
+  # knots: (t_{k+n} - t_{k})/n
   knnew <- (kn[-(1:n)]-kn[-((lastkn-n+1):lastkn)])/n
-  newtheta[1] <- thetas[1]*knnew[1]
-  for(i in 2:(length(thetas))){
-    newtheta[i] <- newtheta[i-1]+thetas[i]*knnew[i]
+  
+  # \sum_{j=1}^{s-1}\sum_{k=1}^j\theta_k\frac{\bar{\tau}_{k+n}-\bar{\tau}_{k}}{n} * N_{j,n+1}(x)
+  newtheta[1] <- theta[1]*knnew[1]
+  for(i in 2:p) {
+    newtheta[i] <- newtheta[i-1] + theta[i]*knnew[i]
   }
-  resTo <- sapply(to, gedsint, knts = kn, coefs = newtheta, n = n)
+  
   resFrom <- sapply(from, gedsint, knts = kn, coefs = newtheta, n = n)
-
+  resTo <- sapply(to, gedsint, knts = kn, coefs = newtheta, n = n)
+  
   res <- rowSums(cbind(resTo,-resFrom))
   return(res)
 }

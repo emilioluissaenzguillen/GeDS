@@ -140,7 +140,7 @@
 setMethod("plot", signature(x = "GeDS"), function(x, f = NULL, which, DEV = FALSE, ask = FALSE,
                                                   main, legend.pos = "topright",
                                                   new.window = FALSE, wait = 0.5,
-                                                  n=3L, type = c("none", "Polygon", "NCI", "ACI"), ...)
+                                                  n = 3L, type = c("none", "Polygon", "NCI", "ACI"), ...)
 {
   results <- list()
   results$terms <- x$terms
@@ -185,10 +185,10 @@ setMethod("plot", signature(x = "GeDS"), function(x, f = NULL, which, DEV = FALS
   # Set toprint
   if (n == 2L) {
     toprint = "Linear"
-  } else if (n==3L){
+  } else if (n==3L) {
     toprint = "Quadratic"
-  } else if (n==4L) {
-    toprint = "Cubic"
+    } else if (n==4L) {
+      toprint = "Cubic"
   }
   
   maxim <- nrow(x$Stored) # number of iterations in stage A
@@ -512,7 +512,7 @@ setMethod("plot", signature(x = "GeDS"), function(x, f = NULL, which, DEV = FALS
     }
     
     # Extract parametric component of the predictor model + X, Y extremes
-    W <- x$Args$W; Xextr <- x$Args$Yextr; Yextr <- x$Args$Yextr
+    W <- x$Args$W; Xextr <- x$Args$Xextr; Yextr <- x$Args$Yextr
     
     if (!is.null(f)) {
       if (!is.function(f)) {
@@ -532,8 +532,8 @@ setMethod("plot", signature(x = "GeDS"), function(x, f = NULL, which, DEV = FALS
       # Compute z for each x, y in the grid
       f_XY_val <- matrix(f(grid_val), nrow = round(sqrt(length(X))))
       # Title based on the number of internal knots in X and Y
-      title <- paste(x$Nintknots$X, "linear internal knots on X,",
-                     x$Nintknots$Y, "linear internal knots on Y")
+      title <- paste0(x$Nintknots$X, " internal knots in X and ",
+                      x$Nintknots$Y ," internal knots in Y" )
       
       # Plot
       persp3D(x = seq_valX, y = seq_valY, z = f_XY_val, main = title, phi = 25, theta = 50,
@@ -551,42 +551,47 @@ setMethod("plot", signature(x = "GeDS"), function(x, f = NULL, which, DEV = FALS
       
     } else {
       
+      df <- data.frame(X,Y)
+      
       # Create a sequence of sqrt(obs) evenly spaced numbers over the range of X/Y
       newX <- seq(from = Xextr[1], to = Xextr[2], length.out = round(sqrt(length(X))))
       newY <- seq(from = Yextr[1], to = Yextr[2], length.out = round(sqrt(length(Y))))
+      
       # Create a grid data frame from all combinations of newX and newY
       grid.data <- expand.grid(newX, newY)
       
       # Generate spline basis matrix for X and Y dimensions using object knots and given order
-      matriceX <- splineDesign(knots = obj$Xknots, derivs = rep(0,length(grid.data[,1])),
-                               x = grid.data[,1], ord = n, outer.ok = T)
-      matriceY <- splineDesign(knots = obj$Yknots, derivs = rep(0,length(grid.data[,2])),
-                               x = grid.data[,2], ord = n, outer.ok = T)
+      basisMatrixX <- splineDesign(knots = obj$Xknots, derivs = rep(0,length(grid.data[,1])),
+                                   x = grid.data[,1], ord = n, outer.ok = T)
+      basisMatrixY <- splineDesign(knots = obj$Yknots, derivs = rep(0,length(grid.data[,2])),
+                                   x = grid.data[,2], ord = n, outer.ok = T)
+      basisMatrixY_noint <- cut_int(basisMatrixY)
       # Calculate the tensor product of X and Y spline matrices to create a bivariate spline basis
-      matricebiv <- tensorProd(matriceX, matriceY)
+      basisMatrixBiv <- tensorProd(basisMatrixX,basisMatrixY_noint)
       # Multiply the bivariate spline basis by model coefficients to get fitted values
-      f_hat_XY_val <- matricebiv %*% obj$Theta[1:dim(matricebiv)[2]]
+      f_XY_hat_val <- basisMatrixBiv %*% obj$Theta[1:dim(basisMatrixBiv)[2]]
       # Reshape the fitted values to a square matrix for plotting
-      f_hat_XY_val <- matrix(f_hat_XY_val, nrow = round(sqrt(length(X))))
-      if (x$Type == "GLM - Biv") f_hat_XY_val <- x$Args$family$linkinv(f_hat_XY_val)
+      f_XY_hat_val <- matrix(f_XY_hat_val, nrow = length(newX) )
+      if (x$Type == "GLM - Biv") f_XY_hat_val <- x$Args$family$linkinv(f_XY_hat_val)
       # Title based on the number of internal knots in X and Y
-      title <- paste0(x$Nintknots$X, " X internal knots and ", x$Nintknots$Y ," Y internal knots" )
+      title <- paste0(x$Nintknots$X, " internal knots in X and ",
+                      x$Nintknots$Y ," internal knots in Y" )
       
       # Plot the perspective 3D surface defined by newX, newY, and the fitted values
-      persp3D(x = newX, y = newY, z = f_hat_XY_val, main = title, phi = 25, theta = 50,
-              xlab = 'X', ylab = 'Y', zlab = "f_hat(X,Y)", zlim = range(f_hat_XY_val),
+      persp3D(x = newX, y = newY, z = f_XY_hat_val, main = title, phi = 25, theta = 50,
+              xlab = 'X', ylab = 'Y', zlab = "f_hat(X,Y)", zlim = range(f_XY_hat_val),
               ticktype = "detailed", expand = 0.5, colkey = FALSE, border = "black", ...)
       
       # Adjust Z by subtracting the parametric component of the predictor model if it exists
       if (!is.null(W)) {
-        Z <- Z - W %*% x$Linear.Fit$Theta[-(1:dim(matricebiv)[2])]
+        Z <- Z - W %*% x$Linear.Fit$Theta[-(1:dim(basisMatrixBiv)[2])]
       }
       # Identify points where Z is greater/smaller than the model predicted value
       tmp <- (obj$Predicted - Z > 0)
       points3D(x = X[!tmp], y = Y[!tmp], z = Z[!tmp], col = "red", pch = 19, add = TRUE)
       points3D(x = X[tmp], y = Y[tmp], z = Z[tmp], col = "blue", pch = 19, add = TRUE)
       legend("topright",
-             legend = c("Z >= f_hat(X,Y)", "Z  <  f_hat(X,Y)"),
+             legend = c(expression(z >= hat(f)(x, y)), expression(z < hat(f)(x, y))),
              col = c("red", "blue"),
              pch = 19,
              bg = 'white',
@@ -601,7 +606,6 @@ setMethod("plot", signature(x = "GeDS"), function(x, f = NULL, which, DEV = FALS
   invisible(x)
 }
 )
-
 
 ################################################################################
 ################################################################################
@@ -811,6 +815,14 @@ setMethod("plot", signature(x = "GeDSboost"), function(x, n = 3L,...)
 #' be extracted.
 #' @param n integer value (2, 3 or 4) specifying the order (\eqn{=} degree
 #' \eqn{+ 1}) of the GAM-GeDS fit.
+#' @param base_learners either NULL or a vector of character string specifying
+#' the base-learners of the model for which predictions should be plotted. Note
+#' that single base-learner predictions are provided on the linear predictor scale.
+#' @param f (optional) specifies the underlying component function or generating
+#' process to which the model was fit. This parameter is useful if the user wishes
+#' to plot the specified function/process alongside the model fit and the data. 
+
+
 #' @param ... further arguments to be passed to the
 #' \code{\link[graphics]{plot.default}} function.
 #' 
@@ -820,7 +832,8 @@ setMethod("plot", signature(x = "GeDSboost"), function(x, n = 3L,...)
 #' 
 #' @aliases plot.GeDSgam plot,GeDSgam-method plot,GeDSgam,ANY-method
 
-setMethod("plot", signature(x = "GeDSgam"), function(x, n = 3L, ...)
+setMethod("plot", signature(x = "GeDSgam"), function(x, base_learners = NULL,
+                                                     f = NULL, n = 3L,...)
 {
   
   # Check if x is of class "GeDSgam"
@@ -828,7 +841,15 @@ setMethod("plot", signature(x = "GeDSgam"), function(x, n = 3L, ...)
     stop("The input 'x' must be of class 'GeDSgam'")
   }
   
-  base_learners <- x$args$base_learners
+  if (is.null(base_learners)) {
+    base_learners <- x$args$base_learners
+  } else {
+    base_learners <- x$args$base_learners[names(x$args$base_learners) %in% base_learners]
+  }
+  
+  # Other arguments
+  others <- list(...)
+  
   
   Y <- x$args$response[[1]]; pred_vars <- x$args$predictors
   
@@ -843,6 +864,15 @@ setMethod("plot", signature(x = "GeDSgam"), function(x, n = 3L, ...)
     int.knots <- x$internal_knots$cubic.int.knots
   }
   
+  
+  # If you provide more/less f than base-learners stop
+  if (!is.null(f) && length(f) != length(base_learners)) {
+    stop(sprintf("Base learners to plot are %d, but %d functions were provided", 
+                 length(base_learners), length(f)))
+  }
+  
+  
+  # Plot each base-learner
   for (bl_name in names(base_learners)) {
     
     bl <- base_learners[[bl_name]]
@@ -855,9 +885,12 @@ setMethod("plot", signature(x = "GeDSgam"), function(x, n = 3L, ...)
     # Replace NA values with 0
     theta[is.na(theta)] <- 0
     
-    # 1. Univariate learners
+    ##########################
+    # 1. Univariate learners #
+    ##########################
     if (NCOL(X_mat) == 1) {
       
+      # 1.1. Univariate GeDS
       if (bl$type == "GeDS") {
         # Including int.knt and giving more values enhances visualization
         X_mat <- seq(from = min(X_mat), to = max(X_mat), length.out = 1000)
@@ -869,6 +902,8 @@ setMethod("plot", signature(x = "GeDSgam"), function(x, n = 3L, ...)
         # To recover backfitting predictions need de_mean
         Predicted <- if (n == 2) basisMatrix %*% theta - mean(basisMatrix %*% theta) else basisMatrix %*% theta 
         ylab <-  bl_name
+        
+        # 1.2. Univariate Linear
       } else if (bl$type == "linear") {
         # Linear
         if (!is.factor(X_mat)) {
@@ -881,14 +916,25 @@ setMethod("plot", signature(x = "GeDSgam"), function(x, n = 3L, ...)
         ylab <- bquote(beta[1] %*% .(bl_name))
       }
       
+      # Non-factor
       if  (!is.factor(X_mat)) {
+        
+        if (!is.null(f)) Predicted <- Predicted + mean(f(X_mat)-Predicted)
         
         plot_data <- data.frame(X_mat, Predicted)
         plot_data <- plot_data[order(plot_data$X_mat),]
         
-        plot(plot_data, type = "l", col = "steelblue",
+        ylim <- if (is.null(others$ylim)) range(Predicted) else others$ylim
+        col_fit <- if (is.null(others$col)) "red" else others$col
+        
+        plot(plot_data, type = "l",
              xlab = bl$variables, ylab = ylab,
-             xlim = range(X_mat), ylim = range(Predicted), ...)
+             xlim = range(X_mat), lwd = 2,...)
+        if (!is.null(f)){
+          f_data <- data.frame(X_mat, f(X_mat))
+          f_data <- f_data[order(f_data$X_mat),]
+          lines(f_data, lwd = 2, col = "darkgray")
+        }
         
         if (length(int.knt) < 20) {
           knt <- c(int.knt, range(X_mat))
@@ -899,61 +945,67 @@ setMethod("plot", signature(x = "GeDSgam"), function(x, n = 3L, ...)
           rug(int.knt)
         }
         
+        # Factor
       } else {
         par(mar = c(7.1, 4.1, 4.1, 2.1))
         barplot(theta,
                 las = 2,
-                col = "steelblue",
+                col = col_fit,
                 main = bl_name,
                 ylab = bquote(beta))
         par(mar = c(5.1, 4.1, 4.1,2.1))
       }
       
-      # 2. Bivariate learners
+      #########################
+      # 2. Bivariate learners #
+      #########################
     } else if (NCOL(X_mat) == 2) {
+      
+      if (!is.null(f)) warning("f not available for bivariate learners")
       
       Xextr <- range(X_mat[,1])
       Yextr <- range(X_mat[,2])
       
       # Create a sequence of sqrt(obs) evenly spaced numbers over the range of X/Y
-      newX <- seq(from = Xextr[1], to = Xextr[2], length.out = round(sqrt(length(X_mat[,1]))))
-      newY <- seq(from = Yextr[1], to = Yextr[2], length.out = round(sqrt(length(X_mat[,2]))))
+      adj_rangeX <- diff(Xextr)/10; adj_rangeY <- diff(Yextr)/10 # constraining the range prevents extremes in the edges
+      newX <- seq(from = Xextr[1]+adj_rangeX, to = Xextr[2]-adj_rangeX, length.out = round(sqrt(length(X_mat[,1]))))
+      newY <- seq(from = Yextr[1]+adj_rangeY, to = Yextr[2]-adj_rangeY, length.out = round(sqrt(length(X_mat[,2]))))
       
       # Create a grid data frame from all combinations of newX and newY
       grid.data <- expand.grid(newX, newY)
       
       # Generate spline basis matrix for X and Y dimensions using object knots and given order
-      matriceX <- splineDesign(knots = sort(c(int.knt$ikX,rep(Xextr,n))), derivs = rep(0,length(grid.data[,1])),
-                               x = grid.data[,1], ord = n, outer.ok = T)
-      matriceY <- splineDesign(knots = sort(c(int.knt$ikY,rep(Yextr,n))), derivs = rep(0,length(grid.data[,2])),
-                               x = grid.data[,2], ord = n, outer.ok = T)
+      basisMatrixX <- splineDesign(knots = sort(c(int.knt$ikX,rep(Xextr,n))), derivs = rep(0,length(grid.data[,1])),
+                                   x = grid.data[,1], ord = n, outer.ok = T)
+      basisMatrixY <- splineDesign(knots = sort(c(int.knt$ikY,rep(Yextr,n))), derivs = rep(0,length(grid.data[,2])),
+                                   x = grid.data[,2], ord = n, outer.ok = T)
       # Calculate the tensor product of X and Y spline matrices to create a bivariate spline basis
-      matricebiv <- tensorProd(matriceX, matriceY)
+      basisMatrixBiv <- tensorProd(basisMatrixX, basisMatrixY)
       # Multiply the bivariate spline basis by model coefficients to get fitted values
-      f_hat_XY_val <- matricebiv %*% theta[1:dim(matricebiv)[2]]
+      f_XY_hat_val <- basisMatrixBiv %*% theta[1:dim(basisMatrixBiv)[2]]
       # Reshape the fitted values to a square matrix for plotting
-      f_hat_XY_val <- matrix(f_hat_XY_val, nrow = round(sqrt(length(X_mat[,1]))))
-      f_hat_XY_val <- x$args$family$linkinv(f_hat_XY_val)
+      f_XY_hat_val <- matrix(f_XY_hat_val, nrow = round(sqrt(length(X_mat[,1]))))
+      f_XY_hat_val <- x$args$family$linkinv(f_XY_hat_val)
       # Title based on the number of internal knots in X and Y
-      title <- paste0(length(int.knt$ikX)," ", bl$variables[1]," internal knots and ",
-                      length(int.knt$ikY), " ", bl$variables[2]," internal knots" )
+      title <- paste0(length(int.knt$ikX)," internal knots in ", bl$variables[1]," and ",
+                      length(int.knt$ikY), " internal knots in ", bl$variables[2] )
       
       # Plot the perspective 3D surface defined by newX, newY, and the fitted values
-      persp3D(x = newX, y = newY, z = f_hat_XY_val, main = title, phi = 25, theta = 50,
+      persp3D(x = newX, y = newY, z = f_XY_hat_val, main = title, phi = 25, theta = 50,
               xlab = paste0("\n", bl$variables[1]), ylab = paste0("\n",bl$variables[2]),
-              zlab = paste0("\n", bl_name), zlim = range(f_hat_XY_val),
+              zlab = paste0("\n", bl_name), zlim = range(f_XY_hat_val),
               ticktype = "detailed", expand = 0.5, colkey = FALSE, border = "black", ...)
       
       # Add rug plots to the x axis
       kntX <- c(int.knt$ikX, Xextr)
-      segments3D(x0 = kntX, y0 = rep(min(newY), length(kntX)), z0 = rep(min(f_hat_XY_val), length(kntX)),
-                 x1 = kntX, y1 = rep(min(newY), length(kntX)), z1 = rep(max(f_hat_XY_val), length(kntX)),
+      segments3D(x0 = kntX, y0 = rep(min(newY), length(kntX)), z0 = rep(min(f_XY_hat_val), length(kntX)),
+                 x1 = kntX, y1 = rep(min(newY), length(kntX)), z1 = rep(max(f_XY_hat_val), length(kntX)),
                  add = TRUE, col = "black", lty = 2)
       
       # Add rug plots to the y axis
       kntY <- c(int.knt$ikY, Yextr)
-      segments3D(x0 = rep(max(newX), length(kntY)), y0 = kntY, z0 = rep(min(f_hat_XY_val), length(kntY)),
-                 x1 = rep(max(newX), length(kntY)), y1 = kntY, z1 = rep(max(f_hat_XY_val), length(kntY)),
+      segments3D(x0 = rep(max(newX), length(kntY)), y0 = kntY, z0 = rep(min(f_XY_hat_val), length(kntY)),
+                 x1 = rep(max(newX), length(kntY)), y1 = kntY, z1 = rep(max(f_XY_hat_val), length(kntY)),
                  add = TRUE, col = "black", lty = 2)
     }
     
@@ -961,5 +1013,191 @@ setMethod("plot", signature(x = "GeDSgam"), function(x, n = 3L, ...)
   }
   
 }
+
 )
+
+
+plot.GeDSgam <- function(x, base_learners = NULL,
+                         f = NULL, n = 3L,...)
+{
+  
+  # Check if x is of class "GeDSgam"
+  if(!inherits(x, "GeDSgam")) {
+    stop("The input 'x' must be of class 'GeDSgam'")
+  }
+  
+  if (is.null(base_learners)) {
+    base_learners <- x$args$base_learners
+  } else {
+    base_learners <- x$args$base_learners[names(x$args$base_learners) %in% base_learners]
+  }
+  
+  # Other arguments
+  others <- list(...)
+  
+  
+  Y <- x$args$response[[1]]; pred_vars <- x$args$predictors
+  
+  if (n == 2) {
+    Theta <- x$final_model$Linear.Fit$Theta
+    int.knots <- x$internal_knots$linear.int.knots
+  } else if (n == 3) {
+    Theta <- x$final_model$Quadratic.Fit$Theta
+    int.knots <- x$internal_knots$quadratic.int.knots
+  } else if (n == 4) {
+    Theta <- x$final_model$Cubic.Fit$Theta
+    int.knots <- x$internal_knots$cubic.int.knots
+  }
+  
+  
+  # If you provide more/less f than base-learners stop
+  if (!is.null(f) && length(f) != length(base_learners)) {
+    stop(sprintf("Base learners to plot are %d, but %d functions were provided", 
+                 length(base_learners), length(f)))
+  }
+  
+  
+  # Plot each base-learner
+  for (bl_name in names(base_learners)) {
+    
+    bl <- base_learners[[bl_name]]
+    X_mat <- pred_vars[, intersect(bl$variables, colnames(pred_vars))]
+    
+    int.knt <- int.knots[[bl_name]]
+    
+    pattern <- paste0("^", gsub("([()])", "\\\\\\1", bl_name))
+    theta <- Theta[grep(pattern, names(Theta))]
+    # Replace NA values with 0
+    theta[is.na(theta)] <- 0
+    
+    ##########################
+    # 1. Univariate learners #
+    ##########################
+    if (NCOL(X_mat) == 1) {
+      
+      # 1.1. Univariate GeDS
+      if (bl$type == "GeDS") {
+        # Including int.knt and giving more values enhances visualization
+        X_mat <- seq(from = min(X_mat), to = max(X_mat), length.out = 1000)
+        X_mat <- sort(c(X_mat, int.knt))
+        # Create spline basis matrix using specified knots, evaluation points and order
+        basisMatrix <- splineDesign(knots = sort(c(int.knt,rep(range(X_mat),n))),
+                                    x = X_mat, ord = n, derivs = rep(0,length(X_mat)),
+                                    outer.ok = T)
+        # To recover backfitting predictions need de_mean
+        Predicted <- if (n == 2) basisMatrix %*% theta - mean(basisMatrix %*% theta) else basisMatrix %*% theta 
+        ylab <-  bl_name
+        
+        # 1.2. Univariate Linear
+      } else if (bl$type == "linear") {
+        # Linear
+        if (!is.factor(X_mat)) {
+          Predicted <- theta * X_mat
+          # Factor
+        } else {
+          names(theta) <- levels(X_mat)[-1]
+          theta[levels(X_mat)[1]] <- 0 # set baseline coef to 0
+        }
+        ylab <- bquote(beta[1] %*% .(bl_name))
+      }
+      
+      # Non-factor
+      if  (!is.factor(X_mat)) {
+        
+        if (!is.null(f)) Predicted <- Predicted + mean(f(X_mat)-Predicted)
+        
+        plot_data <- data.frame(X_mat, Predicted)
+        plot_data <- plot_data[order(plot_data$X_mat),]
+        
+        ylim <- if (is.null(others$ylim)) range(Predicted) else others$ylim
+        col_fit <- if (is.null(others$col)) "red" else others$col
+        
+        plot(plot_data, type = "l",
+             xlab = bl$variables, ylab = ylab,
+             xlim = range(X_mat), lwd = 2,...)
+        if (!is.null(f)){
+          f_data <- data.frame(X_mat, f(X_mat))
+          f_data <- f_data[order(f_data$X_mat),]
+          lines(f_data, lwd = 2)
+        }
+        
+        if (length(int.knt) < 20) {
+          knt <- c(int.knt, range(X_mat))
+          for(k in knt) {
+            abline(v = k, col = "gray", lty = 2)
+          }
+        } else {
+          rug(int.knt)
+        }
+        
+        # Factor
+      } else {
+        par(mar = c(7.1, 4.1, 4.1, 2.1))
+        barplot(theta,
+                las = 2,
+                col = col_fit,
+                main = bl_name,
+                ylab = bquote(beta))
+        par(mar = c(5.1, 4.1, 4.1,2.1))
+      }
+      
+      #########################
+      # 2. Bivariate learners #
+      #########################
+    } else if (NCOL(X_mat) == 2) {
+      
+      if (!is.null(f)) warning("f not available for bivariate learners")
+      
+      Xextr <- range(X_mat[,1])
+      Yextr <- range(X_mat[,2])
+      
+      # Create a sequence of sqrt(obs) evenly spaced numbers over the range of X/Y
+      adj_rangeX <- diff(Xextr)/10; adj_rangeY <- diff(Yextr)/10 # constraining the range prevents extremes in the edges
+      newX <- seq(from = Xextr[1]+adj_rangeX, to = Xextr[2]-adj_rangeX, length.out = round(sqrt(length(X_mat[,1]))))
+      newY <- seq(from = Yextr[1]+adj_rangeY, to = Yextr[2]-adj_rangeY, length.out = round(sqrt(length(X_mat[,2]))))
+      
+      # Create a grid data frame from all combinations of newX and newY
+      grid.data <- expand.grid(newX, newY)
+      
+      # Generate spline basis matrix for X and Y dimensions using object knots and given order
+      basisMatrixX <- splineDesign(knots = sort(c(int.knt$ikX,rep(Xextr,n))), derivs = rep(0,length(grid.data[,1])),
+                                   x = grid.data[,1], ord = n, outer.ok = T)
+      basisMatrixY <- splineDesign(knots = sort(c(int.knt$ikY,rep(Yextr,n))), derivs = rep(0,length(grid.data[,2])),
+                                   x = grid.data[,2], ord = n, outer.ok = T)
+      # Calculate the tensor product of X and Y spline matrices to create a bivariate spline basis
+      basisMatrixBiv <- tensorProd(basisMatrixX, basisMatrixY)
+      # Multiply the bivariate spline basis by model coefficients to get fitted values
+      f_XY_hat_val <- basisMatrixBiv %*% theta[1:dim(basisMatrixBiv)[2]]
+      # Reshape the fitted values to a square matrix for plotting
+      f_XY_hat_val <- matrix(f_XY_hat_val, nrow = round(sqrt(length(X_mat[,1]))))
+      f_XY_hat_val <- x$args$family$linkinv(f_XY_hat_val)
+      # Title based on the number of internal knots in X and Y
+      title <- paste0(length(int.knt$ikX)," internal knots in ", bl$variables[1]," and ",
+                      length(int.knt$ikY), " internal knots in ", bl$variables[2] )
+      
+      # Plot the perspective 3D surface defined by newX, newY, and the fitted values
+      persp3D(x = newX, y = newY, z = f_XY_hat_val, main = title, phi = 25, theta = 50,
+              xlab = paste0("\n", bl$variables[1]), ylab = paste0("\n",bl$variables[2]),
+              zlab = paste0("\n", bl_name), zlim = range(f_XY_hat_val),
+              ticktype = "detailed", expand = 0.5, colkey = FALSE, border = "black",
+              xlim = Xextr, ylim = Yextr, ...)
+      
+      # Add rug plots to the x axis
+      kntX <- c(int.knt$ikX, Xextr)
+      segments3D(x0 = kntX, y0 = rep(Yextr[1], length(kntX)), z0 = rep(min(f_XY_hat_val), length(kntX)),
+                 x1 = kntX, y1 = rep(Yextr[1], length(kntX)), z1 = rep(max(f_XY_hat_val), length(kntX)),
+                 add = TRUE, col = "black", lty = 2)
+      
+      # Add rug plots to the y axis
+      kntY <- c(int.knt$ikY, Yextr)
+      segments3D(x0 = rep(Xextr[2], length(kntY)), y0 = kntY, z0 = rep(min(f_XY_hat_val), length(kntY)),
+                 x1 = rep(Xextr[2], length(kntY)), y1 = kntY, z1 = rep(max(f_XY_hat_val), length(kntY)),
+                 add = TRUE, col = "black", lty = 2)
+    }
+    
+    
+  }
+  
+}
+
 

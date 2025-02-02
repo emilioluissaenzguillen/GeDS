@@ -24,7 +24,8 @@ UnivariateFitter(
   tol = as.double(1e-12),
   stoptype = c("SR", "RD", "LR"),
   higher_order = TRUE,
-  intknots = NULL,
+  intknots_init = NULL,
+  fit_init = NULL,
   only_pred = FALSE
 )
 
@@ -111,8 +112,12 @@ partial match allowed. See details of \code{\link{NGeDS}} or
 order fits (quadratic and cubic) after stage A is run. Default is
 \code{TRUE}.}
 
-\item{intknots}{vector of initial internal knots from which to start the GeDS
+\item{intknots_init}{vector of initial internal knots from which to start the GeDS
 Stage A iterations. See Section 3 of Kaishev et al. (2016). Default is \code{NULL}.}
+
+\item{fit_init}{A list containing fitted values \code{pred}, along with
+corresponding \code{intknots} and \code{coef}, representing the initial fit from
+which to begin Stage A GeDS iteration (i.e. departing from step 2).}
 
 \item{only_pred}{logical, if \code{TRUE} only predictions are computed.}
 

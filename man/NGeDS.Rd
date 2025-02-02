@@ -18,7 +18,8 @@ NGeDS(
   show.iters = FALSE,
   stoptype = "RD",
   higher_order = TRUE,
-  intknots = NULL,
+  intknots_init = NULL,
+  fit_init = NULL,
   only_pred = FALSE
 )
 }
@@ -73,7 +74,11 @@ to be used. It should be either one of \code{"SR"}, \code{"RD"} or
 order fits (quadratic and cubic) after stage A is run. Default is
 \code{TRUE}.}
 
-\item{intknots}{vector of starting internal knots. Default is \code{NULL}.}
+\item{intknots_init}{vector of starting internal knots. Default is \code{NULL}.}
+
+\item{fit_init}{A list containing fitted values \code{pred}, along with
+corresponding \code{intknots} and \code{coef}, representing the initial fit from
+which to begin Stage A GeDS iteration (i.e. departing from step 2).}
 
 \item{only_pred}{logical, if \code{TRUE} only predictions are computed.}
 }
@@ -224,7 +229,8 @@ Y <- (round(runif(400, min = 0, max = 3),2))
 Z <- doublesin(cbind(X,Y))
 Z <- Z+rnorm(400, 0, sd = 0.1)
 # Fit a two dimensional GeDS model using NGeDS
-(BivGeDS <- NGeDS(Z ~ f(X, Y), Xextr = c(0, 3), Yextr = c(0, 3)))
+(BivGeDS <- NGeDS(Z ~ f(X, Y), phi = 0.9,
+                 Xextr = c(0, 3), Yextr = c(0, 3)))
 
 # Extract quadratic coefficients/knots/deviance
 coef(BivGeDS, n = 3)

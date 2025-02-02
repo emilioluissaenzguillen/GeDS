@@ -6,11 +6,19 @@
 \alias{plot,GeDSgam,ANY-method}
 \title{Plot method for GeDSgam objects.}
 \usage{
-\S4method{plot}{GeDSgam,ANY}(x, n = 3L, ...)
+\S4method{plot}{GeDSgam,ANY}(x, base_learners = NULL, f = NULL, n = 3L, ...)
 }
 \arguments{
 \item{x}{a \code{\link{GeDSgam-class}} object from which the GeDSgam fit(s) should
 be extracted.}
+
+\item{base_learners}{either NULL or a vector of character string specifying
+the base-learners of the model for which predictions should be plotted. Note
+that single base-learner predictions are provided on the linear predictor scale.}
+
+\item{f}{(optional) specifies the underlying component function or generating
+process to which the model was fit. This parameter is useful if the user wishes
+to plot the specified function/process alongside the model fit and the data.}
 
 \item{n}{integer value (2, 3 or 4) specifying the order (\eqn{=} degree
 \eqn{+ 1}) of the GAM-GeDS fit.}

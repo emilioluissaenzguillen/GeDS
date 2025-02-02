@@ -4,19 +4,28 @@
 \alias{Integrate}
 \title{Defined integral of GeDS objects}
 \usage{
-Integrate(object, to, from, n = 3L)
+Integrate(object = NULL, knots = NULL, coef = NULL, from, to, n = 3L)
 }
 \arguments{
 \item{object}{the \code{\link{GeDS-class}} object containing the  GeDS fit
 which should be integrated. It should be the result of fitting a univariate
-GeDS regression via \code{\link{NGeDS}} or \code{\link{GGeDS}}.}
+GeDS regression via \code{\link{NGeDS}} or \code{\link{GGeDS}}. If this is
+provided, the \code{knots} and \code{coef} parameters will be automatically
+extracted from the \code{GeDS} object. If \code{object} is \code{NULL}, the
+user must provide the \code{knots} and \code{coef} vectors explicitly.}
 
-\item{to}{numeric vector containing the upper limit(s) of integration.}
+\item{knots}{a numeric vector of knots. This is required if \code{object} is 
+\code{NULL}. If a \code{GeDS} object is provided, this parameter is ignored.}
+
+\item{coef}{a numeric vector of coefficients. This is required if \code{object} is 
+\code{NULL}. If a \code{GeDS} object is provided, this parameter is ignored}
 
 \item{from}{optional numeric vector containing the lower limit(s) of
 integration. It should be either of size one or of the same size as the
 argument \code{to}. If left unspecified, by default it is set to the left-most
 limit of the interval embedding the observations of the independent variable.}
+
+\item{to}{numeric vector containing the upper limit(s) of integration.}
 
 \item{n}{integer value (2, 3 or 4) specifying the order (\eqn{=} degree
 \eqn{ + 1}) of the GeDS fit to be integrated. By default equal to \code{3L}.

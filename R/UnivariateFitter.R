@@ -64,8 +64,11 @@
 #' @param higher_order a logical that defines whether to compute the higher
 #' order fits (quadratic and cubic) after stage A is run. Default is
 #' \code{TRUE}.
-#' @param intknots vector of initial internal knots from which to start the GeDS
+#' @param intknots_init vector of initial internal knots from which to start the GeDS
 #' Stage A iterations. See Section 3 of Kaishev et al. (2016). Default is \code{NULL}.
+#' @param fit_init A list containing fitted values \code{pred}, along with
+#' corresponding \code{intknots} and \code{coef}, representing the initial fit from
+#' which to begin Stage A GeDS iteration (i.e. departing from step 2).
 #' @param only_pred logical, if \code{TRUE} only predictions are computed.
 #' 
 #' @return A \code{\link{GeDS-Class}} object, but without the \code{Formula},
@@ -148,7 +151,8 @@ UnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0,NROW(Y)),
                              min.intknots = 0, max.intknots = 300, q = 2,
                              extr = range(X), show.iters = FALSE,
                              tol = as.double(1e-12), stoptype = c("SR","RD","LR"),
-                             higher_order = TRUE, intknots = NULL, only_pred = FALSE)
+                             higher_order = TRUE, intknots_init = NULL, fit_init = NULL,
+                             only_pred = FALSE)
   {
   # Capture the function call
   save <- match.call()
@@ -157,7 +161,8 @@ UnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0,NROW(Y)),
                "beta" = beta, "phi" = phi, "min.intknots" = min.intknots,
                "max.intknots" = max.intknots, "q" = q, "extr" = extr, "tol" = tol)
   
-  # Initialize RSS and phis
+  # Initialize intknots, RSS and phis
+  intknots <- if (!is.null(fit_init)) fit_init$intknots else intknots_init
   n_starting_intknots <- length(intknots)
   RSSnew <- numeric(n_starting_intknots)
   phis <- NULL
@@ -177,7 +182,7 @@ UnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0,NROW(Y)),
   oldcoef <- matrix(nrow = max.intknots + 1,
                     ncol = max.intknots + 2 + nz) # number of B-splines is p = l + 2
   
-  # GeDS iterations start by j = n_starting_intknots + 1 
+  # GeDS iterations start by j = n_starting_intknots + 1
   init.iter <- if (is.null(intknots)) 1 else  n_starting_intknots + 1
   
   ##############################################################################
@@ -185,20 +190,33 @@ UnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0,NROW(Y)),
   ##############################################################################
   for(j in init.iter:min(max.intknots + 1, length(Y) - 2)) {
     
-    #############################################################
-    ## STEP 1/STEP 8: Find the least squares linear spline fit ##
-    #############################################################
-    first.deg <- SplineReg_fast_weighted_zed(X = X, Y = Y, Z = Z, weights = weights, offset = offset,
-                                           extr = extr, InterKnots = intknots, n = 2) #first regression
-    # Store knots and coefficients
-    previous[j, 1:(j+3)] <- sort(c(intknots, rep(extr, 2)))
-    oldcoef[j, 1:(j+1+nz)] <- first.deg$Theta
     
-    #####################################
-    ## STEP 9: Store residuals and RSS ##
-    ####################################
-    res.tmp <- first.deg$Residuals
-    RSSnew <- c(RSSnew, first.deg$RSS)
+    if(is.null(fit_init) || j > (n_starting_intknots + 1) ) {
+      #############################################################
+      ## STEP 1/STEP 8: Find the least squares linear spline fit ##
+      #############################################################
+      first.deg <- SplineReg_fast_weighted_zed(X = X, Y = Y, Z = Z, weights = weights, offset = offset,
+                                               extr = extr, InterKnots = intknots, n = 2) #first regression
+      # Store knots and coefficients
+      previous[j, 1:(j+3)] <- sort(c(intknots, rep(extr, 2)))
+      oldcoef[j, 1:(j+1+nz)] <- first.deg$Theta
+      
+      #####################################
+      ## STEP 9: Store residuals and RSS ##
+      ####################################
+      res.tmp <- first.deg$Residuals
+      RSSnew <- c(RSSnew, first.deg$RSS)
+      
+    } else {
+      # Store knots and coefficients
+      previous[j, 1:(j+3)] <- sort(c(intknots, rep(extr, 2)))
+      # oldcoef[j, 1:(j+1+nz)] <- first.deg$Theta # we don't need the coef for anything
+      
+      res.tmp <- Y - fit_init$pred
+      RSSnew <- c(RSSnew, sum((res.tmp)^2))
+    }
+    
+    
     
     ############################
     ## STEP 10: Stopping Rule ##
@@ -280,9 +298,11 @@ UnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0,NROW(Y)),
     means <- wc.range <- numeric(u)
     means[1] <- abs(mean(res.weighted[1:dcum[1]]))
     wc.range[1] <- distinctX[dcum[1]] - X[1]
-    for (i in 2:u) { # embed in C++ useless
-      means[i] <- abs(mean((res.weighted[(dcum[i-1] + 1):dcum[i]])))
-      wc.range[i] <- distinctX[dcum[i]] - distinctX[dcum[i-1] + 1]
+    if (u >= 2) {
+      for (i in 2:u) {
+        means[i] <- abs(mean((res.weighted[(dcum[i-1] + 1):dcum[i]])))
+        wc.range[i] <- distinctX[dcum[i]] - distinctX[dcum[i-1] + 1]
+      }
     }
     
     ######################################################################
@@ -302,10 +322,11 @@ UnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0,NROW(Y)),
     ###############
     newknot <- Knotnew(wht = w, restmp = res.weighted, x = distinctX, dcm = dcum,
                        oldknots = c(rep(extr, 2 + 1), intknots), tol = tol)[1]
-    if (newknot %in% extr || is.na(newknot)){
-      
-      break
-    }
+
+    # newknot <- Knotnew_R(wht = w, restmp = res.weighted, x = distinctX, dcm = dcum,
+    #                      oldknots = sort(c(intknots, rep(extr, 3))), tol = tol)[1]
+    # if (is.na(newknot[1]) && length(w) == 2) newknot <- newknot[2] else newknot <- newknot[1]
+    if (isTRUE(all.equal(newknot, extr[1])) || isTRUE(all.equal(newknot, extr[2])) || is.na(newknot)) break
     intknots <- c(intknots, newknot)
     
     # Print iteration

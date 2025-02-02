@@ -81,6 +81,13 @@
 
 coef.GeDS <- function(object, n = 3L, onlySpline = TRUE, ...)
   {
+  
+  # CDF GeDS
+  if (object$Type == "CDF") {
+    coef <- object$coef
+    return(coef)
+  }
+  
   # Handle additional arguments
   if(!missing(...)) warning("Only 'object', 'n' and 'onlySpline' arguments will be considered")
   
@@ -245,6 +252,13 @@ deviance.GeDS <- function(object, n = 3L, ...)
 
 knots.GeDS <- function(Fn, n = 3L, options = c("all","internal"), ...)
   {
+  
+  # CDF GeDS
+  if (Fn$Type == "CDF") {
+    kn <- Fn$knots
+    return(kn)
+  }
+  
   # Handle additional arguments
   if(!missing(...)) warning("Arguments other than 'Fn', 'n' and 'options' currenly igored. \n Please check if the input parameters have been correctly specified.")
   
@@ -340,7 +354,7 @@ predict.GeDS <- function(object, newdata,
                          type = c("response", "link", "terms"), n = 3L, ...)
   {
   # Handle additional arguments
-  if(!missing(...)) warning("Only 'object', 'newdata, 'type' and 'n' arguments will be considered")
+  if (!missing(...)) warning("Only 'object', 'newdata, 'type' and 'n' arguments will be considered")
   
   # Check if object is of class "GeDS"
   if (!inherits(object, "GeDS"))
@@ -351,14 +365,14 @@ predict.GeDS <- function(object, newdata,
   mt <- object$terms
   
   # 1. Univariate
-  if(object$Type == "LM - Univ" || object$Type == "GLM - Univ") {
+  if (object$Type == "LM - Univ" || object$Type == "GLM - Univ") {
     
     # If newdata was not provided
     if (missing(newdata) || is.null(newdata)) {
       X <- object$Args$X
       Z <- object$Args$Z
       offset <- object$Args$offset
-      if(is.null(offset)) offset <- rep(0, NROW(X))
+      if (is.null(offset)) offset <- rep(0, NROW(X))
     # If newdata was provided
       } else {
         mt <- delete.response(mt)
@@ -384,15 +398,15 @@ predict.GeDS <- function(object, newdata,
     kn <- knots(object, n = n, options = "internal")
     if (min(X) < object$Args$extr[1] || object$Args$extr[2] < max(X)) warning("Input values out of the boundary knots")
     # Design matrix
-    matrice <- splineDesign(knots = sort(c(kn, rep(range(X), n))), derivs = rep(0,length(X)), x = X, ord = n, outer.ok = T)
+    basisMatrix <- splineDesign(knots = sort(c(kn, rep(range(X), n))), derivs = rep(0,length(X)), x = X, ord = n, outer.ok = T)
     
     type <- match.arg(type)
     
     # (i) Response or Link
     if (type != "terms") {
       coefs <- coef(object,n=n, onlySpline = FALSE)
-      matrice2 <- cbind(matrice,Z)
-      predicted <- matrice2%*%coefs+offset
+      basisMatrix2 <- cbind(basisMatrix,Z)
+      predicted <- basisMatrix2%*%coefs+offset
       
       if(type=="response" & !is.null(object$Args$family)) {
         predicted <- object$Args$family$linkinv(predicted)
@@ -402,7 +416,7 @@ predict.GeDS <- function(object, newdata,
       } else {
         coefs <- coef(object, n = n, onlySpline = TRUE)
         coefs1 <- coef(object, n = n, onlySpline = FALSE)
-        predicted <- matrice%*%coefs
+        predicted <- basisMatrix%*%coefs
         colnames(predicted) <- "Spline"
         predicted1 <- if(!is.null(Z)) {
           Z*matrix(coefs1[-c(1:length(coefs))],
@@ -448,11 +462,11 @@ predict.GeDS <- function(object, newdata,
     if(min(X) < min(kn$Xk) || max(X) > max(kn$Xk) || min(Y) < min(kn$Yk) | max(Y) > max(kn$Yk))
       warning("Input values out of the boundary knots")
     # Design matrix
-    matriceX <- splineDesign(knots = kn$Xk, derivs = rep(0, length(X)), x = X, ord = n, outer.ok = T)
-    matriceY <- splineDesign(knots = kn$Yk, derivs = rep(0, length(Y)), x = Y, ord = n, outer.ok = T)
-    matriceY_noint <- cut_int(matriceY)
+    basisMatrixX <- splineDesign(knots = kn$Xk, derivs = rep(0, length(X)), x = X, ord = n, outer.ok = T)
+    basisMatrixY <- splineDesign(knots = kn$Yk, derivs = rep(0, length(Y)), x = Y, ord = n, outer.ok = T)
+    basisMatrixY_noint <- cut_int(basisMatrixY)
     
-    matricebiv <- tensorProd(matriceX,matriceY_noint)
+    basisMatrixbiv <- tensorProd(basisMatrixX,basisMatrixY_noint)
 
     type <- match.arg(type)
     
@@ -460,8 +474,8 @@ predict.GeDS <- function(object, newdata,
     if (type != "terms") {
       coefs <- coef(object, n = n, onlySpline = FALSE)
       coefs[is.na(coefs)] <- 0
-      matricebiv2 <- cbind(matricebiv,W)
-      predicted <- matricebiv2%*%coefs
+      basisMatrixbiv2 <- cbind(basisMatrixbiv,W)
+      predicted <- basisMatrixbiv2%*%coefs
       
       if(type == "response" & !is.null(object$Args$family)) {
         predicted <- object$Args$family$linkinv(predicted)
@@ -475,7 +489,7 @@ predict.GeDS <- function(object, newdata,
       coefs1[is.na(coefs1)] <- 0
       
       # Spline prediction
-      predicted <- matricebiv%*%coefs
+      predicted <- basisMatrixbiv%*%coefs
       colnames(predicted) <- "Spline"
       # Linear prediction
       predicted1 <- if(!is.null(W)) {

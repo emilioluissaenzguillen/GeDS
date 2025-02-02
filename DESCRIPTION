@@ -1,29 +1,29 @@
 Package: GeDS
 Type: Package
 Title: Geometrically Designed Spline Regression
-Version: 0.2.4
-Date: 2024-09-10
+Version: 0.2.5
+Date: 2025-01-21
 Authors@R: c(person(given = c("Dimitrina", "S."),
                       family = "Dimitrova",
                       role = "aut",
                       email = "D.Dimitrova@city.ac.uk"),
-               person(given = c("Emilio", "S."),
-                      family = "Guillen",
-                      role = c("aut", "cre"),
-                      email = "Emilio.Saenz-Guillen@bayes.city.ac.uk"),
-               person(given = c("Vladimir", "K."),
+              person(given = c("Vladimir", "K."),
                       family = "Kaishev",
                       role = "aut",
                       email = "V.Kaishev@city.ac.uk"),
-               person(given = "Andrea",
+              person(given = "Andrea",
                       family = "Lattuada",
                       role = "aut",
                       email = "andrea.lattuada@hotmail.com"),
-               person(given = c("Richard", "J."),
+              person(given = c("Emilio", "L."),
+                      family = "Sáenz Guillén",
+                      role = c("aut", "cre"),
+                      email = "Emilio.Saenz-Guillen@bayes.city.ac.uk"),
+              person(given = c("Richard", "J."),
                       family = "Verrall",
                       role = "aut",
                       email = "R.J.Verrall@city.ac.uk"))
-Maintainer: Emilio S. Guillen <Emilio.Saenz-Guillen@bayes.city.ac.uk>
+Maintainer: Emilio L. Sáenz Guillén <Emilio.Saenz-Guillen@bayes.city.ac.uk>
 Description: Spline Regression, Generalized Additive Models, and Component-wise Gradient
   Boosting, utilizing Geometrically Designed (GeD) Splines. GeDS regression is a
   non-parametric method inspired by geometric principles, for fitting spline regression

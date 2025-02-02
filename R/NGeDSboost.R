@@ -247,7 +247,7 @@
 #' \emph{Applied Mathematics and Computation}, \strong{436}. \cr
 #' DOI: \doi{10.1016/j.amc.2022.127493}
 #' 
-#' Dimitrova, D. S., Guillen, E. S. and Kaishev, V. K.  (2024).
+#' Dimitrova, D. S., Kaishev, V. K. and Saenz Guillen, E. (2024).
 #' \pkg{GeDS}: An \proglang{R} Package for Regression, Generalized Additive
 #' Models and Functional Gradient Boosting, based on Geometrically Designed
 #' (GeD) Splines. \emph{Manuscript submitted for publication.}
@@ -769,7 +769,9 @@ NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE,
         cat("Stopping iterations due to small improvement in deviance\n\n")
         break
       }
+      print(paste0("Boost iteration ", m, ", phi_boost ", round(phi_boost,4)))
     }
+    
   }
   
   ## 7. Set the "final model" to be the one with lower deviance
@@ -918,8 +920,10 @@ NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE,
     
     } else {
       pred_quadratic <-  pred_cubic <- NULL
-      final_model$base_learners[[bl_name]]$quadratic.int.knots <- NULL
-      final_model$base_learners[[bl_name]]$cubic.int.knots <- NULL
+      for (bl_name in names(base_learners)){
+        final_model$base_learners[[bl_name]]$quadratic.int.knots <- NULL
+        final_model$base_learners[[bl_name]]$cubic.int.knots <- NULL
+      }
     }
   
   # Simplify final_model structure
@@ -995,7 +999,7 @@ componentwise_fit <- function(bl_name, response, data, model_formula_template, f
           NGeDS(model_formula, data = data, weights = weights, beta = beta, phi = phi,
                 min.intknots = 0, max.intknots = max.intknots, q = q,
                 Xextr = NULL, Yextr = NULL, show.iters = FALSE, stoptype = "RD",
-                higher_order = FALSE, intknots = starting_intknots, only_pred = TRUE)
+                higher_order = FALSE, intknots_init = starting_intknots, only_pred = TRUE)
           } else {
             GGeDS(model_formula, data = data, family = family, weights = weights,
                   beta = beta, phi = phi, min.intknots = 0, max.intknots = max.intknots,

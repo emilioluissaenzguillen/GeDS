@@ -164,11 +164,12 @@ format_perc <- function(probs, digits)
         "%")
 
 gedsint <- function(val, knts, coefs, n){
-  if(val<=min(knts)) return(0)
-  if(val>max(knts)) return(gedsint(max(knts), knts=knts, coefs=coefs, n))
+  if (val <= min(knts)) return(0)
+  if (val >= max(knts))  return(1)
   pos <- min(which(knts>=val))
-  matrice <- splines::splineDesign(knots=c(knts,max(knts)),
-                                   derivs=rep(0,length(val)),x=val, ord=n+1, outer.ok = T)
+  matrice <- splines::splineDesign(knots = c(knts,max(knts)),
+                                   derivs = rep(0,length(val)),
+                                   x = val, ord = n+1, outer.ok = T)
 
   ris <- as.numeric(matrice[,1:(pos-1)]%*%coefs[1:(pos-1)])
   return(ris)

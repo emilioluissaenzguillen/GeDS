@@ -343,7 +343,6 @@ bivariate_bl_linear_model <- function(pred_vars, model, shrinkage, base_learners
 ################################
 # Function for computing the internal knots of base learners (averaging knot location, stage B.1.)
 compute_avg_int.knots <- function(final_model, base_learners = base_learners, X_sd, X_mean, normalize_data, n) {
-  warning_displayed <- FALSE  # Initialize variable to track warning display
   # Select GeDS base-learners
   base_learners =  base_learners[sapply(base_learners, function(x) x$type == "GeDS")]
   # Check if base_learners is empty
@@ -352,53 +351,62 @@ compute_avg_int.knots <- function(final_model, base_learners = base_learners, X_
     return(kk_list = NULL)
   }
   
+  warning_messages <- c()
+  
   kk_list <- lapply(names(base_learners), function(bl) {
-    
     pred_vars <- base_learners[[bl]]$variables
     
-    # Univariate
+    # Univariate case
     if (length(pred_vars) == 1) {
       intknt <- get_internal_knots(final_model$base_learners[[bl]]$knots)
-      if (normalize_data){
+      if (normalize_data) {
         if (!is.null(intknt)) intknt <- intknt * X_sd[[pred_vars[1]]] + X_mean[[pred_vars[1]]]
       }
       if (length(intknt) >= n - 1) return(makenewknots(intknt, n))
-      cat(paste0(bl, " has less than ", n - 1, " linear internal knots. "))
-      warning_displayed <<- TRUE  # Update the warning flag
+      
+      warning_messages <<- c(warning_messages, paste0(bl, " has less than ", n - 1, " linear internal knots."))
       return(intknt)
-    # Bivariate
+      
+      # Bivariate case
     } else if (length(pred_vars) == 2) {
-      intknt <- list(X = get_internal_knots(final_model$base_learners[[bl]]$knots$Xk), 
-                     Y = get_internal_knots(final_model$base_learners[[bl]]$knots$Yk))
-      if (normalize_data){
-        if (!is.null(intknt$X)) {intknt$X <- intknt$X * X_sd[[pred_vars[1]]] + X_mean[[pred_vars[1]]]}
-        if (!is.null(intknt$Y)) {intknt$Y <- intknt$Y * X_sd[[pred_vars[2]]] + X_mean[[pred_vars[2]]]}
-      }
-      if (length(intknt$X) >= n - 1) {
-        ikX <- makenewknots(intknt$X, n) 
-      } else {
-        cat(paste0(bl, " has less than ", n - 1, " linear internal knots for ", pred_vars[1], ". "))
-        warning_displayed <<- TRUE  # Update the warning flag
-        ikX <- intknt$X
+      intknt <- list(
+        X = get_internal_knots(final_model$base_learners[[bl]]$knots$Xk), 
+        Y = get_internal_knots(final_model$base_learners[[bl]]$knots$Yk)
+      )
+      if (normalize_data) {
+        if (!is.null(intknt$X)) intknt$X <- intknt$X * X_sd[[pred_vars[1]]] + X_mean[[pred_vars[1]]]
+        if (!is.null(intknt$Y)) intknt$Y <- intknt$Y * X_sd[[pred_vars[2]]] + X_mean[[pred_vars[2]]]
       }
       
-      # Number of linear knots warning
-      if (length(intknt$Y) >= n - 1) {
-        ikY <- makenewknots(intknt$Y, n) 
+      ikX <- if (length(intknt$X) >= n - 1) {
+        makenewknots(intknt$X, n)
       } else {
-        cat(paste0(bl, " has less than ", n - 1, " linear internal knots for ", pred_vars[2], ". "))
-        warning_displayed <<- TRUE  # Update the warning flag
-        ikY <- intknt$Y
+        warning_messages <<- c(warning_messages, paste0(bl, " has less than ", n - 1, " linear internal knots for ", pred_vars[1], "."))
+        intknt$X
       }
+      
+      ikY <- if (length(intknt$Y) >= n - 1) {
+        makenewknots(intknt$Y, n)
+      } else {
+        warning_messages <<- c(warning_messages, paste0(bl, " has less than ", n - 1, " linear internal knots for ", pred_vars[2], "."))
+        intknt$Y
+      }
+      
       return(list(ikX = ikX, ikY = ikY))
     }
   })
+  
+  # Print warnings if they are below the threshold
+  warning_threshold <- 10
+  if (n >= 3 && length(warning_messages) > 0 && length(warning_messages) <= warning_threshold) {
+    cat(paste(warning_messages, collapse = "\n"), sep = "")
+  }
   # Check if any warning was displayed and show the appropriate follow-up message
-  if (warning_displayed) {
+  if (length(warning_messages) > 0) {
     if (n == 3) {
-      cat("Quadratic averaging knot location is not computed for base learners with less than 2 internal knots.\n")
+      cat(" Quadratic averaging knot location is not computed for base learners with less than 2 internal knots.\n")
     } else if (n == 4) {
-      cat("Cubic averaging knot location is not computed for base learners with less than 3 internal knots.\n")
+      cat(" Cubic averaging knot location is not computed for base learners with less than 3 internal knots.\n")
     }
   }
   # Naming the elements of the list with the base-learner names

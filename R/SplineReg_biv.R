@@ -12,12 +12,16 @@ SplineReg_biv <- function(X ,Y , Z, W = NULL, offset = rep(0,length(X)), weights
   basisMatrixY_noint <- cut_int(basisMatrixY)
   
   basisMatrixbiv <- tensorProd(basisMatrixX,basisMatrixY_noint)
+  # basisMatrixbivbis <- tensorProd_R(basisMatrixX,basisMatrixY_noint)
+  # any(basisMatrixbiv-basisMatrixbivbis!=0)
+  # basisMatrixXbis <- recoverXmat(basisMatrixbiv, basisMatrixY_noint, basisMatrixX)
+  # any(basisMatrixX-basisMatrixXbis!=0)
   
   # Combine spline basis with parametric design matrix (if provided)
-  basisMatrixbiv2 <- cbind(basisMatrixbiv,W)
+  basisMatrixbiv2 <- cbind(basisMatrixbiv, W)
   
   # If coefficients vector was provided, check whether this is conformable with the knots vectors, o.w. re-estimate the coefficients
-  if(!is.null(coefficients)){
+  if (!is.null(coefficients)) {
     non_conformable <- (length(InterKnotsX) + 2) *  (length(InterKnotsY) + 2) != length(coefficients)
   }
   

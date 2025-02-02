@@ -46,7 +46,10 @@
 #' @param higher_order a logical that defines whether to compute the higher
 #' order fits (quadratic and cubic) after stage A is run. Default is
 #' \code{TRUE}.
-#' @param intknots vector of starting internal knots. Default is \code{NULL}.
+#' @param intknots_init vector of starting internal knots. Default is \code{NULL}.
+#' @param fit_init A list containing fitted values \code{pred}, along with
+#' corresponding \code{intknots} and \code{coef}, representing the initial fit from
+#' which to begin Stage A GeDS iteration (i.e. departing from step 2).
 #' @param only_pred logical, if \code{TRUE} only predictions are computed.
 #' 
 #' @return \code{\link{GeDS-Class}} object, i.e. a list of items that summarizes
@@ -190,7 +193,8 @@
 #' Z <- doublesin(cbind(X,Y))
 #' Z <- Z+rnorm(400, 0, sd = 0.1)
 #' # Fit a two dimensional GeDS model using NGeDS
-#' (BivGeDS <- NGeDS(Z ~ f(X, Y), Xextr = c(0, 3), Yextr = c(0, 3)))
+#'(BivGeDS <- NGeDS(Z ~ f(X, Y), phi = 0.9,
+#'                  Xextr = c(0, 3), Yextr = c(0, 3)))
 #' 
 #' # Extract quadratic coefficients/knots/deviance
 #' coef(BivGeDS, n = 3)
@@ -223,7 +227,7 @@
 NGeDS <- function(formula, data, weights, beta = 0.5, phi = 0.99, min.intknots = 0,
                   max.intknots = 500, q = 2, Xextr = NULL, Yextr = NULL,
                   show.iters = FALSE, stoptype = "RD", higher_order = TRUE,
-                  intknots = NULL, only_pred = FALSE)
+                  intknots_init = NULL, fit_init = NULL, only_pred = FALSE)
   {
   # 1. Capture current function call and use formula's environment if 'data' is missing
   save <- match.call()
@@ -323,8 +327,8 @@ NGeDS <- function(formula, data, weights, beta = 0.5, phi = 0.99, min.intknots =
                             beta = beta, phi = phi, min.intknots = min.intknots,
                             max.intknots = max.intknots, q = q, extr = Xextr,
                             show.iters = show.iters, stoptype = stoptype,
-                            higher_order = higher_order, intknots = intknots,
-                            only_pred = only_pred)
+                            higher_order = higher_order, intknots_init = intknots_init,
+                            fit_init = fit_init, only_pred = only_pred)
   ####################
   ## BIVARIATE GeDS ##
   ####################
@@ -333,8 +337,8 @@ NGeDS <- function(formula, data, weights, beta = 0.5, phi = 0.99, min.intknots =
     Indicator <- if(any(duplicated(X))) table(X[,1], X[,2]) else NULL 
     Xextr     <- if (is.null(Xextr)) range(X[,1]) else as.numeric(Xextr)
     Yextr     <- if (is.null(Yextr)) range(X[,2]) else as.numeric(Yextr)
-    Xintknots <- intknots$ikX
-    Yintknots <- intknots$ikY
+    Xintknots <- intknots_init$ikX
+    Yintknots <- intknots_init$ikY
     
     out <- BivariateFitter(X = X[,1], Y = X[,2], W = Z, Z = Y, weights = weights,
                            Indicator = Indicator, beta=beta, phi = phi,
