@@ -56,24 +56,19 @@
 #' means <- f_1(X)
 #' # Add (Normal) noise to the mean of Y
 #' Y <- rnorm(N, means, sd = 0.1)
-#'
 #' # Fit GeDS regression using NGeDS
 #' Gmod <- NGeDS(Y ~ f(X), beta = 0.6, phi = .995, Xextr = c(-2,2))
-#'
 #' # Compute defined integrals (in TeX style) $\int_{1}^{-1} f(x)dx$
 #' # and $\int_{1}^{1} f(x)dx$
 #' # $f$ being the quadratic fit
-#' Integrate(Gmod, to = c(-1,1), from = 1, n = 3)
-#'
+#' Integrate(Gmod, from = 1, to = c(-1,1), n = 3)
 #' # Compute defined integrals (in TeX style) $\int_{1}^{-1} f(x)dx$
 #' # and $\int_{-1}^{1} f(x)dx$
 #' # $f$ being the quadratic fit
-#' Integrate(Gmod, to = c(-1,1), from = c(1,-1), n = 3)
-#'
-#' \dontrun{
+#' Integrate(Gmod, from = c(1,-1), to = c(-1,1), n = 3)
+#' ## Not run:
 #' ## This gives an error
-#' Integrate(Gmod, to = 1, from = c(1,-1), n = 3)
-#' }
+#' Integrate(Gmod, from = c(1,-1), to = c(1,1), n = 3)
 #' 
 #' @export
 #'
@@ -104,11 +99,7 @@ Integrate <- function(object = NULL, knots = NULL, coef = NULL, from, to, n = 3L
   }
   
   n <- as.integer(n)
-  if(!(n %in% 2L:4L)) {
-    n <- 3L
-    warning("'n' incorrectly specified. Set to 3.")
-  }
-  
+
   to <- as.numeric(to)
   if (missing(from)) {
     from = min(kn)
@@ -125,10 +116,11 @@ Integrate <- function(object = NULL, knots = NULL, coef = NULL, from, to, n = 3L
   knnew <- (kn[-(1:n)]-kn[-((lastkn-n+1):lastkn)])/n
   
   # \sum_{j=1}^{s-1}\sum_{k=1}^j\theta_k\frac{\bar{\tau}_{k+n}-\bar{\tau}_{k}}{n} * N_{j,n+1}(x)
-  newtheta[1] <- theta[1]*knnew[1]
-  for(i in 2:p) {
-    newtheta[i] <- newtheta[i-1] + theta[i]*knnew[i]
-  }
+  # newtheta[1] <- theta[1]*knnew[1]
+  # for(i in 2:p) {
+  #   newtheta[i] <- newtheta[i-1] + theta[i]*knnew[i]
+  # }
+  newtheta <- cumsum(theta * knnew)
   
   resFrom <- sapply(from, gedsint, knts = kn, coefs = newtheta, n = n)
   resTo <- sapply(to, gedsint, knts = kn, coefs = newtheta, n = n)

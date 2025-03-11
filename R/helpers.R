@@ -27,7 +27,7 @@ makeNewMatr <- function(matrice, tab, by.row=F){
   if(is.null(tab)){
     ret <- matrice
   } else {
-    recurr <-if(by.row) c(t(tab)) else c(tab)
+    recurr <- if(by.row) c(t(tab)) else c(tab)
     recurr <- recurr[recurr!=0]
     ids <- cumsum(recurr)
     ids<- c(0,ids)
@@ -103,8 +103,7 @@ SplineReg_fast_biv <- function(X, Y, Z, W=NULL, weights = rep(1, length(X)),
                            x = X, ord = n, outer.ok = TRUE)
   matriceY <- splineDesign(knots = sort(c(InterKnotsY, rep(Yextr,n))), derivs = rep(0,length(Y)),
                            x = Y, ord = n, outer.ok = T)
-  matriceY_noint <- cut_int(matriceY)
-  matricebiv <- tensorProd(matriceX, matriceY_noint)
+  matricebiv <- tensorProd(matriceX, matriceY)
   matricebiv2 <- cbind(matricebiv, W)
   
   
@@ -132,7 +131,7 @@ SplineReg_fast_biv <- function(X, Y, Z, W=NULL, weights = rep(1, length(X)),
   #  theta[is.na(theta)] <- 0
   out <- list("Theta" = theta, "Predicted" = matricebiv2%*%theta,
               "Residuals" = resid, "RSS" = t(resid)%*%resid,
-              "XBasis" = matriceX, "YBasis" = matriceY_noint, #"Poly"=poly,
+              "XBasis" = matriceX, "YBasis" = matriceY, #"Poly"=poly,
               "temporary" = tmp)
   return(out)
 }

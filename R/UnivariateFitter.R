@@ -126,8 +126,9 @@
 #' plot(X,log(Y), xlab = "x", ylab = expression(f[1](x)))
 #' lines(Gmod2, n = 3, col = "red")
 #' lines(Gmod2, n = 4, col = "blue", lty = 2)
-#' legend("topleft", c("Quadratic","Cubic"),
-#'      col = c("red","blue"), lty = c(1,2))
+#' legend("topleft", c("Quadratic", "Cubic"),
+#'        col = c("red", "blue"),
+#'        lty = c(1,2))
 #'
 #' @seealso  \code{\link{NGeDS}} and \code{\link{GGeDS}}.
 #' 
@@ -320,8 +321,8 @@ UnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0,NROW(Y)),
     ###############
     ## STEPS 6/7 ##
     ###############
-    newknot <- Knotnew(wht = w, restmp = res.weighted, x = distinctX, dcm = dcum,
-                       oldknots = c(rep(extr, 2 + 1), intknots), tol = tol)[1]
+    newknot <- Knotnew(weights = w, residuals = res.weighted, x = distinctX,
+                       dcum = dcum, oldknots = c(rep(extr, 2 + 1), intknots), tol = tol)[1]
 
     # newknot <- Knotnew_R(wht = w, restmp = res.weighted, x = distinctX, dcm = dcum,
     #                      oldknots = sort(c(intknots, rep(extr, 3))), tol = tol)[1]
@@ -629,7 +630,7 @@ GenUnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)),
     ######################################################################
     ## STEP 5: calculate the normalized within-cluster means and ranges ##
     ######################################################################
-    means    <- means/max(means)
+    means <- means/max(means)
     # If the residual clusters are all singletons then all the wc.ranges will equal 0, and we cannot divide by 0
     if (max(wc.range) != 0) wc.range <- wc.range/max(wc.range)
     
@@ -642,9 +643,9 @@ GenUnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)),
     ## STEPS 7/8 ##
     ###############
     # i. Calculate new knot
-    newknot <- Knotnew(wht = w, restmp = res.weighted, x = distinctX, dcm = dcum,
-                       oldknots = c(rep(extr,2 + 1), intknots), tol = tol)[1]
-    
+    newknot <- Knotnew(weights = w, residuals = res.weighted, x = distinctX,
+                       dcum = dcum, oldknots = c(rep(extr, 2 + 1), intknots), tol = tol)[1]
+
     # ii. Calculate guess-coefficient for newknot
     guess <- newknot.guess(intknots, extr, guess, newknot)
     

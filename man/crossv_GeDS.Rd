@@ -22,11 +22,57 @@ can also be tuned. Default values are \code{int.knots_init_grid = c(0, 1, 2)},
 \value{
 Two data frames, \code{best_params} and \code{results}.
 \code{best_params} contains the best combination of parameters according to
-the cross-validated MSE. \code{results} presents the results for each of the
-possible combinations of parameters, given the input \code{parameters}.
+the cross-validated MSE. \code{results} presents the cross-validated MSE and 
+the average number of internal knots across the folds for each possible 
+combination of parameters, given the input \code{parameters}. In the case of
+\code{model_fun = NGeDSboost}, it also provides the cross-validated number of
+boosting iterations.
 }
 \description{
 \code{crossv_GeDS} performs k-fold cross-validation for tuning the relevant
 parameters of the \code{NGeDS}, \code{GGeDS}, \code{NGeDSgam}, and
 \code{NGeDSboost} models.
+}
+\examples{
+###################################################
+# Generate a data sample for the response variable
+# Y and the single covariate X
+set.seed(123)
+N <- 500
+f_1 <- function(x) (10*x/(1+100*x^2))*4+4
+X <- sort(runif(N, min = -2, max = 2))
+# Specify a model for the mean of Y to include only a component
+# non-linear in X, defined by the function f_1
+means <- f_1(X)
+# Add (Normal) noise to the mean of Y
+Y <- rnorm(N, means, sd = 0.1)
+data = data.frame(X = X, Y = Y)
+
+\dontrun{
+## NGeDS
+# Define different combinations of parameters to cross-validate
+param = list(beta_grid = c(0.5),
+             phi_grid = c(0.9, 0.95),
+             q_grid = c(2))
+
+cv_NGeDS <- crossv_GeDS(Y ~ f(X), data = data, NGeDS, n = 3L,
+                        parameters = param)
+
+print(cv_NGeDS$best_params)
+View(cv_NGeDS$results)
+
+## NGeDSboost
+param = list(int.knots_init_grid = c(1, 2),
+             shrinkage_grid = 1,
+             beta_grid = c(0.3, 0.5),
+             phi_grid = c(0.95, 0.99),
+             q_grid = 2)
+
+cv_NGeDSboost <- crossv_GeDS(Y ~ f(X), data = data, NGeDSboost, n = 2L,
+                             n_folds = 2L, parameters = param)
+
+print(cv_NGeDSboost$best_params)
+View(cv_NGeDSboost$results)
+}
+
 }

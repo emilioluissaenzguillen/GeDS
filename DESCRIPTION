@@ -1,8 +1,8 @@
 Package: GeDS
 Type: Package
 Title: Geometrically Designed Spline Regression
-Version: 0.2.5
-Date: 2025-01-21
+Version: 0.2.7
+Date: 2025-03-10
 Authors@R: c(person(given = c("Dimitrina", "S."),
                       family = "Dimitrova",
                       role = "aut",
@@ -36,12 +36,12 @@ Description: Spline Regression, Generalized Additive Models, and Component-wise 
   <doi:10.1016/j.amc.2022.127493>. Further extending its capabilities, GeDS's implementation
   includes Generalized Additive Models (GAM) and Functional Gradient Boosting (FGB),
   enabling versatile multivariate predictor modeling, as discussed in the forthcoming work of
-  Dimitrova et al. (2024).
+  Dimitrova et al. (2025).
 License: GPL-3
 URL: https://github.com/emilioluissaenzguillen/GeDS
 BugReports: https://github.com/emilioluissaenzguillen/GeDS/issues
 LazyData: TRUE
-Depends: R (>= 3.0.1), Rcpp (>= 0.12.1), splines, stats, utils, Matrix, methods, mi, Rmpfr
+Depends: R (>= 3.0.1), Rcpp (>= 1.0.0), splines, stats, utils, Matrix, methods, mi, Rmpfr
 LinkingTo: Rcpp
 RoxygenNote: 7.3.2
 Encoding: UTF-8

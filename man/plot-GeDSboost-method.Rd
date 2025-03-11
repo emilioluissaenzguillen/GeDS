@@ -19,18 +19,18 @@ should be extracted.}
 \code{\link[graphics]{plot.default}} function.}
 }
 \description{
-#' Plots the component functions of a GeDSboost object fitted using
-#' \code{\link{NGeDSboost}}. If the model has a single base-learner, the plot
+Plots the component functions of a GeDSboost object fitted using
+\code{\link{NGeDSboost}}. If the model has a single base-learner, the plot
 will be returned on the response scale. Otherwise, plots are produced on the
 linear predictor scale. Note that only univariate base-learner plots are
 returned, as representation of the boosted model as a single spline model is
-available only for univariate base-learners (see Dimitrova et al. (2024)). In
+available only for univariate base-learners (see Dimitrova et al. (2025)). In
 addition since component-wise gradient boosting inherently performs base-learner
 selection, you should only expect plots for the base-learners that where selected
 across the boosting iterations.
 }
 \references{
-Dimitrova, D. S., Guillen, E. S. and Kaishev, V. K.  (2024).
+Dimitrova, D. S., Kaishev, V. K. and Saenz Guillen, E. L. (2025).
 \pkg{GeDS}: An \proglang{R} Package for Regression, Generalized Additive
 Models and Functional Gradient Boosting, based on Geometrically Designed
 (GeD) Splines. \emph{Manuscript submitted for publication.}

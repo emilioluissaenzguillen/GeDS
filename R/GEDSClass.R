@@ -13,7 +13,7 @@
 #'
 #' @slot Type Character string indicating the type of regression performed.
 #' This can be \code{"LM - Univ"}/\code{"LM - Biv"} or
-#' #' \code{"GLM - Univ"}/\code{"GLM - Biv"}, respectively corresponding to Normal
+#' \code{"GLM - Univ"}/\code{"GLM - Biv"}, respectively corresponding to Normal
 #' univariate/bivariate GeDS (implemented by \code{\link{NGeDS}}), and to
 #' generalized (GNM-GLM) univariate/bivariate GeDS (implemented by
 #' \code{\link{GGeDS}}).
@@ -203,7 +203,7 @@ setClass(
 #' \emph{Applied Mathematics and Computation}, \strong{436}. \cr
 #' DOI: \doi{10.1016/j.amc.2022.127493}
 #' 
-#' Dimitrova, D. S., Guillen, E. S. and Kaishev, V. K.  (2024).
+#' Dimitrova, D. S., Kaishev, V. K. and Saenz Guillen, E. L. (2025).
 #' \pkg{GeDS}: An \proglang{R} Package for Regression, Generalized Additive
 #' Models and Functional Gradient Boosting, based on Geometrically Designed
 #' (GeD) Splines. \emph{Manuscript submitted for publication.}
@@ -316,7 +316,7 @@ setClass(
 #' \emph{Applied Mathematics and Computation}, \strong{436}. \cr
 #' DOI: \doi{10.1016/j.amc.2022.127493}
 #' 
-#' Dimitrova, D. S., Guillen, E. S. and Kaishev, V. K.  (2024).
+#' Dimitrova, D. S., Kaishev, V. K. and Saenz Guillen, E. L. (2025).
 #' \pkg{GeDS}: An \proglang{R} Package for Regression, Generalized Additive
 #' Models and Functional Gradient Boosting, based on Geometrically Designed
 #' (GeD) Splines. \emph{Manuscript submitted for publication.}

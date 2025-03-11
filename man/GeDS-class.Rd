@@ -16,7 +16,7 @@ Methods for functions \code{coef}, \code{knots}, \code{print}, \code{predict},
 \describe{
 \item{\code{Type}}{Character string indicating the type of regression performed.
 This can be \code{"LM - Univ"}/\code{"LM - Biv"} or
-#' \code{"GLM - Univ"}/\code{"GLM - Biv"}, respectively corresponding to Normal
+\code{"GLM - Univ"}/\code{"GLM - Biv"}, respectively corresponding to Normal
 univariate/bivariate GeDS (implemented by \code{\link{NGeDS}}), and to
 generalized (GNM-GLM) univariate/bivariate GeDS (implemented by
 \code{\link{GGeDS}}).}

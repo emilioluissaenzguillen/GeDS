@@ -72,9 +72,9 @@ boosting iterations to be run. If not specified, it defaults to 0L.}
 of boosting iterations to be run. If not specified, it defaults to 100L.
 This setting serves as a fallback when the stopping rule, based on
 consecutive deviances and tuned by \code{phi_boost_exit} and \code{q_boost},
-does not trigger an earlier termination (see Dimitrova et al. (2024)).
+does not trigger an earlier termination (see Dimitrova et al. (2025)).
 Therefore, users can increase/decrease the number of boosting iterations,
-by increasing/decreasing the value \code{phi_boost_exit} and/or#
+by increasing/decreasing the value \code{phi_boost_exit} and/or
 \code{q_boost}, or directly specify \code{max_iterations}.}
 
 \item{shrinkage}{numeric parameter in the interval \eqn{[0,1]} defining the
@@ -85,7 +85,7 @@ Default is equal to \code{1}.}
 
 \item{phi_boost_exit}{numeric parameter in the interval \eqn{[0,1]}
 specifying the threshold for the boosting iterations stopping rule. Default
-is equal to \code{0.995}.}
+is equal to \code{0.99}.}
 
 \item{q_boost}{numeric parameter which allows to fine-tune the boosting
 iterations stopping rule, by default equal to \code{2L}.}
@@ -131,7 +131,7 @@ order to make these objects tractable, such as
 \description{
 \code{NGeDSboost} implements component-wise gradient boosting (Bühlmann and Yu
 (2003), Bühlmann and Hothorn (2007)) using normal GeD splines (i.e., fitted
-with \code{\link{NGeDS}} function) as base-learners (see Dimitrova et al. (2024)).
+with \code{\link{NGeDS}} function) as base-learners (see Dimitrova et al. (2025)).
 }
 \details{
 The  \code{NGeDSboost} function implements functional gradient boosting
@@ -236,7 +236,7 @@ library(TH.data)
 data("bodyfat", package = "TH.data")
 
 Gmodboost <- NGeDSboost(formula = DEXfat ~ age + f(hipcirc, waistcirc) + f(kneebreadth),
-data = bodyfat)
+data = bodyfat, phi_boost_exit = 0.9, q_boost = 1, phi = 0.9, q = 1)
 
 MSE_Gmodboost_linear <- mean((bodyfat$DEXfat - Gmodboost$predictions$pred_linear)^2)
 MSE_Gmodboost_quadratic <- mean((bodyfat$DEXfat - Gmodboost$predictions$pred_quadratic)^2)
@@ -276,7 +276,7 @@ models.
 \emph{Applied Mathematics and Computation}, \strong{436}. \cr
 DOI: \doi{10.1016/j.amc.2022.127493}
 
-Dimitrova, D. S., Kaishev, V. K. and Saenz Guillen, E. (2024).
+Dimitrova, D. S., Kaishev, V. K. and Saenz Guillen, E. L. (2025).
 \pkg{GeDS}: An \proglang{R} Package for Regression, Generalized Additive
 Models and Functional Gradient Boosting, based on Geometrically Designed
 (GeD) Splines. \emph{Manuscript submitted for publication.}

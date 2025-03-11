@@ -51,7 +51,7 @@
 #' \code{\link[=formula.GeDS]{formula}}, \code{\link{NGeDS}} and
 #' \code{\link{GGeDS}} for details).
 #' 
-#' Dimitrova et al. (2024) have recently made significant enhancements to the
+#' Dimitrova et al. (2025) have recently made significant enhancements to the
 #' \pkg{GeDS} methodology, by incorporating generalized additive models (GAM) and
 #' functional gradient boosting (FGB). On the one hand, generalized additive
 #' models are encompassed by implementing the \emph{local-scoring} algorithm
@@ -68,7 +68,7 @@
 #' \code{\link{GeDSboost-class}} objects, respectively. \code{\link{GeDS-class}},
 #' \code{\link{GeDSgam-class}} and \code{\link{GeDSboost-class}} objects contain
 #' second, third and fourth order spline fits. As described in 
-#' Kaishev et al. (2016), Dimitrova et al. (2023) and  Dimitrova et al. (2024),
+#' Kaishev et al. (2016), Dimitrova et al. (2023) and  Dimitrova et al. (2025),
 #' the "final" GeDS fit is the one minimizing the empirical deviance. Nevertheless,
 #' the user can choose to use any of the available fits.
 #'
@@ -86,8 +86,8 @@
 #'
 #' \tabular{rl}{
 #' Package: \tab GeDS\cr
-#' Version: \tab 0.2.4 \cr
-#' Date: \tab 2024-08-19\cr
+#' Version: \tab 0.2.6 \cr
+#' Date: \tab 2025-02-10\cr
 #' License: \tab GPL-3 \cr
 #' }
 #'
@@ -103,7 +103,7 @@
 #' \emph{Applied Mathematics and Computation}, \strong{436}. \cr
 #' DOI: \doi{10.1016/j.amc.2022.127493}
 #' 
-#' Dimitrova, D. S., Guillen, E. S. and Kaishev, V. K.  (2024).
+#' Dimitrova, D. S., Kaishev, V. K. and Saenz Guillen, E. L. (2025).
 #' \pkg{GeDS}: An \proglang{R} Package for Regression, Generalized Additive
 #' Models and Functional Gradient Boosting, based on Geometrically Designed
 #' (GeD) Splines. \emph{Manuscript submitted for publication.}
@@ -111,10 +111,10 @@
 #' @keywords package
 #' @aliases GeDS
 #'
-#' @author  Dimitrina S. Dimitrova <D.Dimitrova@city.ac.uk>,
-#' Emilio S. Guillen <emilio.saenz-guillen@bayes.city.ac.uk>,
+#' @author  Dimitrina S. Dimitrova <D.Dimitrova@city.ac.uk>,#' 
 #' Vladimir K. Kaishev <V.Kaishev@city.ac.uk>,
-#' Andrea Lattuada <Andrea.Lattuada@unicatt.it> and
+#' Andrea Lattuada <Andrea.Lattuada@unicatt.it>,
+#' Emilio L. Sáenz Guillén <Emilio.Saenz-Guillen@bayes.city.ac.uk> and
 #' Richard J. Verrall <R.J.Verrall@city.ac.uk>
 #'
 #' 

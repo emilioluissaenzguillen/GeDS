@@ -99,8 +99,7 @@ SplineReg_LM_Multivar <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)), base
       matrices_biv_list_aux[[learner_name]] <- list(basisMatrixX, basisMatrixY)
       names(matrices_biv_list_aux[[learner_name]]) <- vars
       
-      basisMatrixY_noint <- cut_int(basisMatrixY)
-      matrices_biv_list[[learner_name]] <- tensorProd(basisMatrixX,basisMatrixY_noint)
+      matrices_biv_list[[learner_name]] <- tensorProd(basisMatrixX, basisMatrixY)
       
       # Assign base-learner name to the columns of each of the matrices
       for (matrix_name in names(matrices_biv_list)) {
@@ -324,8 +323,7 @@ SplineReg_GLM_Multivar <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)), bas
         matrices_biv_list_aux[[learner_name]] <- list(basisMatrixX, basisMatrixY)
         names(matrices_biv_list_aux[[learner_name]]) <- vars
         
-        basisMatrixY_noint <- cut_int(basisMatrixY)
-        matrices_biv_list[[learner_name]] <- tensorProd(basisMatrixX,basisMatrixY_noint)
+        matrices_biv_list[[learner_name]] <- tensorProd(basisMatrixX, basisMatrixY)
         
         # Assign base-learner name to the columns of each of the matrices
         for (matrix_name in names(matrices_biv_list)) {

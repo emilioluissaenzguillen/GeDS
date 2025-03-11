@@ -528,8 +528,7 @@ predict.GeDSboost_GeDSgam <- function(object, newdata, n = 3L,
                                    x=X_biv[,1],ord=n,outer.ok = TRUE)
           matriceY <- splineDesign(knots=sort(c(knots$ikY,rep(Yextr,n))),derivs=rep(0,length(X_biv[,2])),
                                    x=X_biv[,2],ord=n,outer.ok = TRUE)
-          matriceY_noint <- cut_int(matriceY)
-          matrices_biv_list[[learner_name]] <- tensorProd(matriceX,matriceY_noint)
+          matrices_biv_list[[learner_name]] <- tensorProd(matriceX, matriceY)
         }
       } else {
         matrices_biv_list <- NULL
@@ -725,6 +724,27 @@ predict.GeDSboost_GeDSgam <- function(object, newdata, n = 3L,
 #' pred3 <- predict(Gmodgam, n = 4, newdata = data, base_learner = "f(x3)")
 #' 
 #' round(predict(Gmodgam, n = 4, newdata = data) - (pred0 + pred1 + pred2 + pred3), 12)
+#' 
+#' # Plot GeDSgam partial fits to f(x0), f(x1), f(x2)
+#' par(mfrow = c(1,3))
+#' for (i in 1:3) {
+#'   # Plot the base learner
+#'   plot(Gmodgam, n = 3, base_learners = paste0("f(x", i-1, ")"), col = "seagreen",
+#'        cex.lab = 1.5, cex.axis = 1.5)
+#'   # Add legend
+#'   if (i == 2) {
+#'     position <- "topleft"
+#'     } else if (i == 3) {
+#'       position <- "topright"
+#'       } else {
+#'         position <- "bottom"
+#'       }
+#'   legend(position, legend = c("GAM-GeDS Quadratic", paste0("f(x", i-1, ")")),
+#'          col = c("seagreen", "darkgray"),
+#'          lwd = c(2, 2),
+#'          bty = "n",
+#'          cex = 1.5)
+#' }
 #' 
 #' @references
 #' Gu, C. and Wahba, G. (1991).

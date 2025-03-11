@@ -76,7 +76,7 @@ plot(Polymod)
 # based on the same example
 knt <- splineKnots(Polymod)
 coeffs <- coef(Polymod)
-plot(Gmod, n = 4, legend = FALSE, main = "Cubic Curves")
+plot(Gmod, n = 4, legend.pos = FALSE, main = "Cubic Curves")
 cols <- sample(heat.colors(length(knt)), length(knt))
 for(i in 1:(length(knt))){
   curve(coeffs[i,1] + coeffs[i,2]*(x - knt[i])+

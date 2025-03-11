@@ -161,15 +161,19 @@
 #' Y <- rpois(N, means)
 #'
 #' # Fit a Poisson GeDS regression using GGeDS
-#' (Gmod <- GGeDS(Y ~ f(X), beta = 0.2, phi = 0.995, family = poisson(),
-#'                 Xextr = c(-2,2)))
-#'
+#' (Gmod <- GGeDS(Y ~ f(X), beta = 0.2, phi = 0.99, q = 2, family = poisson(),
+#'                Xextr = c(-2,2)))
 #' # Plot the quadratic and cubic GeDS fits
-#' plot(X,log(Y),xlab = "x", ylab = expression(f[1](x)))
+#' plot(X, log(Y), xlab = "x", ylab = expression(f[1](x)))
+#' lines(X, sapply(X, f_1), lwd = 2)
 #' lines(Gmod, n = 3, col = "red")
 #' lines(Gmod, n = 4, col = "blue", lty = 2)
-#' legend("topleft", c("Quadratic", "Cubic"),
-#'        col = c("red", "blue"), lty = c(1,2))
+#' legend("topleft",
+#'        legend = expression(f[1](x), "Quadratic", "Cubic"),
+#'        col = c("black", "red", "blue"),
+#'        lty = c(1, 1, 2),
+#'        lwd = c(2, 1, 1),
+#'        bty = "n")
 #'
 #' # Generate GeDS prediction at X=0, first on the response scale and then on
 #' # the predictor scale
@@ -194,7 +198,7 @@
 #' # Generate Gamma distributed Y according to the mean model
 #' Y <- rgamma(N, shape = means, rate = 0.1)
 #' # Fit a Gamma GeDS regression using GGeDS
-#' Gmod <- GGeDS(Y ~ f(X), beta = 0.1, phi = 0.995, family =  Gamma(log),
+#' Gmod <- GGeDS(Y ~ f(X), beta = 0.1, phi = 0.99, q = 2, family = Gamma(log),
 #'               Xextr = c(-2,2))
 #' plot(Gmod, f = function(x) exp(f_1(x))/0.1)
 #' 
@@ -206,7 +210,7 @@
 #' means <- exp(eta)/(1+exp(eta))
 #' Y <- rbinom(N, size = 50, prob = means) / 50
 #' # Fit a Binomial GeDS regression using GGeDS
-#' Gmod <- GGeDS(Y ~ f(X), beta = 0.1, phi = 0.995, family =  "binomial",
+#' Gmod <- GGeDS(Y ~ f(X), beta = 0.1, phi = 0.99, family = "quasibinomial",
 #'               Xextr = c(-2,2))
 #' plot(Gmod, f = function(x) exp(f_1(x) - 4)/(1 + exp(f_1(x) - 4)))
 #'
@@ -251,7 +255,7 @@
 #' data(EWmortality)
 #' attach(EWmortality)
 #' (M1 <- GGeDS(formula = Deaths ~ f(Age) + offset(log(Exposure)),
-#'               family = poisson(), phi = 0.99, beta = 0.1, q = 3,
+#'               family = quasipoisson(), phi = 0.99, beta = 0.1, q = 3,
 #'               stoptype = "LR"))
 #'
 #' Exposure_init <- Exposure + 0.5 * Deaths
@@ -288,19 +292,18 @@
 #' data <- data.frame(X, Y, Z)
 #' 
 #' # Fit a Poisson GeDS regression using GGeDS
-#' BivGeDS <- GGeDS(Z ~ f(X,Y), beta = 0.2, phi = 0.995, family = "poisson",
-#' Xextr = c(0, 3), Yextr = c(0, 3))
+#' BivGeDS <- GGeDS(Z ~ f(X,Y), beta = 0.2, phi = 0.99, family = "poisson")
 #' 
-#' # MSEs w.r.t data
-#' mean((Z-BivGeDS$Linear.Fit$Predicted)^2)
-#' mean((Z-BivGeDS$Quadratic.Fit$Predicted)^2)
-#' mean((Z-BivGeDS$Cubic.Fit$Predicted)^2)
+#' # Poisson mean deviance w.r.t data
+#' deviance(BivGeDS, n = 2) # or sum(poisson()$dev.resids(Z, BivGeDS$Linear.Fit$Predicted, wt = 1))
+#' deviance(BivGeDS, n = 3)
+#' deviance(BivGeDS, n = 4)
 #' 
-#' # MSEs w.r.t true function
+#' # Poisson mean deviance w.r.t true function#' 
 #' f_XY <- apply(cbind(X, Y), 1, function(row) doublesin(matrix(row, ncol = 2)))
-#' mean((f_XY - BivGeDS$Linear.Fit$Predicted)^2)
-#' mean((f_XY - BivGeDS$Quadratic.Fit$Predicted)^2)
-#' mean((f_XY - BivGeDS$Cubic.Fit$Predicted)^2)
+#' mean(poisson()$dev.resids(f_XY, BivGeDS$Linear.Fit$Predicted, wt = 1))
+#' mean(poisson()$dev.resids(f_XY, BivGeDS$Quadratic.Fit$Predicted, wt = 1))
+#' mean(poisson()$dev.resids(f_XY, BivGeDS$Cubic.Fit$Predicted, wt = 1))
 #' 
 #' # Surface plot of the generating function (doublesin)
 #' plot(BivGeDS, f = doublesin)
@@ -377,12 +380,12 @@ GGeDS <- function(formula, family = gaussian(), data, weights, beta, phi = 0.99,
 
   # 5.3. Check phi, beta, max.intknots, q, show.iters
   # beta
-  if(missing(beta)){
+  if (missing(beta)) {
     beta <- 0.5
-    if(family$family=="gaussian") beta <- 0.5
-    if(family$family%in%c("poisson","quasipoisson")) beta <- 0.2
-    if(family$family%in%c("binomial","quasibinomial")) beta <- 0.1
-    if(family$family=="Gamma") beta <- 0.1
+    if (family$family == "gaussian") beta <- 0.5
+    if (family$family %in% c("poisson", "quasipoisson")) beta <- 0.2
+    if (family$family %in% c("binomial", "quasibinomial")) beta <- 0.1
+    if (family$family == "Gamma") beta <- 0.1
   }
   if(beta > 1 || beta < 0) stop("'beta' should be a value in [0,1]")
   # phi

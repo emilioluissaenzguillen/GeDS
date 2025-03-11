@@ -11,45 +11,29 @@ Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
 // whmx
-int whmx(NumericVector vettore);
-RcppExport SEXP _GeDS_whmx(SEXP vettoreSEXP) {
+int whmx(NumericVector vector);
+RcppExport SEXP _GeDS_whmx(SEXP vectorSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< NumericVector >::type vettore(vettoreSEXP);
-    rcpp_result_gen = Rcpp::wrap(whmx(vettore));
-    return rcpp_result_gen;
-END_RCPP
-}
-// Knotnewtest
-NumericVector Knotnewtest(NumericVector wht, NumericVector restmp, NumericVector x, NumericVector dcm, NumericVector oldknots, double tol);
-RcppExport SEXP _GeDS_Knotnewtest(SEXP whtSEXP, SEXP restmpSEXP, SEXP xSEXP, SEXP dcmSEXP, SEXP oldknotsSEXP, SEXP tolSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< NumericVector >::type wht(whtSEXP);
-    Rcpp::traits::input_parameter< NumericVector >::type restmp(restmpSEXP);
-    Rcpp::traits::input_parameter< NumericVector >::type x(xSEXP);
-    Rcpp::traits::input_parameter< NumericVector >::type dcm(dcmSEXP);
-    Rcpp::traits::input_parameter< NumericVector >::type oldknots(oldknotsSEXP);
-    Rcpp::traits::input_parameter< double >::type tol(tolSEXP);
-    rcpp_result_gen = Rcpp::wrap(Knotnewtest(wht, restmp, x, dcm, oldknots, tol));
+    Rcpp::traits::input_parameter< NumericVector >::type vector(vectorSEXP);
+    rcpp_result_gen = Rcpp::wrap(whmx(vector));
     return rcpp_result_gen;
 END_RCPP
 }
 // Knotnew
-NumericVector Knotnew(NumericVector wht, NumericVector restmp, NumericVector x, NumericVector dcm, NumericVector oldknots, double tol);
-RcppExport SEXP _GeDS_Knotnew(SEXP whtSEXP, SEXP restmpSEXP, SEXP xSEXP, SEXP dcmSEXP, SEXP oldknotsSEXP, SEXP tolSEXP) {
+NumericVector Knotnew(NumericVector weights, NumericVector residuals, NumericVector x, NumericVector dcum, NumericVector oldknots, double tol);
+RcppExport SEXP _GeDS_Knotnew(SEXP weightsSEXP, SEXP residualsSEXP, SEXP xSEXP, SEXP dcumSEXP, SEXP oldknotsSEXP, SEXP tolSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< NumericVector >::type wht(whtSEXP);
-    Rcpp::traits::input_parameter< NumericVector >::type restmp(restmpSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type weights(weightsSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type residuals(residualsSEXP);
     Rcpp::traits::input_parameter< NumericVector >::type x(xSEXP);
-    Rcpp::traits::input_parameter< NumericVector >::type dcm(dcmSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type dcum(dcumSEXP);
     Rcpp::traits::input_parameter< NumericVector >::type oldknots(oldknotsSEXP);
     Rcpp::traits::input_parameter< double >::type tol(tolSEXP);
-    rcpp_result_gen = Rcpp::wrap(Knotnew(wht, restmp, x, dcm, oldknots, tol));
+    rcpp_result_gen = Rcpp::wrap(Knotnew(weights, residuals, x, dcum, oldknots, tol));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -114,16 +98,45 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// makeNewMatrCPP
+NumericMatrix makeNewMatrCPP(NumericMatrix matrix, Nullable<IntegerMatrix> tab, bool by_row);
+RcppExport SEXP _GeDS_makeNewMatrCPP(SEXP matrixSEXP, SEXP tabSEXP, SEXP by_rowSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericMatrix >::type matrix(matrixSEXP);
+    Rcpp::traits::input_parameter< Nullable<IntegerMatrix> >::type tab(tabSEXP);
+    Rcpp::traits::input_parameter< bool >::type by_row(by_rowSEXP);
+    rcpp_result_gen = Rcpp::wrap(makeNewMatrCPP(matrix, tab, by_row));
+    return rcpp_result_gen;
+END_RCPP
+}
+// findNewDimKnot
+List findNewDimKnot(IntegerVector dcumFixedDim_Dim, NumericVector Dim_weights, NumericVector Dim_intknots, NumericMatrix matrFixedDim, int Dim_index);
+RcppExport SEXP _GeDS_findNewDimKnot(SEXP dcumFixedDim_DimSEXP, SEXP Dim_weightsSEXP, SEXP Dim_intknotsSEXP, SEXP matrFixedDimSEXP, SEXP Dim_indexSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< IntegerVector >::type dcumFixedDim_Dim(dcumFixedDim_DimSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type Dim_weights(Dim_weightsSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type Dim_intknots(Dim_intknotsSEXP);
+    Rcpp::traits::input_parameter< NumericMatrix >::type matrFixedDim(matrFixedDimSEXP);
+    Rcpp::traits::input_parameter< int >::type Dim_index(Dim_indexSEXP);
+    rcpp_result_gen = Rcpp::wrap(findNewDimKnot(dcumFixedDim_Dim, Dim_weights, Dim_intknots, matrFixedDim, Dim_index));
+    return rcpp_result_gen;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_GeDS_whmx", (DL_FUNC) &_GeDS_whmx, 1},
-    {"_GeDS_Knotnewtest", (DL_FUNC) &_GeDS_Knotnewtest, 6},
     {"_GeDS_Knotnew", (DL_FUNC) &_GeDS_Knotnew, 6},
     {"_GeDS_makenewknots", (DL_FUNC) &_GeDS_makenewknots, 2},
     {"_GeDS_makeEpsilonsb", (DL_FUNC) &_GeDS_makeEpsilonsb, 4},
     {"_GeDS_makeRatSplines", (DL_FUNC) &_GeDS_makeRatSplines, 2},
     {"_GeDS_makeWeights", (DL_FUNC) &_GeDS_makeWeights, 1},
     {"_GeDS_tensorProd", (DL_FUNC) &_GeDS_tensorProd, 2},
+    {"_GeDS_makeNewMatrCPP", (DL_FUNC) &_GeDS_makeNewMatrCPP, 3},
+    {"_GeDS_findNewDimKnot", (DL_FUNC) &_GeDS_findNewDimKnot, 5},
     {NULL, NULL, 0}
 };
 

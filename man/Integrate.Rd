@@ -64,24 +64,19 @@ X <- sort(runif(N, min = -2, max = 2))
 means <- f_1(X)
 # Add (Normal) noise to the mean of Y
 Y <- rnorm(N, means, sd = 0.1)
-
 # Fit GeDS regression using NGeDS
 Gmod <- NGeDS(Y ~ f(X), beta = 0.6, phi = .995, Xextr = c(-2,2))
-
 # Compute defined integrals (in TeX style) $\int_{1}^{-1} f(x)dx$
 # and $\int_{1}^{1} f(x)dx$
 # $f$ being the quadratic fit
-Integrate(Gmod, to = c(-1,1), from = 1, n = 3)
-
+Integrate(Gmod, from = 1, to = c(-1,1), n = 3)
 # Compute defined integrals (in TeX style) $\int_{1}^{-1} f(x)dx$
 # and $\int_{-1}^{1} f(x)dx$
 # $f$ being the quadratic fit
-Integrate(Gmod, to = c(-1,1), from = c(1,-1), n = 3)
-
-\dontrun{
+Integrate(Gmod, from = c(1,-1), to = c(-1,1), n = 3)
+## Not run:
 ## This gives an error
-Integrate(Gmod, to = 1, from = c(1,-1), n = 3)
-}
+Integrate(Gmod, from = c(1,-1), to = c(1,1), n = 3)
 
 }
 \references{

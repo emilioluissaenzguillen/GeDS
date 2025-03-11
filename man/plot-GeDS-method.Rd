@@ -14,6 +14,7 @@
   ask = FALSE,
   main,
   legend.pos = "topright",
+  legend.text = NULL,
   new.window = FALSE,
   wait = 0.5,
   n = 3L,
@@ -39,10 +40,13 @@ deviance at each iteration of stage A should be produced or not.}
 \item{ask}{logical variable specifying whether the user should be prompted
 before changing the plot page.}
 
-\item{main}{optional character string to be used as a title of the plot.}
+\item{main}{an optional character string used as the plot title. If set to
+`"detail"`, the knots vector will be displayed on the plot.}
 
 \item{legend.pos}{the position of the legend within the panel. See
 \link[graphics]{legend} for details.}
+
+\item{legend.text}{a character vector specifying the legend text.}
 
 \item{new.window}{logical variable specifying whether the plot should be
 shown in a new window or in the active one.}
@@ -56,7 +60,7 @@ page. Ignored if \code{ask = TRUE}.}
 \code{\link{as.integer}}.}
 
 \item{type}{character string specifying the type of plot required. Should be
-set either to "\code{Polygon}" if the user wants to get also the control
+set either to \code{"Polygon"} if the user wants to get also the control
 polygon of the GeDS fit,  \code{"NCI"} or  \code{"ACI"} if 95\% confidence
 bands for the predictions should be plotted (see details) or \code{"none"} if
 only the fitted GeDS curve should be plotted. Applies only when plotting a

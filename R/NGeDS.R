@@ -193,8 +193,7 @@
 #' Z <- doublesin(cbind(X,Y))
 #' Z <- Z+rnorm(400, 0, sd = 0.1)
 #' # Fit a two dimensional GeDS model using NGeDS
-#'(BivGeDS <- NGeDS(Z ~ f(X, Y), phi = 0.9,
-#'                  Xextr = c(0, 3), Yextr = c(0, 3)))
+#'(BivGeDS <- NGeDS(Z ~ f(X, Y), phi = 0.9))
 #' 
 #' # Extract quadratic coefficients/knots/deviance
 #' coef(BivGeDS, n = 3)

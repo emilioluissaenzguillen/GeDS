@@ -37,13 +37,13 @@
 #' of boosting iterations to be run. If not specified, it defaults to 100L.
 #' This setting serves as a fallback when the stopping rule, based on
 #' consecutive deviances and tuned by \code{phi_gam_exit} and \code{q_gam},
-#' does not trigger an earlier termination (see Dimitrova et al. (2024)).
+#' does not trigger an earlier termination (see Dimitrova et al. (2025)).
 #' Therefore, users can increase/decrease the number of boosting iterations,
 #' by increasing/decreasing the value \code{phi_gam_exit} and/or \code{q_gam},
 #' or directly specify \code{max_iterations}.
 #' @param phi_gam_exit Convergence threshold for local-scoring and backfitting.
 #' Both algorithms stop when the relative change in the deviance is below this
-#' threshold. Default is \code{0.995}.
+#' threshold. Default is \code{0.99}.
 #' @param q_gam numeric parameter which allows to fine-tune the stopping rule of
 #' the local-scoring and backfitting iterations. By default equal to \code{2L}.
 #' @param beta numeric parameter in the interval \eqn{[0,1]}
@@ -109,7 +109,7 @@
 #' 
 #' formula = Ozone ~ f(Solar.R) + f(Wind, Temp)
 #' Gmodgam <- NGeDSgam(formula = formula, data = data,
-#' phi_gam_exit = 0.995, phi = 0.995, q = 2)
+#' phi = 0.8)
 #' MSE_Gmodgam_linear <- mean((data$Ozone - Gmodgam$predictions$pred_linear)^2)
 #' MSE_Gmodgam_quadratic <- mean((data$Ozone - Gmodgam$predictions$pred_quadratic)^2)
 #' MSE_Gmodgam_cubic <- mean((data$Ozone - Gmodgam$predictions$pred_cubic)^2)
@@ -158,10 +158,10 @@
 #' \emph{Applied Mathematics and Computation}, \strong{436}. \cr
 #' DOI: \doi{10.1016/j.amc.2022.127493}
 #' 
-#' Dimitrova, D. S., Guillen, E. S. and Kaishev, V. K.  (2024).
+#' Dimitrova, D. S., Kaishev, V. K. and Saenz Guillen, E. L. (2025).
 #' \pkg{GeDS}: An \proglang{R} Package for Regression, Generalized Additive
 #' Models and Functional Gradient Boosting, based on Geometrically Designed
-#' (GeD) Splines. \emph{Manuscript submitted for publication.} 
+#' (GeD) Splines. \emph{Manuscript submitted for publication.}
 
 ################################################################################
 ################################################################################
@@ -174,7 +174,7 @@
 #####################
 NGeDSgam <- function(formula, family = "gaussian", data, weights = NULL, offset = NULL,
                      normalize_data = FALSE, min_iterations, max_iterations,
-                     phi_gam_exit = 0.995, q_gam = 2,
+                     phi_gam_exit = 0.99, q_gam = 2,
                      beta = 0.5, phi = 0.99, internal_knots = 500, q = 2,
                      higher_order = TRUE)
 {

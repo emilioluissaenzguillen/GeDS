@@ -464,9 +464,8 @@ predict.GeDS <- function(object, newdata,
     # Design matrix
     basisMatrixX <- splineDesign(knots = kn$Xk, derivs = rep(0, length(X)), x = X, ord = n, outer.ok = T)
     basisMatrixY <- splineDesign(knots = kn$Yk, derivs = rep(0, length(Y)), x = Y, ord = n, outer.ok = T)
-    basisMatrixY_noint <- cut_int(basisMatrixY)
-    
-    basisMatrixbiv <- tensorProd(basisMatrixX,basisMatrixY_noint)
+
+    basisMatrixbiv <- tensorProd(basisMatrixX, basisMatrixY)
 
     type <- match.arg(type)
     

@@ -837,10 +837,19 @@ placeKnot <- function(Dim, Dim.intknots, matr, Indicator, FixedDim, ordFixedDim,
     Dim.index <- 2
     by.row <- FALSE
   }
+  
+  # # Order matrFixedDim as (FixedDim, Dim)
+  # matrFixedDim <- matr[ordFixedDim,]
+  # # Clean matrFixedDim in case there are repeated observations
+  # matrFixedDim <- makeNewMatr(matrFixedDim, Indicator, by.row = by.row)
+  
   # Order matrFixedDim as (FixedDim, Dim)
   matrFixedDim <- matr[ordFixedDim,]
   # Clean matrFixedDim in case there are repeated observations
-  matrFixedDim <- makeNewMatr(matrFixedDim, Indicator, by.row = by.row)
+  matrFixedDim <- makeNewMatrCPP(matrFixedDim, Indicator, by.row)
+
+  # print(paste0(all( (matrFixedDim - matrFixedDimCPP) < 1e-6), "CPP!"))
+  
   
   # Initialize empty vectors for storing mean Dim values, Dim interval widths, counts, and distances for cluster formation
   Dim.mean <- Dim.width <- Dim.num <- dFixedDim.Dim <- numeric()
@@ -910,60 +919,15 @@ placeKnot <- function(Dim, Dim.intknots, matr, Indicator, FixedDim, ordFixedDim,
   # Calculate the cluster weights (Step 5 - UnivariateFitter)
   Dim.weights <- beta*Dim.mean + (1 - beta)*Dim.width
   
-  # Loop through each cluster to find the optimal placement for a new Dim knot
-  u     <- length(dFixedDim.Dim) # total number of clusters
-  flagDim <- F                  # flag to handle cases where all calculated weights are non-positive
-  for (i in 1:u) {
-    
-    if (all(Dim.weights < 0)) {
-      flagDim <- TRUE # Set the flagDim = TRUE if all weights are non-positive, indicating no valid knot can be found
-      break
-    }
-    
-    # Find the index of the cluster with the highest weight
-    indice <- which.max(Dim.weights)
-    # Determine the (index) boundaries of the cluster with the highest weight
-    if (indice == 1) {dcumInf = 1} else {dcumInf = dcumFixedDim.Dim[indice - 1] + 1}
-    dcumSup <- dcumFixedDim.Dim[indice]
-    # Calculate the superior and inferior Dim-bounds
-    sup <- matrFixedDim[dcumSup, Dim.index]
-    inf <- matrFixedDim[dcumInf, Dim.index]
-    
-    # (Step 7 - UnivariateFitter) Compute the new Dim knot as a weighted average of Dim values
-    # within the selected cluster, weighted by their residuals
-    Dim.newknot <- matrFixedDim[dcumSup:dcumInf, 3]%*%matrFixedDim[dcumSup:dcumInf, Dim.index]/sum(matrFixedDim[dcumSup:dcumInf, 3])
-
-    # Check conditions to ensure the new knot is valid and does not conflict with existing knots
-    # This involves ensuring there are no existing knots within the bounds of the selected cluster
-    cond1 <- (dcumSup - dcumInf) != 0
-    cond2 <- !any( Dim.intknots >= inf & Dim.intknots <= sup ) # no previous knot within the cluster
-    cond3 <- !any( abs(inf - c(Dim.intknots, range(matr[,Dim.index])) ) < as.double(1e-12) ) # no previous knot arbitrarily close to the singleton
-
-    if ( cond1 && cond2 || !cond1 && cond3 ) {
-      break # If conditions are met, exit the loop as a valid knot has been found
-    } else {
-      Dim.weights[indice] <- -Inf # Invalidate the current cluster by setting its weight to negative infinity and continue the search
-    }
-    
-    
-    # # Check conditions to ensure the new knot is valid and does not conflict with existing knots
-    # # This involves 
-    # cond1 <- (dcumSup - dcumInf) != 0
-    # cond2 <- !any((Dim.intknots >= inf) & (Dim.intknots <= sup)) # ensure there are no previous knots within the bounds of the selected cluster
-    # cond3 <- dcumInf == 1 || dcumSup == length(FixedDim) # for the case in which the entire set is within one cluster
-    # if ( (cond1 && cond2) || ( !cond1 && cond3 ) ) {
-    #   break # If conditions are met, exit the loop as a valid knot has been found
-    # } else {
-    #   Dim.weights[indice] <- -Inf # Invalidate the current cluster by setting its weight to negative infinity and continue the search
-    # }
-    
-    
-  }
+  # (Step 7 - UnivariateFitter) Compute the new Dim knot as a weighted average of Dim values
+  # x <- findNewDimKnot_R(dcumFixedDim.Dim, Dim.weights, Dim.intknots, matrFixedDim, Dim.index)
+  if (is.null(Dim.intknots)) Dim.intknots <- NA_real_
+  xx <- findNewDimKnot(dcumFixedDim.Dim, Dim.weights, Dim.intknots, matrFixedDim, Dim.index)
   
-  weightDim <- Dim.weights[indice] # Store the weight of the selected cluster for further use
+  # if (x$Dim.newknot == xx$Dim.newknot) print("Both equal!")
   
   # Return the new Dim knot and its weight, along with the flag indicating if a valid knot was found
-  return(list(Dim.newknot = as.numeric(Dim.newknot), weightDim = as.numeric(weightDim), flagDim = flagDim))
+  return(list(Dim.newknot = as.numeric(xx$Dim.newknot), weightDim = as.numeric(xx$weightDim), flagDim = xx$flagDim))
 }
 
 

@@ -188,8 +188,9 @@ Y <- rpois(N,means)
 plot(X,log(Y), xlab = "x", ylab = expression(f[1](x)))
 lines(Gmod2, n = 3, col = "red")
 lines(Gmod2, n = 4, col = "blue", lty = 2)
-legend("topleft", c("Quadratic","Cubic"),
-     col = c("red","blue"), lty = c(1,2))
+legend("topleft", c("Quadratic", "Cubic"),
+       col = c("red", "blue"),
+       lty = c(1,2))
 
 }
 \references{

@@ -9,12 +9,11 @@ SplineReg_biv <- function(X ,Y , Z, W = NULL, offset = rep(0,length(X)), weights
                            x=X,ord=n,outer.ok = T)
   basisMatrixY <- splineDesign(knots=sort(c(InterKnotsY,rep(Yextr,n))),derivs=rep(0,length(Y)),
                            x=Y,ord=n,outer.ok = T)
-  basisMatrixY_noint <- cut_int(basisMatrixY)
-  
-  basisMatrixbiv <- tensorProd(basisMatrixX,basisMatrixY_noint)
-  # basisMatrixbivbis <- tensorProd_R(basisMatrixX,basisMatrixY_noint)
+
+  basisMatrixbiv <- tensorProd(basisMatrixX,basisMatrixY)
+  # basisMatrixbivbis <- tensorProd_R(basisMatrixX,basisMatrixY)
   # any(basisMatrixbiv-basisMatrixbivbis!=0)
-  # basisMatrixXbis <- recoverXmat(basisMatrixbiv, basisMatrixY_noint, basisMatrixX)
+  # basisMatrixXbis <- recoverXmat(basisMatrixbiv, basisMatrixY, basisMatrixX)
   # any(basisMatrixX-basisMatrixXbis!=0)
   
   # Combine spline basis with parametric design matrix (if provided)
@@ -55,23 +54,13 @@ SplineReg_biv <- function(X ,Y , Z, W = NULL, offset = rep(0,length(X)), weights
   
   out <- list("Theta"= theta,"Predicted"= predicted,
               "Residuals"= resid,"RSS" = t(resid)%*%resid,
-              "XBasis"= basisMatrixX, "YBasis" = basisMatrixY_noint,
+              "XBasis"= basisMatrixX, "YBasis" = basisMatrixY,
               "Xknots" = sort(c(InterKnotsX,rep(Xextr,n))),
               "Yknots" = sort(c(InterKnotsY,rep(Yextr,n))),
               "temporary"=tmp)
   return(out)
 }
 
-
-cut_int <- function(mat){
-  d <-dim(mat)
-  #we delete the intercept
-  #otherwise tensor product basis is rank deficient
-  mat_star <- t(rep(1,d[1])%*%mat)
-  Q_star<-(qr.Q(qr(mat_star),complete=T))[,-1]
-  #  return(mat%*%Q_star)
-  return(mat)
-}
 
 SplineReg_biv_GLM <- function(X, Y, Z, W = NULL, offset = rep(0,nobs), weights = rep(1,length(X)),
                               InterKnotsX, InterKnotsY, n, Xextr = range(X), Yextr = range(Y),
@@ -90,9 +79,8 @@ SplineReg_biv_GLM <- function(X, Y, Z, W = NULL, offset = rep(0,nobs), weights =
                            x = X, ord = n, outer.ok = T)
   basisMatrixY <- splineDesign(knots=sort(c(InterKnotsY,rep(Yextr,n))), derivs = rep(0,length(Y)),
                            x = Y, ord = n, outer.ok = T)
-  basisMatrixY_noint <- cut_int(basisMatrixY)
-  
-  basisMatrixbiv <- tensorProd(basisMatrixX,basisMatrixY_noint)
+
+  basisMatrixbiv <- tensorProd(basisMatrixX, basisMatrixY)
   # Combine spline basis with parametric design matrix (if provided)
   basisMatrixbiv2 <- cbind(basisMatrixbiv,W)
   

@@ -70,7 +70,7 @@ setMethod("lines", signature(x = "GeDS"),  function(x , n=3L,
                                                     transform = function(x) x,
                                                     onlySpline = TRUE,
                                                     data = data.frame(), ...)
-  {
+{
   object <- x
   if(object$Type == "LM - Biv" || object$Type == "GLM - Biv") stop("Works only with univariate spline objects")
   
@@ -86,17 +86,17 @@ setMethod("lines", signature(x = "GeDS"),  function(x , n=3L,
   # Extract fit
   if(n == 2L) {
     temp <- object$Linear.Fit
-    } else if (n == 3L) {
-      temp <- object$Quadratic.Fit
-      } else if(n == 4L) {
-        temp <- object$Cubic.Fit
-      }
+  } else if (n == 3L) {
+    temp <- object$Quadratic.Fit
+  } else if(n == 4L) {
+    temp <- object$Cubic.Fit
+  }
   
   kn <- knots.GeDS(Fn = object, n = n, options= "internal")
   fitters <- F
   if(is.null(object$terms)) fitters <- T
   if (fitters) {
-    Predicted <- temp$Predicted
+    Predicted <- if (x$Type == "LM - Univ") temp$Predicted else if (x$Type == "GLM - Univ") x$Args$family$linkfun(temp$Predicted)
     Xvalues <- object$Args$X
     
   } else {
@@ -111,9 +111,9 @@ setMethod("lines", signature(x = "GeDS"),  function(x , n=3L,
       
       offset <- if(!onlySpline && !is.null(object$Args$offset)) {
         dati2$offset
-        } else {
-          rep(0,length(Xvalues))
-        }
+      } else {
+        rep(0,length(Xvalues))
+      }
       
     } else {
       Xvalues <- object$Args$X
@@ -129,9 +129,9 @@ setMethod("lines", signature(x = "GeDS"),  function(x , n=3L,
       
       offset <- if(!onlySpline && !is.null(object$Args$offset)) {
         object$Args$offset
-        } else {
-          rep(0,length(Xvalues))
-          }
+      } else {
+        rep(0,length(Xvalues))
+      }
     }
     
     th <- coef.GeDS(object, n=n, onlySpline = onlySpline)
@@ -142,6 +142,4 @@ setMethod("lines", signature(x = "GeDS"),  function(x , n=3L,
   lines.default(Xvalues, Predicted,...)
 }
 )
-
-
 
