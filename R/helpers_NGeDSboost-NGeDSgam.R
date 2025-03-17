@@ -220,6 +220,43 @@ predict_GeDS_linear <- function(Gmod, X, Y, Z){
 ############################################################################
 ## 7. Function for computing piecewise multivariate additive linear model ##
 ############################################################################
+# 7.1
+lin_model <- function(pred_vars, model, lin_bl, nobs) {
+  pred_lin <- numeric(nobs)  # Initialize prediction vector
+  
+  # Loop over base learners
+  for (bl in names(lin_bl)) {
+    # Extract coefficients
+    coeffs <- model$base_learners[[bl]]$coefficients
+    
+    # (i) Categorical
+    if (is.factor(pred_vars[[bl]])) {
+      # Compute fitted values manually
+      baseline <- levels(pred_vars[[bl]])[1]
+      pred_bl <- numeric(nobs)
+      
+      # For baseline level
+      pred_bl[pred_vars[[bl]] == baseline] <- coeffs[1]
+      
+      # Loop through all levels except the baseline
+      for (i in 2:length(levels(pred_vars[[bl]]))) {
+        level <- levels(pred_vars[[bl]])[i]
+        mask <- pred_vars[[bl]] == level
+        pred_bl[mask] <- coeffs[[1]] + coeffs[[i]]
+      }
+      pred_bl <- as.numeric(pred_bl)
+    } else {  # (ii) Continuous
+      pred_bl <- coeffs$b0 + coeffs$b1 * pred_vars[[bl]]
+    }
+    
+    # Add to overall prediction
+    pred_lin <- pred_lin + pred_bl
+  }
+  
+  return(pred_lin)
+}
+
+# 7.2
 piecewise_multivar_linear_model <- function(X, model, base_learners = NULL) {
   
   X <- data.frame(X)
@@ -231,6 +268,8 @@ piecewise_multivar_linear_model <- function(X, model, base_learners = NULL) {
   if(!is.null(base_learners)){
     model$base_learners <- model$base_learners[names(model$base_learners) %in% names(base_learners)]
   }
+  
+  names(X) <- sapply(base_learners, function(bl) bl$variables)
   
   # For each base learner (and its corresponding model)
   for (base_learner in names(model$base_learners)) {

@@ -459,8 +459,8 @@ GenUnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)),
   oldguess <- matrix(nrow = max.intknots + 1,
                      ncol = max.intknots + 2)    # number of B-splines is p = l + 2 (max number of coef)
   
-  # Accumulated number of IRLS iterations/ Vector of IRLS deviances
-  irlsAccumIterCount <- devianceTracking <- NULL
+  # Accumulated number of IRLS iterations
+  irlsAccumIterCount <- NULL
   # Control basis matrix singularity
   flag <- FALSE
   
@@ -469,10 +469,10 @@ GenUnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)),
   ##############################################################################
   for(j in 1:min(max.intknots + 1, length(Y) - 2)) {
     
-    if(flag) j <- j - 2
+    if (flag) j <- j - 2 # adjusting iteration count after removing a knot
     
     # Sort internal knots and update the oldguess matrix; create new guess vector
-    if(j > 1) {
+    if (j > 1) {
       intknots <- sort(intknots)
       oldguess[j, 1:(j+1)] <- guess
       guess <- c(guess, guess_z)
@@ -497,13 +497,13 @@ GenUnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)),
       # (i) Handle the case when the basis matrix is singular
       if(rank.basis < cols) {
         # (a) If Basis was singular for second consecutive time, break loop
-        if(flag) {
+        if (flag) {
           warning("Matrix singular for the second time. Breaking the loop.")
           break
         }
         # (b) Identify and remove problematic knots and guesses based on NA positions
         check <- which(is.na(first.deg$Theta))
-        intknots <- intknots[-(check+2)]
+        intknots <- intknots[-(check-1)]
         guess <- guess[1:length(first.deg$Theta)][-check]
         toprint <- paste0("Basis Matrix singular, deleting one knot")
         print(toprint)
@@ -527,10 +527,9 @@ GenUnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)),
       guess <- first.deg$Theta[1:(j+1)]
     }
     
-    # Vector accumulating the IRLS iterations deviances obtained at each GeDS iteration
-    devianceTracking <- c(devianceTracking, first.deg$deviance)
     # Accumulated number of IRLS iterations at each GeDS iteration
-    irlsAccumIterCount <- c(irlsAccumIterCount, length(devianceTracking))
+    if (flag) irlsAccumIterCount <- irlsAccumIterCount[1:(j-1)]
+    irlsAccumIterCount <- c(irlsAccumIterCount, first.deg$temporary$iter)
     
     # Store knots and coefficients
     previous[j,1:(j+3)] <- sort(c(intknots,rep(extr,2)))
@@ -540,6 +539,7 @@ GenUnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)),
     # Store residuals and deviance 
     res.tmp <- first.deg$Residuals
     RSS.tmp <- first.deg$temporary$deviance
+    if (flag) RSSnew <- RSSnew[1:(j-1)]
     RSSnew <- c(RSSnew, RSS.tmp)
     # Working weights (weights in the final iteration of the IRLS fit)
     working.weights <- first.deg$temporary$weights  
@@ -552,6 +552,7 @@ GenUnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)),
       if (RSSnew[j]/RSSnew[j-q] > 1) break
       
       # Adding the current ratio of deviances to the 'phis' vector
+      if (flag) phis <- phis[1:(j-q-1)]
       phis <- if (stoptype == "LR") {
         c(phis, RSSnew[j-q]-RSSnew[j])
       } else {
@@ -623,7 +624,7 @@ GenUnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)),
     means <- wc.range <- numeric(u)
     means[1] <- abs(mean(res.weighted[1:dcum[1]]))
     wc.range[1] <- distinctX[dcum[1]]-X[1]
-    for(i in 2:u){ # embed in C++ useless
+    for (i in 2:u) { # embed in C++ useless
       means[i] <- abs(mean((res.weighted[(dcum[i-1]+1):dcum[i]])))
       wc.range[i] <- distinctX[dcum[i]]-distinctX[dcum[i-1]+1]
     }
@@ -749,7 +750,7 @@ GenUnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)),
               "Dev.Linear" = lin$RSS, "Dev.Quadratic" = squ$RSS, "Dev.Cubic" = cub$RSS, "Knots" = intknots,
               "RSS" = RSSnew, "Linear.Fit" = lin, "Quadratic.Fit" = squ, "Cubic.Fit" = cub, "Stored" = previous,
               "Args" = args, "Call" = save, "Nintknots" = iter - 1, "iters" = j, "Guesses" = oldguess,
-              "Coefficients" = oldcoef, "deviance" = devianceTracking, "iterIrls" = irlsAccumIterCount,
+              "Coefficients" = oldcoef, "iterIrls" = irlsAccumIterCount,
               stopinfo = list("phis" = phis,"phis_star" = phis_star, "oldintc" = oldintc, "oldslp" = oldslp))
   
   class(out) <- "GeDS"

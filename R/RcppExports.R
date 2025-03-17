@@ -33,7 +33,7 @@ makeNewMatrCPP <- function(matrix, tab = NULL, by_row = FALSE) {
     .Call('_GeDS_makeNewMatrCPP', PACKAGE = 'GeDS', matrix, tab, by_row)
 }
 
-findNewDimKnot <- function(dcumFixedDim_Dim, Dim_weights, Dim_intknots, matrFixedDim, Dim_index) {
-    .Call('_GeDS_findNewDimKnot', PACKAGE = 'GeDS', dcumFixedDim_Dim, Dim_weights, Dim_intknots, matrFixedDim, Dim_index)
+findNewDimKnot <- function(dcumFixedDim_Dim, Dim_weights, Dim_oldknots, matrFixedDim, Dim_index) {
+    .Call('_GeDS_findNewDimKnot', PACKAGE = 'GeDS', dcumFixedDim_Dim, Dim_weights, Dim_oldknots, matrFixedDim, Dim_index)
 }
 

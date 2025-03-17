@@ -75,11 +75,6 @@ functions.}
 spline regression component and the parametric component at each iteration
 of stage A.}
 
-\item{\code{deviance}}{vector containing the deviances of the second order spline
-fits computed at each IRLS iteration in stage A. Since the IRLS procedure is
-used only in \code{\link{GGeDS}} or \code{\link{GenUnivariateFitter}}, this
-slot is empty if the object is not created by one of these functions.}
-
 \item{\code{iterIrls}}{vector containing the numbers of IRLS iterations for all
 iterations of stage A cumulatively. Since the IRLS procedure is used only in
 \code{\link{GGeDS}} or \code{\link{GenUnivariateFitter}}, this slot is empty

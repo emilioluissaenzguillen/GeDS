@@ -112,17 +112,17 @@ BEGIN_RCPP
 END_RCPP
 }
 // findNewDimKnot
-List findNewDimKnot(IntegerVector dcumFixedDim_Dim, NumericVector Dim_weights, NumericVector Dim_intknots, NumericMatrix matrFixedDim, int Dim_index);
-RcppExport SEXP _GeDS_findNewDimKnot(SEXP dcumFixedDim_DimSEXP, SEXP Dim_weightsSEXP, SEXP Dim_intknotsSEXP, SEXP matrFixedDimSEXP, SEXP Dim_indexSEXP) {
+List findNewDimKnot(IntegerVector dcumFixedDim_Dim, NumericVector Dim_weights, NumericVector Dim_oldknots, NumericMatrix matrFixedDim, int Dim_index);
+RcppExport SEXP _GeDS_findNewDimKnot(SEXP dcumFixedDim_DimSEXP, SEXP Dim_weightsSEXP, SEXP Dim_oldknotsSEXP, SEXP matrFixedDimSEXP, SEXP Dim_indexSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< IntegerVector >::type dcumFixedDim_Dim(dcumFixedDim_DimSEXP);
     Rcpp::traits::input_parameter< NumericVector >::type Dim_weights(Dim_weightsSEXP);
-    Rcpp::traits::input_parameter< NumericVector >::type Dim_intknots(Dim_intknotsSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type Dim_oldknots(Dim_oldknotsSEXP);
     Rcpp::traits::input_parameter< NumericMatrix >::type matrFixedDim(matrFixedDimSEXP);
     Rcpp::traits::input_parameter< int >::type Dim_index(Dim_indexSEXP);
-    rcpp_result_gen = Rcpp::wrap(findNewDimKnot(dcumFixedDim_Dim, Dim_weights, Dim_intknots, matrFixedDim, Dim_index));
+    rcpp_result_gen = Rcpp::wrap(findNewDimKnot(dcumFixedDim_Dim, Dim_weights, Dim_oldknots, matrFixedDim, Dim_index));
     return rcpp_result_gen;
 END_RCPP
 }

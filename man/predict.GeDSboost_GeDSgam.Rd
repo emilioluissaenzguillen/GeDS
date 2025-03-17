@@ -7,9 +7,23 @@
 \alias{predict.GeDSgam}
 \title{Predict method for GeDSboost, GeDSgam}
 \usage{
-\method{predict}{GeDSboost}(object, newdata, n = 3L, base_learner = NULL, ...)
+\method{predict}{GeDSboost}(
+  object,
+  newdata,
+  n = 3L,
+  base_learner = NULL,
+  type = c("response", "link"),
+  ...
+)
 
-\method{predict}{GeDSgam}(object, newdata, n = 3L, base_learner = NULL, ...)
+\method{predict}{GeDSgam}(
+  object,
+  newdata,
+  n = 3L,
+  base_learner = NULL,
+  type = c("response", "link"),
+  ...
+)
 }
 \arguments{
 \item{object}{the \code{\link{GeDSboost-class}} or
@@ -23,6 +37,12 @@ quadratic, and \code{4L} for cubic). Default is \code{3L}.}
 \item{base_learner}{either \code{NULL} or a \code{character} string specifying
 the base-learner of the model for which predictions should be computed. Note
 that single base-learner predictions are provided on the linear predictor scale.}
+
+\item{type}{character string indicating the type of prediction required. By
+default it is equal to \code{"response"}, i.e. the result is on the scale of
+the response variable. See details for the other options. Alternatively if one
+wants the predictions to be on the predictor scale, it is necessary to set
+\code{type = "link"}.}
 
 \item{...}{potentially further arguments.}
 }

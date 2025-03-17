@@ -303,7 +303,7 @@ NumericMatrix makeNewMatrCPP(NumericMatrix matrix, Nullable<IntegerMatrix> tab =
 List findNewDimKnot(
     IntegerVector dcumFixedDim_Dim,
     NumericVector Dim_weights,
-    NumericVector Dim_intknots,
+    NumericVector Dim_oldknots,
     NumericMatrix matrFixedDim,
     int Dim_index) 
 {
@@ -323,7 +323,7 @@ List findNewDimKnot(
     if (is_true(all(Dim_weights < 0))) {
       flagDim = true;
       break;
-    } 
+    }
     
     // Find the index of the cluster with the highest weight
     int best_index = which_max(Dim_weights);
@@ -356,16 +356,16 @@ List findNewDimKnot(
     
     // Validate new knot conditions
     bool cond1 = (dcumSup - dcumInf) != 0;
-    bool cond2 = !is_true(any((Dim_intknots >= inf) & (Dim_intknots <= sup)));
-    bool cond3 = !is_true(any(abs(inf - Dim_intknots) < 1e-12));
+    bool cond2 = !is_true(any((Dim_oldknots >= inf) & (Dim_oldknots <= sup)));
+    bool cond3 = !is_true(any(abs(inf - Dim_oldknots) < 1e-12));
     
     if ((cond1 && cond2) || (!cond1 && cond3)) {
       weightDim = Dim_weights[best_index];
       break;
-    } else { 
+    } else {  
       Dim_weights[best_index] = R_NegInf;
     }
-  } 
+  }  
   
   return List::create(
     Named("Dim.newknot") = Dim_newknot,

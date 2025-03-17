@@ -85,13 +85,13 @@ Knotnew_R <- function(wht, restmp, x, dcm, oldknots, tol) {
 
 
 
-findNewDimKnot_R <- function(dcumFixedDim.Dim, Dim.weights, Dim.intknots, matrFixedDim, Dim.index)
-  {
+findNewDimKnot_R <- function(dcumFixedDim.Dim, Dim.weights, Dim.oldknots, matrFixedDim, Dim.index)
+{
   
   # Loop through each cluster to find the optimal placement for a new Dim knot
   u <- length(dcumFixedDim.Dim) # total number of clusters
   flagDim <- FALSE              # flag to handle cases where all calculated weights are non-positive
-   
+  
   for (i in 1:u) {
     
     if (all(Dim.weights < 0)) {
@@ -115,8 +115,8 @@ findNewDimKnot_R <- function(dcumFixedDim.Dim, Dim.weights, Dim.intknots, matrFi
     # Check conditions to ensure the new knot is valid and does not conflict with existing knots
     # This involves ensuring there are no existing knots within the bounds of the selected cluster
     cond1 <- (dcumSup - dcumInf) != 0
-    cond2 <- !any( Dim.intknots >= inf & Dim.intknots <= sup ) # no previous knot within the cluster
-    cond3 <- !any( abs(inf - Dim.intknots ) < as.double(1e-12) ) # no previous knot arbitrarily close to the singleton
+    cond2 <- !any( Dim.oldknots >= inf & Dim.oldknots <= sup ) # no previous knot within the cluster
+    cond3 <- !any( abs(inf - Dim.oldknots ) < as.double(1e-12) ) # no previous knot arbitrarily close to the singleton
     
     if ( cond1 && cond2 || !cond1 && cond3 ) {
       break # If conditions are met, exit the loop as a valid knot has been found
@@ -127,7 +127,7 @@ findNewDimKnot_R <- function(dcumFixedDim.Dim, Dim.weights, Dim.intknots, matrFi
     # # Check conditions to ensure the new knot is valid and does not conflict with existing knots
     # # This involves
     # cond1 <- (dcumSup - dcumInf) != 0
-    # cond2 <- !any((Dim.intknots >= inf) & (Dim.intknots <= sup)) # ensure there are no previous knots within the bounds of the selected cluster
+    # cond2 <- !any((Dim.oldknots >= inf) & (Dim.oldknots <= sup)) # ensure there are no previous knots within the bounds of the selected cluster
     # cond3 <- dcumInf == 1 || dcumSup == length(FixedDim) # for the case in which the entire set is within one cluster
     # if ( (cond1 && cond2) || ( !cond1 && cond3 ) ) {
     #   break # If conditions are met, exit the loop as a valid knot has been found

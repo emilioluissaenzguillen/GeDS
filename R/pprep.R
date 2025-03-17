@@ -104,6 +104,61 @@ PPolyRep <- function(object, n = 3)
 #####################
 ## Invert PPolyRep ##
 #####################
+#' @title Inversion the piecewise polynomial representation of a spline object
+#' @name PPolyInv
+#' @description
+#' Computes the inverse mapping of a piecewise polynomial spline object. Given a
+#' strictly monotonic spline (produced by \code{\link{PPolyRep}} or similar),
+#' the function returns the corresponding predictor values for a new set of
+#' response values.
+#'
+#' @param ppoly A spline object of class \code{"npolySpline"}, \code{"polySpline"},
+#' or \code{"spline"} that represents a piecewise polynomial form. The spline must be
+#' strictly monotonic (either increasing or decreasing) to allow for inversion.
+#' @param y_new A numeric vector of response values for which the corresponding predictor
+#' values are sought.
+#'
+#' @return A numeric vector (or column matrix) of predictor values corresponding to the
+#' input \code{y_new} values.
+#'
+#' @details
+#' \code{PPolyInv} first verifies that the supplied \code{ppoly} object is
+#' invertible by checking its strict monotonicity via the helper function
+#' \code{is_invertible}. If the spline is not strictly monotonic, the function
+#' stops with an error.
+#'
+#' The function extracts the knot locations and polynomial coefficients from
+#' \code{ppoly} to build a data frame of polynomial segments. For each value in
+#' \code{y_new}, it identifies the correct interval and uses the helper function
+#' \code{solve_x} to solve the corresponding polynomial equation for the
+#' predictor value.
+#' 
+#' @examples
+#' # Generate a data sample for the response variable
+#' # Y and the single covariate X
+#' set.seed(123)
+#' N <- 1000
+#' f_1 <- function(x) x^3
+#' X <- sort(runif(N, min = -5, max = -3))
+#' # Specify a model for the mean of Y to include only a component
+#' # non-linear in X, defined by the function f_1
+#' means <- f_1(X)
+#' # Add (Normal) noise to the mean of Y
+#' Y <- rnorm(N, means, sd = 0.2)
+#' 
+#' Gmod <- NGeDS(Y ~ f(X), phi = 0.9)
+#' 
+#' plot(Gmod)
+#' 
+#' # Convert GeDS fit to a cubic piecewise polynomial representation
+#' ppoly <- PPolyRep(Gmod, n = 4)
+#' # Invert the spline using predicted values to recover predictor values
+#' pred_new <- Gmod$Cubic.Fit$Predicted
+#' X_new <- PPolyInv(ppoly, pred_new)
+#' # Compare recovered predictors to original values (differences should be near 0)
+#' as.numeric(round(X_new - X, 4)) 
+#' 
+#' @export
 PPolyInv <- function(ppoly, y_new)
 {
   # Check if ppoly is of one of the specified classes
@@ -275,9 +330,9 @@ solve_x <- function(y_value, aux, slope, knots, k) {
   
   # Find the corresponding
   j <- which(if (slope == "increasing") {
-    round(aux$start_y, 5) <= round(y_value, 5) & y_value < aux$end_y
+    round(aux$start_y, 6) <= round(y_value, 6) & y_value < aux$end_y
   } else {
-    round(aux$start_y, 5) >= round(y_value, 5) & y_value > aux$end_y
+    round(aux$start_y, 6) >= round(y_value, 6) & y_value > aux$end_y
   })
   
   if (length(j) == 0) return(NA)  # If no interval is found, return NA

@@ -518,7 +518,7 @@ GenBivariateFitter <- function(X, Y, Z, W, family = family, weights = rep(1,leng
   min.Xintknots <- min.intknots
   min.Yintknots <- min.intknots
   
-  guess <- devi <- iter <- ncoef <- NULL
+  guess <- irlsAccumIterCount <- ncoef <- NULL
   
   ##############################################################################
   ################################## STAGE A ###################################
@@ -564,10 +564,8 @@ GenBivariateFitter <- function(X, Y, Z, W, family = family, weights = rep(1,leng
       guess <- first.deg$Predicted
     }
     
-    # Vector accumulating the IRLS iterations deviances obtained at each GeDS iteration
-    devi <- c(devi, first.deg$deviance)
     # Accumulated number of IRLS iterations at each GeDS iteration
-    iter <- c(iter,length(devi))
+    irlsAccumIterCount <- c(irlsAccumIterCount, first.deg$temporary$iter)
     
     
     # Store knots and coefficients
@@ -819,7 +817,7 @@ GenBivariateFitter <- function(X, Y, Z, W, family = family, weights = rep(1,leng
               "Cubic.IntKnots" = list("Xk" = ccX, "Yk" = ccY), "Dev.Linear" = lin$RSS, "Dev.Quadratic" = squ$RSS, "Dev.Cubic" = cub$RSS,
               "RSS" = RSSnew, "Linear.Fit" = lin, "Quadratic.Fit" = squ, "Cubic.Fit" = cub, "Stored" = list("previousX" = previousX, "previousY" = previousY),
               "Args"= args, "Call" = save, "Nintknots" = list("X"= length(llX), "Y"= length(llY)), "iters" = j, "Guesses" = NULL,
-              "Coefficients" = oldcoef)
+              "Coefficients" = oldcoef, "iterIrls" = irlsAccumIterCount)
   class(out) <- "GeDS"
   return(out)
 }
@@ -920,9 +918,9 @@ placeKnot <- function(Dim, Dim.intknots, matr, Indicator, FixedDim, ordFixedDim,
   Dim.weights <- beta*Dim.mean + (1 - beta)*Dim.width
   
   # (Step 7 - UnivariateFitter) Compute the new Dim knot as a weighted average of Dim values
-  # x <- findNewDimKnot_R(dcumFixedDim.Dim, Dim.weights, Dim.intknots, matrFixedDim, Dim.index)
+  # x <- findNewDimKnot_R(dcumFixedDim.Dim, Dim.weights, sort(c(Dim.intknots, range(matr[,Dim]))), matrFixedDim, Dim.index)
   if (is.null(Dim.intknots)) Dim.intknots <- NA_real_
-  xx <- findNewDimKnot(dcumFixedDim.Dim, Dim.weights, Dim.intknots, matrFixedDim, Dim.index)
+  xx <- findNewDimKnot(dcumFixedDim.Dim, Dim.weights, sort(c(Dim.intknots, range(matr[,Dim]))), matrFixedDim, Dim.index)
   
   # if (x$Dim.newknot == xx$Dim.newknot) print("Both equal!")
   

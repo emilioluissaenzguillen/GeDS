@@ -526,9 +526,21 @@ setMethod("plot", signature(x = "GeDS"), function(x, f = NULL, which, DEV = FALS
     W <- x$Args$W; Xextr <- x$Args$Xextr; Yextr <- x$Args$Yextr
     
     # Default labels
-    xlab <- others$xlab %||% "X"
-    ylab <- others$ylab %||% "Y"
-    zlab <- if (!is.null(others$zlab)) others$zlab else if (!is.null(f)) "f(X,Y)" else "f_hat(X,Y)"
+    var_labels <- as.character(attr(x$terms, "variables"))[3]
+    var_labels <- regmatches(var_labels, regexec("f\\(([^,]+), ([^)]+)\\)", var_labels))
+    xname <- var_labels[[1]][2]; yname <- var_labels[[1]][3]
+    xlab <- if (!is.null(others$xlab)) others$xlab else xname
+    ylab <- if (!is.null(others$ylab)) others$ylab else yname
+    zlab <- if (!is.null(others$zlab)) {
+      others$zlab
+    } else if (!is.null(f)) {
+      var_labels[[1]][1]
+    } else {
+      gsub("f", "f_hat", var_labels[[1]][1], fixed = TRUE)
+    }
+    
+    # Ensure they are removed from the 'others' list before passing '...'
+    others <- others[!names(others) %in% c("xlab", "ylab", "zlab")]
     
     if (!is.null(f)) {
       if (!is.function(f)) {
@@ -551,12 +563,13 @@ setMethod("plot", signature(x = "GeDS"), function(x, f = NULL, which, DEV = FALS
       if(missing(main)) {
         main <- paste0(x$Nintknots$X, " internal knots in X and ",
                        x$Nintknots$Y ," internal knots in Y" )
-      } 
+      }
       
       # Plot
       persp3D(x = seq_valX, y = seq_valY, z = f_XY_val, phi = 25, theta = 50,
               zlim = range(f_XY_val), ticktype = "detailed", expand = 0.5,
-              colkey = FALSE, border = "black", ...)
+              colkey = FALSE, border = "black",
+              xlab = xlab, ylab = ylab, zlab = zlab)
       # Add the data and predicted points to the plot
       points3D(x = X, y = Y, z = Z, col = "black", pch = 19, add = TRUE)
       points3D(x = X, y = Y, z = obj$Predicted, col = "red", pch = 19, add = TRUE)
@@ -599,7 +612,8 @@ setMethod("plot", signature(x = "GeDS"), function(x, f = NULL, which, DEV = FALS
       # Plot the perspective 3D surface defined by newX, newY, and the fitted values
       persp3D(x = newX, y = newY, z = f_XY_hat_val, phi = 25, theta = 50,
               zlim = range(f_XY_hat_val), ticktype = "detailed", expand = 0.7,
-              colkey = FALSE, border = "black", ...)
+              colkey = FALSE, border = "black",
+              xlab = xlab, ylab = ylab, zlab = zlab)
       
       if (main == "detail") {
         # KnotsX
@@ -669,7 +683,7 @@ setMethod("plot", signature(x = "GeDS"), function(x, f = NULL, which, DEV = FALS
       points3D(x = X[!tmp], y = Y[!tmp], z = Z[!tmp], col = "red", pch = 19, add = TRUE)
       points3D(x = X[tmp], y = Y[tmp], z = Z[tmp], col = "blue", pch = 19, add = TRUE)
       
-      legend.text <- legend.text %||% c(expression(z >= hat(f)(x, y)), expression(z < hat(f)(x, y)))
+      legend.text <- if (!is.null(legend.text)) legend.text else c(expression(z >= hat(f)(x, y)), expression(z < hat(f)(x, y)))
       legend("topright",
              legend = legend.text,
              col = c("red", "blue"),
@@ -687,7 +701,6 @@ setMethod("plot", signature(x = "GeDS"), function(x, f = NULL, which, DEV = FALS
   invisible(x)
 }
 )
-
 
 ################################################################################
 ################################################################################
@@ -732,6 +745,10 @@ setMethod("plot", signature(x = "GeDSboost"), function(x, n = 3L,...)
   }
   
   base_learners <- x$args$base_learners
+  Y <- x$args$response[[1]]
+  if (x$args$family@name == "Negative Binomial Likelihood (logit link)") {
+    Y <- (Y + 1)/2
+  }
   
   # 1) FGB (one single base-learner)
   if(length(base_learners) == 1) {
@@ -740,7 +757,7 @@ setMethod("plot", signature(x = "GeDSboost"), function(x, n = 3L,...)
       stop("Single spline model representation of the boosted model is only available for univariate base-learners.")
     }
     
-    Y <- x$args$response[[1]]; X_mat <- x$args$predictors[[1]]
+    X_mat <- x$args$predictors[[1]]
     int.knots <- x$internal_knots$linear.int.knots[[1]]
     
     if (n == 2) {
@@ -803,7 +820,7 @@ setMethod("plot", signature(x = "GeDSboost"), function(x, n = 3L,...)
     # Keep the order of base_learners, but only include those that are in bl_selected
     base_learners <- base_learners[names(sapply(base_learners, function(learner) learner$name %in% bl_selected))]
     
-    Y <- x$args$response[[1]]; pred_vars <- x$args$predictors
+    pred_vars <- x$args$predictors
     
     if (n == 2) {
       Theta <- x$final_model$Linear.Fit$Theta

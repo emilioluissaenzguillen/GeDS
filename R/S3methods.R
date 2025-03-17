@@ -395,10 +395,10 @@ predict.GeDS <- function(object, newdata,
       }
     
     # Knots
-    kn <- knots(object, n = n, options = "internal")
-    if (min(X) < object$Args$extr[1] || object$Args$extr[2] < max(X)) warning("Input values out of the boundary knots")
+    kn <- knots(object, n = n, options = "all")
+    if (min(X) < min(kn) || max(X) > max(kn)) warning("Input values out of the boundary knots")
     # Design matrix
-    basisMatrix <- splineDesign(knots = sort(c(kn, rep(range(X), n))), derivs = rep(0,length(X)), x = X, ord = n, outer.ok = T)
+    basisMatrix <- splineDesign(knots = kn, derivs = rep(0,length(X)), x = X, ord = n, outer.ok = T)
     
     type <- match.arg(type)
     
@@ -505,7 +505,7 @@ predict.GeDS <- function(object, newdata,
     }
     
   }
-  predicted
+  return(as.numeric(predicted))
 }
 
 
