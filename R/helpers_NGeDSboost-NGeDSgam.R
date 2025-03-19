@@ -269,8 +269,6 @@ piecewise_multivar_linear_model <- function(X, model, base_learners = NULL) {
     model$base_learners <- model$base_learners[names(model$base_learners) %in% names(base_learners)]
   }
   
-  names(X) <- sapply(base_learners, function(bl) bl$variables)
-  
   # For each base learner (and its corresponding model)
   for (base_learner in names(model$base_learners)) {
     # Get the model for the current base learner

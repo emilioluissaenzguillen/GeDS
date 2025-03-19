@@ -270,27 +270,29 @@ predict.GeDSboost_GeDSgam <- function(object, newdata, n = 3L,
     ## 1. LINEAR ##
     ###############
     if (n == 2) {
+      # Extract predictor variables from newdata as a data.frame
+      pred_vars <- newdata[, names(object$args$predictors), drop = FALSE]
+      # 1.1 Extract linear base learners
+      lin_bl <- base_learners[sapply(base_learners, function(x) x$type == "linear")]
+      # 1.2 Extract univariate base learners
+      univariate_bl <- base_learners[sapply(base_learners, function(x) x$type == "GeDS" & length(x$variables) == 1)]
+      # 1.3 Extract bivariate base learners
+      bivariate_bl <- base_learners[sapply(base_learners, function(x) x$type == "GeDS" & length(x$variables) == 2)]
+      
       ####################
       ## 1.1. GeDSboost ##
       ####################
       if (inherits(object, "GeDSboost")) {
-        # Extract predictor variables from newdata as a data.frame
-        pred_vars <- newdata[, names(object$args$predictors), drop = FALSE]
+        
         # family and shrinkage
         family_name <- object$args$family@name; shrinkage <- object$args$shrinkage
-        
-        # 1.1 Extract linear base learners
-        lin_bl <- base_learners[sapply(base_learners, function(x) x$type == "linear")]
-        # 1.2 Extract univariate base learners
-        univariate_bl <- base_learners[sapply(base_learners, function(x) x$type == "GeDS" & length(x$variables) == 1)]
-        # 1.3 Extract bivariate base learners
-        bivariate_bl <- base_learners[sapply(base_learners, function(x) x$type == "GeDS" & length(x$variables) == 2)]
         
         # Normalized model
         if(object$args$normalize_data) {
           # (i) Normalized non-binary response
           if(family_name != "Negative Binomial Likelihood (logit link)") {
-            pred_vars <- data.frame(scale(pred_vars)); Y_mean <- object$args$Y_mean; Y_sd <- object$args$Y_sd
+            pred_vars <- data.frame(scale(pred_vars))
+            Y_mean <- object$args$Y_mean; Y_sd <- object$args$Y_sd
             # (ii) Normalized binary response
           } else if (family_name == "Negative Binomial Likelihood (logit link)") {
             pred_vars <- data.frame(scale(pred_vars))
@@ -357,17 +359,8 @@ predict.GeDSboost_GeDSgam <- function(object, newdata, n = 3L,
         ##################
       } else if (inherits(object, "GeDSgam")) {
         
-        # Extract predictor variables from newdata
-        pred_vars <- newdata[, names(object$args$predictors)]
-        # Base learners and family
-        base_learners <- object$args$base_learners; family_name <- object$args$family$family
-        
-        # 1.1 Extract linear base learners
-        lin_bl <- base_learners[sapply(base_learners, function(x) x$type == "linear")]
-        # 1.2 Extract univariate base learners
-        univariate_bl <- base_learners[sapply(base_learners, function(x) x$type == "GeDS" & length(x$variables) == 1)]
-        # 1.3 Extract bivariate base learners
-        bivariate_bl <- base_learners[sapply(base_learners, function(x) x$type == "GeDS" & length(x$variables) == 2)]
+        # Family
+        family_name <- object$args$family$family
         
         # Normalized model
         if (object$args$normalize_data) {
@@ -377,7 +370,7 @@ predict.GeDSboost_GeDSgam <- function(object, newdata, n = 3L,
             pred_vars[numeric_predictors] <- data.frame(scale(pred_vars[numeric_predictors]))
             Y_mean <- object$args$Y_mean; Y_sd <- object$args$Y_sd
             # (ii) Normalized binary response
-          } else if (family_name == "Negative Binomial Likelihood (logit link)") {
+          } else if (family_name == "binomial") {
             numeric_predictors <- names(pred_vars)[sapply(pred_vars, is.numeric)]
             pred_vars[numeric_predictors] <- data.frame(scale(pred_vars[numeric_predictors]))
           }
