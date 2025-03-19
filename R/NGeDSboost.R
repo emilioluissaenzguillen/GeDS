@@ -315,6 +315,13 @@ NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE,
   check_y_family <- family@check_y
   family_stats <- get_mboost_family(family@name)
   
+  # Ensure the response variable is a factor when using a binomial family
+  if (family_stats$family == "binomial" && !is.factor(data[[response]])) {
+    data[[response]] <- as.factor(data[[response]])
+    if (nlevels(data[[response]]) != 2) 
+      stop("response is not a factor at two levels but ", sQuote("family = binomial"))
+  }
+  
   # Min/max iterations
   min_iterations <- validate_iterations(min_iterations, 0L, "min_iterations")
   max_iterations <- validate_iterations(max_iterations, 500L, "max_iterations")

@@ -238,6 +238,13 @@ NGeDSgam <- function(formula, family = "gaussian", data, weights = NULL, offset 
     stop("`family' not recognized")
   }
   
+  # Ensure the response variable is a factor when using a binomial family
+  if (family$family == "binomial" && !is.factor(data[[response]])) {
+    data[[response]] <- as.factor(data[[response]])
+    if (nlevels(data[[response]]) != 2) 
+      stop("response is not a factor at two levels but ", sQuote("family = binomial"))
+  }
+  
   variance <- family$variance
   dev.resids <- family$dev.resids
   link <- family$linkfun # g
