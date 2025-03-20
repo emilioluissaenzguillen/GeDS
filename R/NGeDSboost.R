@@ -28,8 +28,9 @@
 #' @param family determines the loss function to be optimized by the boosting
 #' algorithm. In case \code{initial_learner = FALSE} it also determines the
 #' corresponding empirical risk minimizer to be used as offset initial learner.
-#' By default, it is set to \code{mboost::Gaussian()}. Users can specify any
-#' \code{\link[mboost]{Family}} object from the \pkg{mboost} package.
+#' By default, it is set to \code{mboost::Gaussian()}. Users can specify any of the
+#' \code{\link[mboost]{Family}} object from the \pkg{mboost} package listed in
+#' \code{\link{GeDSboost-class}}.
 #' @param link in case the \code{\link[mboost]{Family}} object has not
 #' the desired link function you can specify it here.
 #' @param initial_learner a logical value. If set to \code{TRUE}, the model's
@@ -314,6 +315,10 @@ NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE,
   offset <- family@offset
   check_y_family <- family@check_y
   family_stats <- get_mboost_family(family@name)
+  if (family_stats$family == "binomial") {
+    links <- c("logit", "probit", "cloglog", "cauchit", "log")
+    link <- links[sapply(links, function(link) grepl(paste0("\\b", link, "\\b"), family@name))]
+  }
   
   # Ensure the response variable is a factor when using a binomial family
   if (family_stats$family == "binomial" && !is.factor(data[[response]])) {
@@ -347,7 +352,7 @@ NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE,
   
   # Normalize data if necessary
   if (normalize_data == TRUE) {
-    if (family@name != "Negative Binomial Likelihood (logit link)") {
+    if (family_stats$family != "binomial") {
       # Mean and SD of the original response and predictor(s) variables (to de-normalize afterwards)
       args$Y_mean <- mean(data[[response]])
       args$Y_sd <- sd(data[[response]])
@@ -360,7 +365,7 @@ NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE,
       data[numeric_predictors] <- scale(data[numeric_predictors])
       
       } else {
-        # If the family is "Negative Binomial Likelihood (logit link)" only normalize predictors
+        # If the family is "binomial" only normalize predictors
         args$X_mean <- colMeans(data[predictors])
         args$X_sd <- sapply(data[predictors], sd)
         data[predictors] <- scale(data[predictors])
@@ -783,7 +788,7 @@ NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE,
   
   ## 7. Set the "final model" to be the one with lower deviance
   # 7.1. De-normalize predictions if necessary
-  if (normalize_data == TRUE && family@name != "Negative Binomial Likelihood (logit link)") {
+  if (normalize_data == TRUE && family_stats$family != "binomial") {
     models <- lapply(models, function(model) {
       model$Y_hat <- model$Y_hat * args$Y_sd + args$Y_mean
       return(model)
@@ -869,7 +874,7 @@ NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE,
         })
     
     # De-normalize if necessary
-    if (normalize_data == TRUE && family@name != "Negative Binomial Likelihood (logit link)") {
+    if (normalize_data == TRUE && family_stats$family != "binomial") {
       linear_fit$Predicted <- as.numeric(linear_fit$Predicted) * args$Y_sd + args$Y_mean
     }
     

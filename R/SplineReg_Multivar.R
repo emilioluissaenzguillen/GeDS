@@ -11,9 +11,16 @@ SplineReg_Multivar <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)), base_le
   if (inherits(family, "boost_family_glm") || inherits(family, "boost_family")) {
     family_name <- get_mboost_family(family@name)$family
     if (!is.null(link)) family <- get(family_name)(link = link)
+    
+    # Since for NGeDSboost(family = "binomial") the encoding is -1/1
+    # and for stats::binomial() the encoding is 0/1
+    if (family_name == "binomial") {
+      Y <- (Y + 1) / 2
+      }
+    
     } else {
       family_name <- family$family
-      }
+    }
   
   # Check if family is "gaussian"
   if (family_name == "gaussian") {
@@ -360,12 +367,6 @@ SplineReg_GLM_Multivar <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)), bas
   
   # 1) If coefficients are NOT provided estimate the corresponding regression model
   if (is.null(coefficients)) {
-    
-    # Since for NGeDSboost(family = "binomial") the encoding is -1/1
-    # and for stats::binomial() the encoding is 0/1
-    if (family_name == "Negative Binomial Likelihood (logit link)") {
-      Y <- (Y + 1) / 2
-    }
     
     # Initialization
     if (missing(mustart)||is.null(mustart)) {

@@ -254,12 +254,17 @@ predict.GeDSboost_GeDSgam <- function(object, newdata, n = 3L,
   # Select final model
   model <- object$final_model
   
+  
+  ###############################################
+  # I. Compute predictions for all base_leaners #
+  ###############################################
   if (is.null(base_learner)) {
     
     # Check whether newdata includes all the necessary predictors
     if (!all(names(object$args$predictors) %in% colnames(newdata))) {
       missing_vars <- setdiff(names(object$args$predictors), colnames(newdata))
-      stop(paste("The following predictors are missing in newdata:", paste(missing_vars, collapse = ", ")))
+      stop(paste("The following predictors are missing in newdata:",
+                 paste(missing_vars, collapse = ", ")))
     }
     
     nobs <- nrow(newdata)
@@ -279,62 +284,43 @@ predict.GeDSboost_GeDSgam <- function(object, newdata, n = 3L,
       # 1.3 Extract bivariate base learners
       bivariate_bl <- base_learners[sapply(base_learners, function(x) x$type == "GeDS" & length(x$variables) == 2)]
       
+      # Family
+      if (inherits(object, "GeDSboost")) {
+        family_name <- get_mboost_family(object$args$family@name)$family 
+        } else {
+          family_name <- object$args$family$family
+        }
+      
+      # Normalized model
+      if (object$args$normalize_data) {
+        numeric_predictors <- names(pred_vars)[sapply(pred_vars, is.numeric)]
+        pred_vars[numeric_predictors] <- data.frame(scale(pred_vars[numeric_predictors]))
+        
+        if (family_name != "binomial") {
+          Y_mean <- object$args$Y_mean; Y_sd <- object$args$Y_sd # Normalized non-binary response
+        }
+      }
+      
+      # Initialize prediction vectors
+      pred0 <- pred_lin <- pred_univ <- pred_biv <- numeric(nobs)
+      
       ####################
       ## 1.1. GeDSboost ##
       ####################
       if (inherits(object, "GeDSboost")) {
         
-        # family and shrinkage
-        family_name <- object$args$family@name; shrinkage <- object$args$shrinkage
-        
-        # Normalized model
-        if(object$args$normalize_data) {
-          # (i) Normalized non-binary response
-          if(family_name != "Negative Binomial Likelihood (logit link)") {
-            pred_vars <- data.frame(scale(pred_vars))
-            Y_mean <- object$args$Y_mean; Y_sd <- object$args$Y_sd
-            # (ii) Normalized binary response
-          } else if (family_name == "Negative Binomial Likelihood (logit link)") {
-            pred_vars <- data.frame(scale(pred_vars))
-          }
-        }
-        
-        # Initialize prediction vectors
-        pred0 <- pred_lin <- pred_univ <- pred_biv <- numeric(nobs)
+        # shrinkage
+        shrinkage <- object$args$shrinkage
         
         # 1.0 Offset initial learner
         if (!object$args$initial_learner) {
           pred0 <- object$args$family@offset(object$args$response[[1]],  object$args$weights)
           pred0 <- rep(pred0, nrow(newdata)); 
-          if(object$args$normalize_data && family_name != "Negative Binomial Likelihood (logit link)") {pred0 <- (pred0-Y_mean)/Y_sd}
+          if(object$args$normalize_data && family_name != "binomial") pred0 <- (pred0-Y_mean)/Y_sd
         }
         # 1.1 Linear base learners
         if (length(lin_bl)!=0) {
-          # Loop over base learners
-          for (bl in names(lin_bl)) {
-            # Extract coefficients
-            coeffs <- model$base_learners[[bl]]$coefficients
-            # (i) Categorical
-            if (is.factor(pred_vars[[bl]])) {
-              # Compute fitted values manually
-              baseline <- levels(pred_vars[[bl]])[1]
-              pred_bl <- numeric(nobs)
-              # For baseline level
-              pred_bl[pred_vars[[bl]] == baseline] <- coeffs[1]
-              # Loop through all levels except the baseline
-              for (i in 2:length(levels(pred_vars[[bl]]))) {
-                level <- levels(pred_vars[[bl]])[i]
-                mask <- pred_vars[[bl]] == level
-                pred_bl[mask] <- coeffs[[1]] + coeffs[[i]]
-              }
-              pred_bl <- as.numeric(pred_bl)
-              # (ii) Continuous
-            } else {
-              pred_bl <- coeffs$b0 + coeffs$b1 * pred_vars[[bl]]
-            }
-            # Add the result to pred_lin
-            pred_lin <- pred_lin + pred_bl
-          }
+          pred_lin <- lin_model(pred_vars, model, lin_bl, nobs)
         }
         # 1.2 GeDS univariate base learners
         if (length(univariate_bl)!=0) {
@@ -345,46 +331,27 @@ predict.GeDSboost_GeDSgam <- function(object, newdata, n = 3L,
           pred_biv <- bivariate_bl_linear_model(pred_vars = pred_vars, model, shrinkage, base_learners = bivariate_bl)
         }
         
-        if (object$args$normalize_data && family_name != "Negative Binomial Likelihood (logit link)") {
+        if (object$args$normalize_data && family_name != "binomial") {
           pred <- (pred0 + pred_lin + pred_univ + pred_biv)*Y_sd + Y_mean
         } else {
           pred <- pred0 + pred_lin + pred_univ + pred_biv
         }
         
-        pred <- object$args$family@response(as.numeric(pred))
-        return(pred)
+        pred <- if (type == "response") object$args$family@response(pred) else if (type == "link") pred
+        
+        return(as.numeric(pred))
         
         ##################
         ## 1.2. GeDSgam ##
         ##################
       } else if (inherits(object, "GeDSgam")) {
         
-        # Family
-        family_name <- object$args$family$family
-        
-        # Normalized model
-        if (object$args$normalize_data) {
-          # (i) Normalized non-binary response
-          if (family_name != "binomial") {
-            numeric_predictors <- names(pred_vars)[sapply(pred_vars, is.numeric)]
-            pred_vars[numeric_predictors] <- data.frame(scale(pred_vars[numeric_predictors]))
-            Y_mean <- object$args$Y_mean; Y_sd <- object$args$Y_sd
-            # (ii) Normalized binary response
-          } else if (family_name == "binomial") {
-            numeric_predictors <- names(pred_vars)[sapply(pred_vars, is.numeric)]
-            pred_vars[numeric_predictors] <- data.frame(scale(pred_vars[numeric_predictors]))
-          }
-        }
-        
-        # Initialize prediction vectors
-        pred0 <- pred_lin <- pred_univ <- pred_biv <- numeric(nobs)
-        
         # 1.0 Initial learner
         pred0 <- rep(mean(model$Y_hat$z), nrow(newdata))
         # 1.1 Linear base learners
         if (length(lin_bl)!=0) {
           pred_lin <- lin_model(pred_vars, model, lin_bl, nobs)
-          alpha_lin <- mean(lin_model(object$args$predictors, model, lin_bl, nobs))
+          # alpha_lin <- mean(lin_model(object$args$predictors, model, lin_bl, nobs))
           alpha_lin <- mean(pred_lin)
           pred_lin <- pred_lin - alpha_lin
         }
@@ -408,6 +375,7 @@ predict.GeDSboost_GeDSgam <- function(object, newdata, n = 3L,
         } else {
           pred <- pred0 + pred_lin + pred_univ + pred_biv
         }
+        
         pred <- if (type == "response") object$args$family$linkinv(pred) else if (type == "link") pred
         
         return(as.numeric(pred))
@@ -535,20 +503,23 @@ predict.GeDSboost_GeDSgam <- function(object, newdata, n = 3L,
       coefs <- model[[Fit]]$Fit$coefficients
       coefs[is.na(coefs)] <- 0
       pred <- matrice2%*%coefs+offset
-      pred <- if (type == "response") family$linkinv(as.numeric(pred)) else if (type == "link") as.numeric(pred)
-      return(pred)
+      
+      pred <- if (type == "response") family$linkinv(pred) else if (type == "link") pred
+      
+      return(as.numeric(pred))
     }
     
-    ################################################
-    # Compute predictions for a single base_leaner #
-    ################################################
+    ####################################################
+    # II. Compute predictions for a single base_leaner #
+    ####################################################
     } else if (!is.null(base_learner)) {
       
       # Single base-learner prediction
       bl_name <- as.character(base_learner)
       bl <- object$args$base_learners[[bl_name]]
       
-      Y <- object$args$response[[1]]; pred_vars <- object$args$predictors[[bl$variables]]
+      Y <- object$args$response[[1]]
+      pred_vars <- object$args$predictors[[bl$variables]]
       X_mat <- newdata[, intersect(bl$variables, colnames(newdata))]
       
       # Check whether newdata includes all the necessary predictors
@@ -580,8 +551,11 @@ predict.GeDSboost_GeDSgam <- function(object, newdata, n = 3L,
       if (NCOL(X_mat) == 1) {
         
         if (bl$type == "GeDS") {
+          
+          extr <- range(pred_vars)
+          
           # Create spline basis matrix using specified knots, evaluation points and order
-          basisMatrix <- splineDesign(knots = sort(c(int.knt,rep(range(pred_vars),n))),
+          basisMatrix <- splineDesign(knots = sort(c(int.knt,rep(extr,n))),
                                       x = X_mat, ord = n, derivs = rep(0,length(X_mat)),
                                       outer.ok = T)
           # To recover backfitting predictions need de_mean
