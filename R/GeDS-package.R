@@ -111,7 +111,7 @@
 #' @keywords package
 #' @aliases GeDS
 #'
-#' @author  Dimitrina S. Dimitrova <D.Dimitrova@city.ac.uk>,#' 
+#' @author  Dimitrina S. Dimitrova <D.Dimitrova@city.ac.uk>, 
 #' Vladimir K. Kaishev <V.Kaishev@city.ac.uk>,
 #' Andrea Lattuada <Andrea.Lattuada@unicatt.it>,
 #' Emilio L. Sáenz Guillén <Emilio.Saenz-Guillen@bayes.city.ac.uk> and

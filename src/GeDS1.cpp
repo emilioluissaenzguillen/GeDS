@@ -365,7 +365,12 @@ List findNewDimKnot(
     } else {  
       Dim_weights[best_index] = R_NegInf;
     }
-  }  
+  }
+  
+  // Check if all Dim.weights were turned to -Inf
+  if (is_true(all(Dim_weights < 0))) {
+    flagDim = true;
+    }
   
   return List::create(
     Named("Dim.newknot") = Dim_newknot,

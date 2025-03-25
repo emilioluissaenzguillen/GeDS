@@ -138,6 +138,9 @@ findNewDimKnot_R <- function(dcumFixedDim.Dim, Dim.weights, Dim.oldknots, matrFi
     
   }
   
+  # Check if all Dim.weights were turned to -Inf
+  if (all(Dim.weights < 0)) flagDim <- FALSE
+  
   weightDim <- Dim.weights[indice] # Store the weight of the selected cluster for further use
   
   

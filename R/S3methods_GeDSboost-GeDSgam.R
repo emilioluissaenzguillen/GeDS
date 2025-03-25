@@ -294,7 +294,12 @@ predict.GeDSboost_GeDSgam <- function(object, newdata, n = 3L,
       # Normalized model
       if (object$args$normalize_data) {
         numeric_predictors <- names(pred_vars)[sapply(pred_vars, is.numeric)]
-        pred_vars[numeric_predictors] <- data.frame(scale(pred_vars[numeric_predictors]))
+        pred_vars[numeric_predictors] <- as.data.frame(
+          sweep(
+            sweep(pred_vars[numeric_predictors], 2, object$args$X_mean, FUN = "-"),
+            2, object$args$X_sd, FUN = "/"
+          )
+        )
         
         if (family_name != "binomial") {
           Y_mean <- object$args$Y_mean; Y_sd <- object$args$Y_sd # Normalized non-binary response
@@ -320,7 +325,7 @@ predict.GeDSboost_GeDSgam <- function(object, newdata, n = 3L,
         }
         # 1.1 Linear base learners
         if (length(lin_bl)!=0) {
-          pred_lin <- lin_model(pred_vars, model, lin_bl, nobs)
+          pred_lin <- lin_model(pred_vars, model, lin_bl)
         }
         # 1.2 GeDS univariate base learners
         if (length(univariate_bl)!=0) {
@@ -328,7 +333,9 @@ predict.GeDSboost_GeDSgam <- function(object, newdata, n = 3L,
         }
         # 1.3 GeDS bivariate base learners
         if (length(bivariate_bl) != 0) {
-          pred_biv <- bivariate_bl_linear_model(pred_vars = pred_vars, model, shrinkage, base_learners = bivariate_bl)
+          pred_biv <- bivariate_bl_linear_model(pred_vars = pred_vars, model,
+                                                shrinkage, base_learners = bivariate_bl,
+                                                extr = object$args$extr)
         }
         
         if (object$args$normalize_data && family_name != "binomial") {
@@ -350,24 +357,43 @@ predict.GeDSboost_GeDSgam <- function(object, newdata, n = 3L,
         pred0 <- rep(mean(model$Y_hat$z), nrow(newdata))
         # 1.1 Linear base learners
         if (length(lin_bl)!=0) {
-          pred_lin <- lin_model(pred_vars, model, lin_bl, nobs)
-          # alpha_lin <- mean(lin_model(object$args$predictors, model, lin_bl, nobs))
-          alpha_lin <- mean(pred_lin)
+          pred_lin <- lin_model(pred_vars, model, lin_bl)
+          if (object$args$normalize_data) {
+            alpha_lin <- mean(lin_model(scale(object$args$predictors[numeric_predictors]), model, lin_bl))
+          } else {
+            alpha_lin <- mean(lin_model(object$args$predictors, model, lin_bl))
+          }
+          # alpha_lin <- mean(pred_lin)
           pred_lin <- pred_lin - alpha_lin
         }
         # 1.2 GeDS univariate base learners
         if (length(univariate_bl)!= 0) {
           pred_univ <- piecewise_multivar_linear_model(pred_vars, model, base_learners = univariate_bl)
-          # alpha_univ <- mean(piecewise_multivar_linear_model(object$args$predictors, model, base_learners = univariate_bl))
-          alpha_univ <- mean(pred_univ)
+          if (object$args$normalize_data) {
+          alpha_univ <- mean(piecewise_multivar_linear_model(scale(object$args$predictors[numeric_predictors]),
+                                                             model, base_learners = univariate_bl))
+          } else {
+            alpha_univ <- mean(piecewise_multivar_linear_model(object$args$predictors,
+                                                               model, base_learners = univariate_bl))
+          }
+          # alpha_univ <- mean(pred_univ)
           pred_univ <- pred_univ - alpha_univ
         }
         # 1.3 GeDS bivariate base learners
         if (length(bivariate_bl) != 0) {
-          pred_biv <- bivariate_bl_linear_model(pred_vars, model, base_learners = bivariate_bl, type = "gam")
-          # alpha_biv <- bivariate_bl_linear_model(object$args$predictors, model, base_learners = bivariate_bl, type = "gam")
-          alpha_biv <- mean(pred_biv)
-          pred_biv <- pred_biv - mean(alpha_biv)
+          pred_biv <- bivariate_bl_linear_model(pred_vars, model, base_learners = bivariate_bl,
+                                                extr = object$args$extr, type = "gam")
+          if (object$args$normalize_data) {
+            alpha_biv <- mean(bivariate_bl_linear_model(scale(object$args$predictors[numeric_predictors]),
+                                                        model, base_learners = bivariate_bl,
+                                                        extr = object$args$extr, type = "gam"))
+          } else {
+            alpha_biv <- mean(bivariate_bl_linear_model(object$args$predictors, model,
+                                                        base_learners = bivariate_bl,
+                                                        extr = object$args$extr, type = "gam"))
+          }
+          # alpha_biv <- mean(pred_biv)
+          pred_biv <- pred_biv - alpha_biv
         }
         
         if(object$args$normalize_data && family_name != "binomial") {

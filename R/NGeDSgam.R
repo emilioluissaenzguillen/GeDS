@@ -262,7 +262,7 @@ NGeDSgam <- function(formula, family = "gaussian", data, weights = NULL, offset 
     "family" = family,
     "normalize_data" = normalize_data,
     "offset" = offset
-  )
+    )
   
   # Add 'response' as the first element of the list 'args'
   if (args$family$family != "binomial") {
@@ -293,6 +293,9 @@ NGeDSgam <- function(formula, family = "gaussian", data, weights = NULL, offset 
       data[predictors] <- scale(data[predictors])
     }
   }
+  
+  # Boundary knots
+  args$extr <- lapply(data[ , sapply(data, is.numeric)], range)
  
   # Initialize the knots, intervals, and coefficients for each base-learner
   base_learners_list <- list()

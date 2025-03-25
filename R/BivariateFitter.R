@@ -298,39 +298,29 @@ BivariateFitter <- function(X, Y, Z, W, weights = rep(1,length(X)), Indicator,
     ## STEP 4. (iii): if \omega_1^* => \omega_2^* a new knot \delta_1^* is added and viceversa ##
     #############################################################################################
     # A. If weight for X is greater, then add a new X knot
-    if(weightX > weightY) {
-      Ynewknot <- NULL
+    if (weightX > weightY || (weightX == weightY && length(Xintknots) > length(Yintknots))) {
       Xctrl <- TRUE # Control flag indicating an X knot is to be added
-      
-      # Print iteration details if show.iters = TRUE
-      if (show.iters) {
-        if (j > q + n_starting_intknots) {
-          toprint <- paste0("Iteration ", j,": New X Knot = ", round(Xnewknot, 3), ", RSS = " ,
-                            round(RSSnew[j],3), ", phi = ", round(RSSnew[j]/RSSnew[j-q], 3))
-          } else {
-            toprint <- paste0("Iteration ", j,": New X Knot = ", round(Xnewknot, 3),", RSS = " ,
-                              round(RSSnew[j], 3))
-          }
-        print(toprint)
-      }
-      
+      Ynewknot <- NULL
+      knotType <- "X"
+      knotValue <- Xnewknot
     # B. If weight for Y is greater or equal, then add a new Y knot
+    } else {
+      Yctrl <- TRUE
+      Xnewknot <- NULL
+      knotType <- "Y"
+      knotValue <- Ynewknot
+    }
+    
+    # Print iteration details if show.iters is TRUE
+    if (show.iters) {
+      if (j > q) {
+        toprint <- paste0("Iteration ", j, ": New ", knotType, " Knot = ", round(knotValue, 3),
+                          ", RSS = ", round(RSSnew[j], 3), prnt)
       } else {
-        Xnewknot <- NULL
-        Yctrl <- TRUE # Control flag indicating a Y knot is to be added
-        
-        # Print iteration details if show.iters = TRUE
-        if(show.iters) {
-          if (j > q + n_starting_intknots) {
-            toprint <- paste0("Iteration ", j,": New Y Knot = ", round(Ynewknot,3), ", RSS = ",
-                              round(RSSnew[j],3), ", phi = ", round(RSSnew[j]/RSSnew[j-q], 3))
-            } else {
-              toprint <- paste0("Iteration ", j,": New Y Knot = ", round(Ynewknot, 3),", RSS = ",
-                                round(RSSnew[j], 3))
-              }
-          print(toprint)
-        }
+        toprint <- paste0("Iteration ", j, ": New ", knotType, " Knot = ", round(knotValue, 3), prnt)
       }
+      print(toprint)
+    }
     
     # Update knots vectors
     Yintknots <- c(Yintknots, Ynewknot)
@@ -675,37 +665,29 @@ GenBivariateFitter <- function(X, Y, Z, W, family = family, weights = rep(1,leng
     ## STEP 4. (iii): if \omega_1^* => \omega_2^* a new knot \delta_1^* is added and viceversa ##
     #############################################################################################
     # A. If weight for X is greater, then add a new X knot
-    if (weightX > weightY) {
-      Ynewknot <- NULL
+    if (weightX > weightY || (weightX == weightY && length(Xintknots) > length(Yintknots))) {
       Xctrl <- TRUE # Control flag indicating an X knot is to be added
-      
-      # Print iteration details if show.iters = TRUE
-      if (show.iters) {
-        if (j > q) {
-          toprint <- paste0("Iteration ", j,": New X Knot = ", round(Xnewknot,3),
-                            ", RSS = " , round(RSSnew[j],3), prnt)
-          } else {
-            toprint <- paste0("Iteration ", j, ": New X Knot = ", round(Xnewknot,3), prnt)
-          }
-        print(toprint)         
-      }
-      
-      # B. If weight for Y is greater or equal, then add a new Y knot
+      Ynewknot <- NULL
+      knotType <- "X"
+      knotValue <- Xnewknot
+    # B. If weight for Y is greater or equal, then add a new Y knot
+    } else {
+      Yctrl <- TRUE
+      Xnewknot <- NULL
+      knotType <- "Y"
+      knotValue <- Ynewknot
+    }
+    
+    # Print iteration details if show.iters is TRUE
+    if (show.iters) {
+      if (j > q) {
+        toprint <- paste0("Iteration ", j, ": New ", knotType, " Knot = ", round(knotValue, 3),
+                          ", RSS = ", round(RSSnew[j], 3), prnt)
       } else {
-        Xnewknot <- NULL
-        Yctrl <- TRUE
-        
-        # Print iteration details if show.iters = TRUE
-        if (show.iters) {
-          if (j > q) {
-            toprint <- paste0("Iteration ", j, ": New Y Knot = ", round(Ynewknot,3),
-                              ", RSS = " , round(RSSnew[j],3), prnt)
-            } else {
-              toprint <- paste0("Iteration ",j,": New Y Knot = ", round(Ynewknot,3) , prnt)
-              }
-          print(toprint)
-        }
+        toprint <- paste0("Iteration ", j, ": New ", knotType, " Knot = ", round(knotValue, 3), prnt)
       }
+      print(toprint)
+    }
     
     # Calculate guess-coefficients for newknot
     # guess <- newknot.guess_biv(X, Y, Xintknots, Yintknots, Xextr, Yextr, guess, Xnewknot)

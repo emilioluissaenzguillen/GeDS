@@ -342,7 +342,7 @@ NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE,
     "int.knots_init" = if(initial_learner){int.knots_init} else {NULL},
     "shrinkage" = shrinkage, 
     "normalize_data" = normalize_data
-  )
+    )
   
   # Response variable check
   data[response] <- check_y_family(data[[response]])
@@ -371,6 +371,9 @@ NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE,
         data[predictors] <- scale(data[predictors])
     }
   }
+  
+  # Boundary knots
+  args$extr <- lapply(data[ , sapply(data, is.numeric)], range)
   
   # Initialize the knots, intervals, and coefficients for each base-learner
   base_learners_list <- list()

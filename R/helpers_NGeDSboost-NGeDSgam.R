@@ -221,7 +221,10 @@ predict_GeDS_linear <- function(Gmod, X, Y, Z){
 ## 7. Function for computing piecewise multivariate additive linear model ##
 ############################################################################
 # 7.1
-lin_model <- function(pred_vars, model, lin_bl, nobs) {
+lin_model <- function(pred_vars, model, lin_bl) {
+  
+  pred_vars <- as.data.frame(pred_vars)
+  nobs <- nrow(pred_vars)
   pred_lin <- numeric(nobs)  # Initialize prediction vector
   
   # Loop over base learners
@@ -324,7 +327,8 @@ univariate_bl_linear_model <- function(pred_vars, model, shrinkage, base_learner
 }
 
 # 8.2. Bivariate base-learners
-bivariate_bl_linear_model <- function(pred_vars, model, shrinkage, base_learners = NULL, type = "boost") {
+bivariate_bl_linear_model <- function(pred_vars, model, shrinkage, base_learners = NULL,
+                                      extr, type = "boost") {
   
   # Initialize output vector
   Y_hat <- numeric(nrow(pred_vars))
@@ -340,6 +344,9 @@ bivariate_bl_linear_model <- function(pred_vars, model, shrinkage, base_learners
     X <- pred_vars[, base_learners[[base_learner]]$variables[1]]
     Y <- pred_vars[, base_learners[[base_learner]]$variables[2]]
     
+    extrX <- extr[[base_learners[[base_learner]]$variables[1]]]
+    extrY <- extr[[base_learners[[base_learner]]$variables[2]]]
+    
     bl <- model$base_learners[[base_learner]]
     # (I) Bivariate boosted base learners
     if(type == "boost") {
@@ -348,8 +355,8 @@ bivariate_bl_linear_model <- function(pred_vars, model, shrinkage, base_learners
         Xint.knt <- bl$iterations[[mod]]$int.knt$Xint.knt
         Yint.knt <- bl$iterations[[mod]]$int.knt$Yint.knt
         theta <- bl$iterations[[mod]]$coef
-        lin <- SplineReg_biv(X, Y, InterKnotsX=Xint.knt, InterKnotsY=Yint.knt,
-                             Xextr=range(X), Yextr=range(Y), n=2,
+        lin <- SplineReg_biv(X, Y, InterKnotsX = Xint.knt, InterKnotsY = Yint.knt,
+                             Xextr = extrX, Yextr = extrY, n = 2,
                              coefficients = theta)
         
         if (mod=="model0") {
@@ -365,8 +372,8 @@ bivariate_bl_linear_model <- function(pred_vars, model, shrinkage, base_learners
       Xint.knt <- bl$linear.int.knots$ikX
       Yint.knt <- bl$linear.int.knots$ikY
       theta <- bl$coefficients
-      lin <- SplineReg_biv(X, Y, InterKnotsX=Xint.knt, InterKnotsY=Yint.knt,
-                           Xextr=range(X), Yextr=range(Y), n=2,
+      lin <- SplineReg_biv(X, Y, InterKnotsX = Xint.knt, InterKnotsY = Yint.knt,
+                           Xextr = extrX, Yextr = extrY, n=2,
                            coefficients = theta)
       Y_hat <- Y_hat + lin$Predicted
     }

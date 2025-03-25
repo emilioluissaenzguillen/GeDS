@@ -299,7 +299,7 @@
 #' deviance(BivGeDS, n = 3)
 #' deviance(BivGeDS, n = 4)
 #' 
-#' # Poisson mean deviance w.r.t true function#' 
+#' # Poisson mean deviance w.r.t true function 
 #' f_XY <- apply(cbind(X, Y), 1, function(row) doublesin(matrix(row, ncol = 2)))
 #' mean(poisson()$dev.resids(f_XY, BivGeDS$Linear.Fit$Predicted, wt = 1))
 #' mean(poisson()$dev.resids(f_XY, BivGeDS$Quadratic.Fit$Predicted, wt = 1))
