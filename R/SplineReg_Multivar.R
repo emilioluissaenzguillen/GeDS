@@ -145,7 +145,17 @@ SplineReg_LM_Multivar <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)), base
     # the ‘-1’ serving to suppress the redundant extra intercept that would be added by default
     # 'splineDesign' already includes a basis that accounts for the intercept
     theta <- coef(tmp)
-    names(theta) <- sub("basisMatrix2", "", names(theta))
+    # Check if any coefficient is NA, which indicates a rank deficiency.
+    if (any(is.na(theta))) {
+      # # Compute the minimal-norm solution for theta using the Moore-Penrose generalized inverse.
+      # theta <- as.numeric(ginv(basisMatrix2) %*% Y0)
+      # # Now theta contains the computed coefficients that reproduce lm()'s fitted values.
+      
+      matcb <- t(basisMatrix2) %*% basisMatrix2
+      matcbinv <- ginv(matcb)
+      theta <- as.numeric(matcbinv %*% t(basisMatrix2) %*% tmp$fitted.values)
+    }
+    names(theta) <- sub("basisMatrix2", "", names(coef(tmp)))
     predicted <- tmp$fitted.values + offset
     
     # Reset environment of lm object
@@ -169,7 +179,8 @@ SplineReg_LM_Multivar <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)), base
   # Univariate 
   if (length(InterKnotsList_univ) != 0) {
     for (learner_name in names(InterKnotsList_univ)) {
-      if (!is.null(InterKnotsList_univ[[learner_name]]) && length(InterKnotsList_univ[[learner_name]]) >= n - 1) {
+      if (!is.null(InterKnotsList_univ[[learner_name]]) &&
+          length(InterKnotsList_univ[[learner_name]]) >= n - 1) {
         polyknots_list[[learner_name]] <-
           makenewknots(
             sort(c(InterKnotsList_univ[[learner_name]],
@@ -188,12 +199,14 @@ SplineReg_LM_Multivar <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)), base
       learner_knots <- list()
       for (i in seq_along(learner_vars)) {
         var_name <- learner_vars[i]
-        if (i == 1 && !is.null(InterKnotsList_biv[[learner_name]]$ikX) && length(InterKnotsList_biv[[learner_name]]$ikX) >= n - 1) {
+        if (i == 1 && !is.null(InterKnotsList_biv[[learner_name]]$ikX) &&
+            length(InterKnotsList_biv[[learner_name]]$ikX) >= n - 1) {
           learner_knots[[var_name]] <- makenewknots(
             sort(c(InterKnotsList_biv[[learner_name]]$ikX,
                    rep(extrList[[var_name]], n)))[-c(1, NCOL(matrices_biv_list_aux[[learner_name]][[var_name]]) + 1)],
             degree = n)
-        } else if (i == 2 && !is.null(InterKnotsList_biv[[learner_name]]$ikY) && length(InterKnotsList_biv[[learner_name]]$ikY) >= n - 1) {
+        } else if (i == 2 && !is.null(InterKnotsList_biv[[learner_name]]$ikY) &&
+                   length(InterKnotsList_biv[[learner_name]]$ikY) >= n - 1) {
           learner_knots[[var_name]] <- makenewknots(
             sort(c(InterKnotsList_biv[[learner_name]]$ikY,
                    rep(extrList[[var_name]], n)))[-c(1, NCOL(matrices_biv_list_aux[[learner_name]][[var_name]]) + 1)],
@@ -413,7 +426,8 @@ SplineReg_GLM_Multivar <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)), bas
   # Univariate 
   if (length(InterKnotsList_univ) != 0) {
     for (learner_name in names(InterKnotsList_univ)) {
-      if (!is.null(InterKnotsList_univ[[learner_name]])){
+      if (!is.null(InterKnotsList_univ[[learner_name]]) &&
+          length(InterKnotsList_univ[[learner_name]]) >= n - 1) {
         polyknots_list[[learner_name]] <- list(
           learner_name = makenewknots(
             sort(c(InterKnotsList_univ[[learner_name]],
@@ -433,12 +447,14 @@ SplineReg_GLM_Multivar <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)), bas
       learner_knots <- list()
       for (i in seq_along(learner_vars)) {
         var_name <- learner_vars[i]
-        if (i == 1 && !is.null(InterKnotsList_biv[[learner_name]]$ikX)) {
+        if (i == 1 && !is.null(InterKnotsList_biv[[learner_name]]$ikX) &&
+            length(InterKnotsList_biv[[learner_name]]$ikX) >= n - 1) {
           learner_knots[[var_name]] <- makenewknots(
             sort(c(InterKnotsList_biv[[learner_name]]$ikX,
                    rep(extrList[[var_name]], n)))[-c(1, NCOL(matrices_biv_list_aux[[learner_name]][[var_name]]) + 1)],
             degree = n)
-        } else if (i == 2 && !is.null(InterKnotsList_biv[[learner_name]]$ikY)) {
+        } else if (i == 2 && !is.null(InterKnotsList_biv[[learner_name]]$ikY) &&
+                   length(InterKnotsList_biv[[learner_name]]$ikY) >= n - 1) {
           learner_knots[[var_name]] <- makenewknots(
             sort(c(InterKnotsList_biv[[learner_name]]$ikY,
                    rep(extrList[[var_name]], n)))[-c(1, NCOL(matrices_biv_list_aux[[learner_name]][[var_name]]) + 1)],

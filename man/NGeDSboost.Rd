@@ -232,6 +232,9 @@ deviance(Gmodboost, n = 2L)
 deviance(Gmodboost, n = 3L)
 deviance(Gmodboost, n = 4L)
 
+# Plot
+plot(Gmodboost, n = 3L)
+
 ############################ Example 2 - Bodyfat ############################
 library(TH.data)
 data("bodyfat", package = "TH.data")

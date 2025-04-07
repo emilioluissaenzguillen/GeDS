@@ -190,6 +190,9 @@
 #' deviance(Gmodboost, n = 3L)
 #' deviance(Gmodboost, n = 4L)
 #' 
+#' # Plot
+#' plot(Gmodboost, n = 3L)
+#' 
 #' ############################ Example 2 - Bodyfat ############################
 #' library(TH.data)
 #' data("bodyfat", package = "TH.data")
@@ -283,8 +286,6 @@ NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE,
   nobs = length(data[[response]])
   if (is.null(weights)) weights <- rep.int(1, nobs)
   else weights <- rescale_weights(weights)
-  if (!family@weights(weights))
-    stop(sQuote("family"), " is not able to deal with weights")
   
   # Eliminate indexes and keep only relevant variables
   rownames(data) <- NULL
@@ -310,6 +311,9 @@ NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE,
   }
   
   # Family arguments
+  if (!(class(family)[1] %in% c("boost_family_glm", "boost_family"))) {
+    stop("An mboost family should be provided.")
+  }
   ngradient <- family@ngradient
   risk <- family@risk
   offset <- family@offset
@@ -319,6 +323,8 @@ NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE,
     links <- c("logit", "probit", "cloglog", "cauchit", "log")
     link <- links[sapply(links, function(link) grepl(paste0("\\b", link, "\\b"), family@name))]
   }
+  if (!family@weights(weights))
+    stop(sQuote("family"), " is not able to deal with weights")
   
   # Ensure the response variable is a factor when using a binomial family
   if (family_stats$family == "binomial" && !is.factor(data[[response]])) {
@@ -840,23 +846,7 @@ NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE,
     bSpline_coef <- unlist(bSpline.coef(final_model, univariate_learners = bSpline.base_learners))
     
     # Handle linear and factor bl/variables
-    linear_coef <- NULL
-    if (length(linear_variables) > 0) {
-      # Initialize the intercept and slopes
-      intercept <- 0; slopes <- NULL
-      # Loop through each variable in linear_variables
-      for (var in linear_variables) {
-        coef <- final_model$base_learners[[var]]$coefficients
-        int <- coef$b0; slp <- unlist(coef[names(coef) != "b0"])
-        # Sum up the intercepts
-        intercept <- intercept + int
-        # Vector of slopes
-        slopes <- c(slopes, slp)
-      }
-      linear_coef <- c(intercept, slopes)
-    } else {
-      Z <- NULL  # Set Z to NULL if there are no linear/factor variables
-    }
+    linear_coef <- lin.coef(final_model, linear_variables)
     
     theta <- c(bSpline_coef, linear_coef)
     

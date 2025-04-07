@@ -344,8 +344,17 @@ bivariate_bl_linear_model <- function(pred_vars, model, shrinkage, base_learners
     X <- pred_vars[, base_learners[[base_learner]]$variables[1]]
     Y <- pred_vars[, base_learners[[base_learner]]$variables[2]]
     
+    # Boundary knots
     extrX <- extr[[base_learners[[base_learner]]$variables[1]]]
     extrY <- extr[[base_learners[[base_learner]]$variables[2]]]
+    
+    # If new data exceeds boundary knots limits, redefine boundary knots
+    if(min(X) < extrX[1] || max(X) > extrX[2] || min(Y) < extrY[1] || max(Y) > extrY[2]) {
+      extrX <- range(c(extrX, X))
+      extrY <- range(c(extrY, Y))
+      warning("Input values exceed the model boundary knots; boundary ranges updated to extrX = [", 
+              paste(extrX, collapse = ", "), "], extrY = [", paste(extrY, collapse = ", "), "].")
+    }
     
     bl <- model$base_learners[[base_learner]]
     # (I) Bivariate boosted base learners
@@ -378,7 +387,7 @@ bivariate_bl_linear_model <- function(pred_vars, model, shrinkage, base_learners
       Y_hat <- Y_hat + lin$Predicted
     }
   }
-  return(Y_hat)
+  return(as.numeric(Y_hat))
 }
 
 
@@ -459,6 +468,29 @@ compute_avg_int.knots <- function(final_model, base_learners = base_learners, X_
 }
 
 ################################################################################
+
+lin.coef <- function(final_model, linear_variables) {
+  # Handle linear and factor bl/variables
+  linear_coef <- NULL
+  if (length(linear_variables) > 0) {
+    # Initialize the intercept and slopes
+    intercept <- 0; slopes <- NULL
+    # Loop through each variable in linear_variables
+    for (var in linear_variables) {
+      coef <- final_model$base_learners[[var]]$coefficients
+      int <- coef$b0
+      slp <- unlist(coef[names(coef) != "b0"])
+      names(slp) <- paste0(var, names(slp))
+      # Sum up the intercepts
+      intercept <- intercept + int 
+      # Concatenate the slopes
+      slopes <- c(slopes, slp)
+    }
+    names(intercept) <- "b0"
+    linear_coef <- c(intercept, slopes)
+  }
+  return(linear_coef)
+}
 
 bSpline.coef <- function(final_model, univariate_learners)
   {

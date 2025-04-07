@@ -82,7 +82,7 @@
 #' regression and GeDS fit interchangeably.
 #'
 #' Please report any issue arising or bug in the code to
-#' \email{emilio.saenz-guillen@bayes.city.ac.uk}.
+#' \email{Emilio.Saenz-Guillen@citystgeorges.ac.uk}.
 #'
 #' \tabular{rl}{
 #' Package: \tab GeDS\cr
@@ -111,11 +111,11 @@
 #' @keywords package
 #' @aliases GeDS
 #'
-#' @author  Dimitrina S. Dimitrova <D.Dimitrova@city.ac.uk>, 
-#' Vladimir K. Kaishev <V.Kaishev@city.ac.uk>,
-#' Andrea Lattuada <Andrea.Lattuada@unicatt.it>,
-#' Emilio L. Sáenz Guillén <Emilio.Saenz-Guillen@bayes.city.ac.uk> and
-#' Richard J. Verrall <R.J.Verrall@city.ac.uk>
+#' @author  Dimitrina S. Dimitrova <D.Dimitrova@citystgeorges.ac.uk>, 
+#' Vladimir K. Kaishev <V.Kaishev@citystgeorges.ac.uk>,
+#' Andrea Lattuada <Andrea.Lattuada@hotmail.com>,
+#' Emilio L. Sáenz Guillén <Emilio.Saenz-Guillen@citystgeorges.ac.uk> and
+#' Richard J. Verrall <R.J.Verrall@citystgeorges.ac.uk>
 #'
 #' 
 "_PACKAGE"

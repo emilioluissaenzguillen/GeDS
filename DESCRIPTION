@@ -1,29 +1,29 @@
 Package: GeDS
 Type: Package
 Title: Geometrically Designed Spline Regression
-Version: 0.2.9
-Date: 2025-03-16
+Version: 0.3.0
+Date: 2025-04-07
 Authors@R: c(person(given = c("Dimitrina", "S."),
                       family = "Dimitrova",
                       role = "aut",
-                      email = "D.Dimitrova@city.ac.uk"),
+                      email = "D.Dimitrova@citystgeorges.ac.uk"),
               person(given = c("Vladimir", "K."),
                       family = "Kaishev",
                       role = "aut",
-                      email = "V.Kaishev@city.ac.uk"),
+                      email = "Vladimir.Kaishev.1@citystgeorges.ac.uk"),
               person(given = "Andrea",
                       family = "Lattuada",
                       role = "aut",
-                      email = "andrea.lattuada@hotmail.com"),
+                      email = "Andrea.Lattuada@hotmail.com"),
               person(given = c("Emilio", "L."),
                       family = "Sáenz Guillén",
                       role = c("aut", "cre"),
-                      email = "Emilio.Saenz-Guillen@bayes.city.ac.uk"),
+                      email = "Emilio.Saenz-Guillen@citystgeorges.ac.uk"),
               person(given = c("Richard", "J."),
                       family = "Verrall",
                       role = "aut",
-                      email = "R.J.Verrall@city.ac.uk"))
-Maintainer: Emilio L. Sáenz Guillén <Emilio.Saenz-Guillen@bayes.city.ac.uk>
+                      email = "R.J.Verrall@citystgeorges.ac.uk"))
+Maintainer: Emilio L. Sáenz Guillén <Emilio.Saenz-Guillen@citystgeorges.ac.uk>
 Description: Spline Regression, Generalized Additive Models, and Component-wise Gradient
   Boosting, utilizing Geometrically Designed (GeD) Splines. GeDS regression is a
   non-parametric method inspired by geometric principles, for fitting spline regression
@@ -43,6 +43,8 @@ BugReports: https://github.com/emilioluissaenzguillen/GeDS/issues
 LazyData: TRUE
 Depends: R (>= 3.0.1), Rcpp (>= 1.0.0), splines, stats, utils, Matrix, methods, mi, Rmpfr
 LinkingTo: Rcpp
+Suggests: testthat (>= 3.0.0) 
 RoxygenNote: 7.3.2
 Encoding: UTF-8
 Imports: doFuture, doParallel, doRNG, foreach, future, MASS, mboost, parallel, plot3D, TH.data
+Config/testthat/edition: 3
