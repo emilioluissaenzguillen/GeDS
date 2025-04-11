@@ -46,9 +46,10 @@ LinkingTo: Rcpp
 Suggests: 
     knitr,
     rmarkdown,
-    testthat (>= 3.0.0)
+    testthat (>= 3.0.0),
+    R.rsp
 RoxygenNote: 7.3.2
 Encoding: UTF-8
 Imports: doFuture, doParallel, doRNG, foreach, future, MASS, mboost, parallel, plot3D, TH.data
 Config/testthat/edition: 3
-VignetteBuilder: knitr
+VignetteBuilder: R.rsp

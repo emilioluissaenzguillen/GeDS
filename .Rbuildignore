@@ -1,4 +1,5 @@
 ^.*\.Rproj$
 ^\.Rproj\.user$
-^doc$
 ^Meta$
+^doc$
+^vignettes/jss_article\.pdf$
