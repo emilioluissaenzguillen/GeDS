@@ -58,7 +58,7 @@ coefficients estimated. Default is equal to \code{FALSE}.}
 boosting iterations to be run. If not specified, it defaults to 0L.}
 
 \item{max_iterations}{optional parameter to manually set the maximum number
-of boosting iterations to be run. If not specified, it defaults to 100L.
+of boosting iterations to be run. If not specified, it defaults to \code{100L}.
 This setting serves as a fallback when the stopping rule, based on
 consecutive deviances and tuned by \code{phi_gam_exit} and \code{q_gam},
 does not trigger an earlier termination (see Dimitrova et al. (2025)).

@@ -2,7 +2,7 @@ Package: GeDS
 Type: Package
 Title: Geometrically Designed Spline Regression
 Version: 0.3.0
-Date: 2025-04-07
+Date: 2025-04-11
 Authors@R: c(person(given = c("Dimitrina", "S."),
                       family = "Dimitrova",
                       role = "aut",
@@ -43,8 +43,13 @@ BugReports: https://github.com/emilioluissaenzguillen/GeDS/issues
 LazyData: TRUE
 Depends: R (>= 3.0.1), Rcpp (>= 1.0.0), splines, stats, utils, Matrix, methods, mi, Rmpfr
 LinkingTo: Rcpp
-Suggests: testthat (>= 3.0.0) 
+Suggests: 
+    knitr,
+    rmarkdown,
+    testthat (>= 3.0.0),
+    R.rsp
 RoxygenNote: 7.3.2
 Encoding: UTF-8
 Imports: doFuture, doParallel, doRNG, foreach, future, MASS, mboost, parallel, plot3D, TH.data
 Config/testthat/edition: 3
+VignetteBuilder: R.rsp
