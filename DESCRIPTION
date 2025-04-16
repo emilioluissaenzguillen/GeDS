@@ -43,9 +43,7 @@ BugReports: https://github.com/emilioluissaenzguillen/GeDS/issues
 LazyData: TRUE
 Depends: R (>= 3.0.1), Rcpp (>= 1.0.0), splines, stats, utils, Matrix, methods, mi, Rmpfr
 LinkingTo: Rcpp
-Suggests: 
-    knitr,
-    rmarkdown,
+Suggests:
     testthat (>= 3.0.0),
     R.rsp
 RoxygenNote: 7.3.2
