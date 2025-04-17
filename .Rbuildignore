@@ -1,10 +1,7 @@
 ^.*\.Rproj$
 ^\.Rproj\.user$
-<<<<<<< HEAD
 ^doc$
 ^Meta$
-=======
-^Meta$
-^doc$
 ^vignettes/jss_article\.pdf$
->>>>>>> 7aa26d68fd38dc3e797fe5541f424bbc5df23a81
+^\.github(/|$)
+
