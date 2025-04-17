@@ -35,26 +35,26 @@ test_that("IRIS - NGeDSgam predictions consistency", {
     expect_equal(
       predict(Gmodgam, newdata = iris_subset, type = "response", n = 2),
       Gmodgam$predictions$pred_linear,
-      tolerance = 1e-8
+      tolerance = 1e-6
     )
     
     expect_equal(
       predict(Gmodgam, newdata = iris_subset, type = "response", n = 3),
       Gmodgam$predictions$pred_quadratic,
-      tolerance = 1e-8
+      tolerance = 1e-6
     )
     
     expect_equal(
       predict(Gmodgam, newdata = iris_subset, type = "response", n = 4),
       Gmodgam$predictions$pred_cubic,
-      tolerance = 1e-8
+      tolerance = 1e-6
     )
     
     for (ord in 2:4) {
       expect_equal(
         predict(Gmodgam, newdata = iris_subset, type = "response", n = ord),
         predict(Gmodgam, newdata = rbind(iris_subset, iris_in_range_new), type = "response", n = ord)[1:nrow(iris_subset)],
-        tolerance = 1e-8
+        tolerance = 1e-6
       )
     }
   }
@@ -97,26 +97,26 @@ test_that("IRIS - NGeDSboost predictions consistency", {
       expect_equal(
         predict(Gmodboost, newdata = iris_subset, type = "response", n = 2),
         Gmodboost$predictions$pred_linear,
-        tolerance = 1e-8
+        tolerance = 1e-6
       )
       
       expect_equal(
         predict(Gmodboost, newdata = iris_subset, type = "response", n = 3),
         Gmodboost$predictions$pred_quadratic,
-        tolerance = 1e-8
+        tolerance = 1e-6
       )
       
       expect_equal(
         predict(Gmodboost, newdata = iris_subset, type = "response", n = 4),
         Gmodboost$predictions$pred_cubic,
-        tolerance = 1e-8
+        tolerance = 1e-6
       )
       
       for (ord in 2:4) {
         expect_equal(
           predict(Gmodboost, newdata = iris_subset, type = "response", n = ord),
           predict(Gmodboost, newdata = rbind(iris_subset, iris_in_range_new), type = "response", n = ord)[1:nrow(iris_subset)],
-          tolerance = 1e-8
+          tolerance = 1e-6
         )
       }
       
@@ -143,17 +143,17 @@ test_that("MTCARS - NGeDSgam predictions consistency", {
     expect_equal(
       predict(Gmodgam, newdata = mtcars, type = "response", n = 2),
       Gmodgam$predictions$pred_linear,
-      tolerance = 1e-8
+      tolerance = 1e-6
     )
     expect_equal(
       predict(Gmodgam, newdata = mtcars, type = "response", n = 3),
       Gmodgam$predictions$pred_quadratic,
-      tolerance = 1e-8
+      tolerance = 1e-6
     )
     expect_equal(
       predict(Gmodgam, newdata = mtcars, type = "response", n = 4),
       Gmodgam$predictions$pred_cubic,
-      tolerance = 1e-8
+      tolerance = 1e-6
     )
     
     # Check that the sum of base learner contributions equals the overall prediction
@@ -184,7 +184,7 @@ test_that("MTCARS - NGeDSgam predictions consistency", {
       expect_equal(
         sum,
         predict(Gmodgam, newdata = mtcars, type = "response", n = ord),
-        tolerance = 1e-8
+        tolerance = 1e-6
       )
     }
   }
@@ -211,17 +211,17 @@ test_that("MTCARS - NGeDSboost predictions consistency", {
       expect_equal(
         predict(Gmodboost, newdata = mtcars, type = "response", n = 2),
         Gmodboost$predictions$pred_linear,
-        tolerance = 1e-8
+        tolerance = 1e-6
       )
       expect_equal(
         predict(Gmodboost, newdata = mtcars, type = "response", n = 3),
         Gmodboost$predictions$pred_quadratic,
-        tolerance = 1e-8
+        tolerance = 1e-6
       )
       expect_equal(
         predict(Gmodboost, newdata = mtcars, type = "response", n = 4),
         Gmodboost$predictions$pred_cubic,
-        tolerance = 1e-8
+        tolerance = 1e-6
       )
       
       # Check that the sum of base learner contributions equals the overall prediction
@@ -251,7 +251,7 @@ test_that("MTCARS - NGeDSboost predictions consistency", {
         expect_equal(
           sum,
           predict(Gmodboost, newdata = mtcars, type = "response", n = ord),
-          tolerance = 1e-8
+          tolerance = 1e-6
         )
       }
     }

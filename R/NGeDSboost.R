@@ -558,7 +558,7 @@ NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE,
   }
   
   ## Initialize parallel processing if required (i.e. if # base-learners > 1000)
-  pprocessing_threshold <- 1000
+  pprocessing_threshold <- 10000
   if (length(base_learners) >= pprocessing_threshold) {
     # Number of cores
     n_cores <- detectCores() - 3 # Leave 3 cores free
