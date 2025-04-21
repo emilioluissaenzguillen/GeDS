@@ -43,11 +43,9 @@ BugReports: https://github.com/emilioluissaenzguillen/GeDS/issues
 LazyData: TRUE
 Depends: R (>= 3.0.1), Rcpp (>= 1.0.0), splines, stats, utils, Matrix, methods, mi, Rmpfr
 LinkingTo: Rcpp
-Suggests:
-    testthat (>= 3.0.0),
-    R.rsp
+Suggests: R.rsp, testthat (>= 3.0.0)
 RoxygenNote: 7.3.2
 Encoding: UTF-8
-Imports: doFuture, doParallel, doRNG, foreach, future, MASS, mboost, parallel, plot3D, TH.data
+Imports: doFuture, doParallel, doRNG, foreach, future, MASS, mboost, parallel,  plot3D, TH.data
 Config/testthat/edition: 3
 VignetteBuilder: R.rsp
