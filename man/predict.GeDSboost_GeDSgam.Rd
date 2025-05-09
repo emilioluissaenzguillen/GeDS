@@ -29,10 +29,13 @@
 \item{object}{the \code{\link{GeDSboost-class}} or
 \code{\link{GeDSgam-class}} object.}
 
-\item{newdata}{an optional data frame for prediction.}
+\item{newdata}{an optional data frame containing values of the independent
+variables at which predictions are to be computed. If omitted, the fitted 
+values are extracted from the \code{object} itself.}
 
 \item{n}{the order of the GeDS fit (\code{2L} for linear, \code{3L} for
-quadratic, and \code{4L} for cubic). Default is \code{3L}.}
+quadratic, and \code{4L} for cubic). Alternatively, \code{"all"} can be used
+to return a list with the predictions from all three fits. Default is \code{3L}.}
 
 \item{base_learner}{either \code{NULL} or a \code{character} string specifying
 the base-learner of the model for which predictions should be computed. Note
@@ -47,7 +50,7 @@ wants the predictions to be on the predictor scale, it is necessary to set
 \item{...}{potentially further arguments.}
 }
 \value{
-Numeric vector of predictions (vector of means).
+Numeric vector (or list) of predictions.
 }
 \description{
 This method computes predictions from GeDSboost and GeDSgam objects. 

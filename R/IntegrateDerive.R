@@ -129,6 +129,17 @@ Integrate <- function(object = NULL, knots = NULL, coef = NULL, from, to, n = 3L
   return(res)
 }
 
+gedsint <- function(val, knts, coefs, n){
+  if (val <= min(knts)) return(0)
+  if (val >= max(knts))  return(1)
+  pos <- min(which(knts>=val))
+  basisMatrix <- splines::splineDesign(knots = c(knts,max(knts)),
+                                   derivs = rep(0,length(val)),
+                                   x = val, ord = n+1, outer.ok = T)
+  
+  ris <- as.numeric(basisMatrix[,1:(pos-1)]%*%coefs[1:(pos-1)])
+  return(ris)
+}
 
 ################################################################################
 ################################################################################

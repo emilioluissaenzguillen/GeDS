@@ -110,7 +110,11 @@ findNewDimKnot_R <- function(dcumFixedDim.Dim, Dim.weights, Dim.oldknots, matrFi
     
     # (Step 7 - UnivariateFitter) Compute the new Dim knot as a weighted average of Dim values
     # within the selected cluster, weighted by their residuals
-    Dim.newknot <- matrFixedDim[dcumSup:dcumInf, 3]%*%matrFixedDim[dcumSup:dcumInf, Dim.index]/sum(matrFixedDim[dcumSup:dcumInf, 3])
+    # Dim.newknot <- matrFixedDim[dcumSup:dcumInf, 3]%*%matrFixedDim[dcumSup:dcumInf, Dim.index]/sum(matrFixedDim[dcumSup:dcumInf, 3])
+    Dim.newknot <- weighted.mean(
+      matrFixedDim[dcumSup:dcumInf, Dim.index],
+      matrFixedDim[dcumSup:dcumInf, 3]
+      )
     
     # Check conditions to ensure the new knot is valid and does not conflict with existing knots
     # This involves ensuring there are no existing knots within the bounds of the selected cluster

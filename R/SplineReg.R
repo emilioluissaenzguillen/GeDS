@@ -207,17 +207,23 @@ SplineReg_LM <- function(X, Y, Z = NULL, offset = rep(0,length(X)), weights = re
     if (n_obs < dim_threshold) {
       
       # i. E_n[B(X)B^t(X)] = (1/n)*\sum_{i=1}^nB(X_i)B^t(X_i)
-      matcb <- t(basisMatrix) %*% basisMatrix / n_obs
+      matcb <- crossprod(basisMatrix) / n_obs
       matcbinv <- tryCatch({
-        solve(matcb)
-        }, error = function(e) {
-          # If there's an error with solve(), use ginv() as a fallback
-          # Moore-Penrose pseudo-inverse to skip multicolinearity issues that make matcb singular
-          message("Warning message in SplineReg_LM: Variance matrix for computing asymptotic confidence intervals is singular; using ginv() as a fallback.")
-          MASS::ginv(matcb)
-          })
+        chol2inv(chol(matcb))  # Primary method: Fastest for SPD matrices
+      }, error = function(e1) {
+        message("SplineReg_LM: Variance matrix for computing asymptotic confidence intervals is not SPD; falling back to solve().")
+        tryCatch({
+          solve(matcb)  # Secondary method: Standard inverse
+        }, error = function(e2) {
+          message("SplineReg_LM: Variance matrix for computing asymptotic confidence intervals is singular; falling back to ginv().")
+          MASS::ginv(matcb)  # Final fallback
+        })
+      })
+      
       # ii. Var(\hat{f} | X) = (1/n)*B^t(x) * E_n[B(X)B^t(X)]^-1 * B(x) * \hat{σ}^2
-      conditionalVariance <- diag((1/n_obs) * basisMatrix %*% matcbinv %*% t(basisMatrix) * sigma_hat^2)
+      S <- basisMatrix %*% matcbinv
+      conditionalVariance <- (sigma_hat^2 / n_obs) * rowSums(S * basisMatrix)
+      
       # iii. ± z_{1-α/2} * Var(\hat{f} | X)
       band_width_huang <- qnorm(prob) * sqrt(conditionalVariance)
       
@@ -228,7 +234,7 @@ SplineReg_LM <- function(X, Y, Z = NULL, offset = rep(0,length(X)), weights = re
     polyknots <- band <- band_width_huang <- NULL
   }
   
-  out <- list("Theta" = theta, "Predicted" = predicted, "Residuals" = resid, "RSS" = t(resid)%*%resid,
+  out <- list("Theta" = theta, "Predicted" = predicted, "Residuals" = resid, "RSS" = as.numeric(crossprod(resid)),
               "NCI" = list("Upp" = predicted + band, "Low" = predicted - band),
               "Basis" = basisMatrix, "Polygon" = list("Kn" = polyknots,
                                                   "Thetas" = theta[1:NCOL(basisMatrix)]),
@@ -292,7 +298,7 @@ SplineReg_GLM <- function(X, Y, Z, offset = rep(0,nobs), weights = rep(1,length(
   # Extract fitted coefficients
   theta <- coef(tmp)
   # Compute predicted mean values of the response variable
-  predicted <- family$linkinv(basisMatrix2%*%theta + offset)
+  predicted <- family$linkinv(basisMatrix2 %*% theta + offset)
   # Knots for control polygon
   nodes <- sort(c(InterKnots,rep(extr,ord)))[-c(1,NCOL(basisMatrix)+1)]
   polyknots <- makenewknots(nodes, degree = ord)
@@ -338,7 +344,7 @@ SplineReg_GLM2 <- function(X,Y,Z,offset=rep(0,nobs),
       mustart <- env$mustart
     } else {
       if(length(inits)!= NCOL(basisMatrix2)) stop("'inits' must be of length length(InterKnots) + n + NCOL(Z)")
-      mustart <- family$linkinv(basisMatrix2%*%inits)
+      mustart <- family$linkinv(basisMatrix2 %*% inits)
     }
   }
 
@@ -347,7 +353,7 @@ SplineReg_GLM2 <- function(X,Y,Z,offset=rep(0,nobs),
   theta <- coef(tmp)
   nodes<-sort(c(InterKnots,rep(extr,ord)))[-c(1,NCOL(basisMatrix)+1)]
   polyknots <- makenewknots(nodes,degree=ord)
-  predicted <- basisMatrix2%*%theta+offset
+  predicted <- basisMatrix2 %*% theta + offset
   resid <- tmp$res2
   out <- list("Theta"=theta,"Predicted"=predicted,
               "Residuals"=resid,"RSS"=tmp$lastdeviance,

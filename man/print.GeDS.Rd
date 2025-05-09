@@ -34,9 +34,8 @@ object}
 }
 \description{
 Method for the generic function \code{\link[base]{print}} that allows to
-print on screen the main information related to the fitted predictor model
-that can be extracted from a \code{\link{GeDS-class}},
-\code{\link{GeDSboost-class}} or \code{\link{GeDSgam-class}} object.
+print on screen the main information related to a fitted \code{\link{GeDS-class}},
+\code{\link{GeDSboost-class}} or \code{\link{GeDSgam-class}} model.
 }
 \details{
 This method allows to print on screen basic information related to the fitted

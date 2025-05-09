@@ -558,7 +558,7 @@ NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE,
   }
   
   ## Initialize parallel processing if required (i.e. if # base-learners > 1000)
-  pprocessing_threshold <- 10000
+  pprocessing_threshold <- 1000
   if (length(base_learners) >= pprocessing_threshold) {
     # Number of cores
     n_cores <- detectCores() - 3 # Leave 3 cores free
@@ -958,7 +958,7 @@ NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE,
   internal_knots <- list(linear.int.knots = linear.int.knots, quadratic.int.knots = quadratic.int.knots,
                          cubic.int.knots = cubic.int.knots)
   
-  output <- list(extcall = extcall, formula = formula, args = args, models = models, final_model = final_model, predictions = preds,
+  output <- list(extcall = extcall, Formula = formula, args = args, models = models, final_model = final_model, predictions = preds,
                  internal_knots = internal_knots, iters = m)
   class(output) <- "GeDSboost"
   return(output)

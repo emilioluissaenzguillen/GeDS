@@ -140,67 +140,6 @@ read.formula.boost <- read.formula.gam <- function(formula, data){
   return(list(terms = terms, response = response, predictors = predictors, base_learners = base_learners))
 }
 
-
-#' @title Formula for the predictor model
-#' @name formula.GeDS
-#' @description
-#' A description of the structure of the predictor model fitted using
-#' \code{\link{NGeDS}} or \code{\link{GGeDS}}.
-#' @param x fitted \code{\link{GeDS-class}} object, produced by 
-#' \code{\link{NGeDS}} or \code{\link{GGeDS}}, from which the predictor model
-#' \code{\link[stats]{formula}} should be extracted.
-#' @param ... unused in this case.
-#'
-#' @details
-#' In GeDS GNM (GLM) regression, implemented with \code{\link{NGeDS}} and
-#' \code{\link{GGeDS}}, the mean of the response variable, correspondingly
-#' transformed through an appropriate link function, is modeled using a
-#' potentially multivariate predictor model. The latter comprises two components:
-#' a GeD variable-knot spline regression involving up to two of the independent
-#' variables, and a parametric component for the remaining independent variables.
-#' The formula defines the structure of this potentially multivariate predictor.
-#'
-#' The formulae that are input in \code{\link{NGeDS}} and \code{\link{GGeDS}}
-#' are similar to those input in \code{\link[stats]{lm}} or
-#' \code{\link[stats]{glm}} except that the function \code{\link{f}} should be
-#' specified in order to identify which of the covariates enter the GeD spline
-#' regression part of the predictor model. For example, if the predictor model
-#' is univariate and it links the transformed mean of \code{y} to \code{x1},
-#' the predictor has only a GeD spline component and the
-#' \code{\link[stats]{formula}} should be in the form \code{y ~ f(x1)}.
-#' 
-#' As noted, there may be additional independent variables, \code{x2},
-#' \code{x3}, ... which may enter linearly into the parametric component of the
-#' predictor model and not be part of the GeD spline regression component. For
-#' example one may use the formula \code{y ~ f(x1) + x2 + x3} which assumes a
-#' spline regression only between the transformed mean of \code{y} and \code{x1},
-#' while \code{x2} and \code{x3} enter the predictor model linearly.
-#'
-#' Both function \code{\link{NGeDS}} and function \code{\link{GGeDS}}, generate
-#' bivariate GeDS regression models. Therefore, if the functional dependence of
-#' the mean of the response variable \code{y} on \code{x1} and \code{x2} needs
-#' to be jointly modeled and there are no other covariates, the formula for the
-#' corresponding two dimensional predictor model should be specified as
-#' \code{y ~ f(x1,x2)}.
-#' 
-#' Within the argument \code{formula}, similarly as in other \R functions, it is
-#' possible to specify one or more offset variables, i.e. known terms with fixed
-#' regression coefficients equal to 1. These terms should be identified via the
-#' function \code{\link[stats]{offset}}.
-#'
-#' @export
-#' 
-#' @aliases formula.GeDS
-
-formula.GeDS <- function(x,...)
-  {
-  frm <- x$Formula
-  if(is.null(frm)) stop("Unable to extract the formula. \n
-                        Please re-fit using 'NGeDS' or 'GGeDS'")
-  frm
-}
-
-
 #' @title Defining the covariates for the spline component in a GeDS formula.
 #' @name f
 #' @description

@@ -130,7 +130,7 @@ test_that("MTCARS - NGeDSgam predictions consistency", {
   # Convert specified variables to factors
   categorical_vars <- c("cyl", "vs", "am", "gear", "carb")
   mtcars[categorical_vars] <- lapply(mtcars[categorical_vars], factor)
-  
+
   for (normalize in c(TRUE, FALSE)) {
     invisible(capture.output({
       Gmodgam <- suppressWarnings(
@@ -138,7 +138,7 @@ test_that("MTCARS - NGeDSgam predictions consistency", {
                  data = mtcars, family = gaussian, normalize_data = normalize)
         )
       }))
-    
+
     # Check prediction differences for orders 2, 3, and 4
     expect_equal(
       predict(Gmodgam, newdata = mtcars, type = "response", n = 2),
@@ -155,7 +155,7 @@ test_that("MTCARS - NGeDSgam predictions consistency", {
       Gmodgam$predictions$pred_cubic,
       tolerance = 1e-6
     )
-    
+
     # Check that the sum of base learner contributions equals the overall prediction
     for (ord in 2:4) {
       pred1 = predict(Gmodgam, n = ord, newdata = mtcars,  base_learner = "cyl")
@@ -167,7 +167,7 @@ test_that("MTCARS - NGeDSgam predictions consistency", {
       pred7 = predict(Gmodgam, n = ord, newdata = mtcars,  base_learner = "am")
       pred8 = predict(Gmodgam, n = ord, newdata = mtcars,  base_learner = "gear")
       pred9 = predict(Gmodgam, n = ord, newdata = mtcars,  base_learner = "carb")
-      
+
       if (ord == 2) {
         b0 = Gmodgam$final_model$Linear.Fit$Theta["b0"]
         alpha = if(Gmodgam$args$normalize_data) 0 else mean(mtcars$mpg)
@@ -176,11 +176,11 @@ test_that("MTCARS - NGeDSgam predictions consistency", {
         pred0 = 0
       }
       sum <-  pred0 + pred1 + pred2 + pred3 + pred4 + pred5 + pred6 + pred7 + pred8 + pred9
-      
+
       if (Gmodgam$args$normalize_data && ord == 2) {
         sum <- sum * Gmodgam$args$Y_sd + Gmodgam$args$Y_mean
       }
-      
+
       expect_equal(
         sum,
         predict(Gmodgam, newdata = mtcars, type = "response", n = ord),
@@ -196,7 +196,7 @@ test_that("MTCARS - NGeDSboost predictions consistency", {
   # Convert specified variables to factors
   categorical_vars <- c("cyl", "vs", "am", "gear", "carb")
   mtcars[categorical_vars] <- lapply(mtcars[categorical_vars], factor)
-  
+
   for (normalize in c(TRUE, FALSE)) {
     for (init_learner in c(TRUE, FALSE)) {
       invisible(capture.output({
@@ -206,7 +206,7 @@ test_that("MTCARS - NGeDSboost predictions consistency", {
                      normalize_data = normalize)
           )
         }))
-      
+
       # Check prediction differences for orders 2, 3, and 4
       expect_equal(
         predict(Gmodboost, newdata = mtcars, type = "response", n = 2),
@@ -223,31 +223,31 @@ test_that("MTCARS - NGeDSboost predictions consistency", {
         Gmodboost$predictions$pred_cubic,
         tolerance = 1e-6
       )
-      
+
       # Check that the sum of base learner contributions equals the overall prediction
       for (ord in 2:4) {
         pred1 = predict(Gmodboost, n = ord, newdata = mtcars,  base_learner = "cyl")
-        pred2 = predict(Gmodboost, n = ord, newdata = mtcars,  base_learner = "f(disp, hp)") 
-        pred3 = predict(Gmodboost, n = ord, newdata = mtcars,  base_learner = "f(drat)") 
+        pred2 = predict(Gmodboost, n = ord, newdata = mtcars,  base_learner = "f(disp, hp)")
+        pred3 = predict(Gmodboost, n = ord, newdata = mtcars,  base_learner = "f(drat)")
         pred4 = predict(Gmodboost, n = ord, newdata = mtcars,  base_learner = "f(wt)")
         pred5 = predict(Gmodboost, n = ord, newdata = mtcars,  base_learner = "f(qsec)")
         pred6 = predict(Gmodboost, n = ord, newdata = mtcars,  base_learner = "vs")
         pred7 = predict(Gmodboost, n = ord, newdata = mtcars,  base_learner = "am")
         pred8 = predict(Gmodboost, n = ord, newdata = mtcars,  base_learner = "gear")
         pred9 = predict(Gmodboost, n = ord, newdata = mtcars,  base_learner = "carb")
-        
+
         if(!Gmodboost$args$initial_learner && !Gmodboost$args$normalize_data && ord == 2) {
           pred0 <- mean(mtcars$mpg)
         } else {
           pred0 <- 0
         }
-        
+
         sum <- pred0 + pred1+pred2+pred3+pred4+pred5+pred6+pred7+pred8+pred9
-        
+
         if (Gmodboost$args$normalize_data && ord == 2) {
           sum <- sum * Gmodboost$args$Y_sd + Gmodboost$args$Y_mean
         }
-        
+
         expect_equal(
           sum,
           predict(Gmodboost, newdata = mtcars, type = "response", n = ord),

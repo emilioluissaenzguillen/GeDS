@@ -139,21 +139,23 @@ SplineReg_LM_Multivar <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)), base
   basisMatrix2 <- cbind(full_matrix, Z)
   
   # 1) If coefficients are NOT provided estimate the corresponding regression model
+  Y0 <- Y - offset
   if (is.null(coefficients)) {
-    Y0 <- Y - offset
-    tmp <- lm(Y0 ~ -1 + basisMatrix2, weights=as.numeric(weights))
+    tmp <- lm(Y0 ~ -1 + basisMatrix2, weights = as.numeric(weights))
     # the ‘-1’ serving to suppress the redundant extra intercept that would be added by default
     # 'splineDesign' already includes a basis that accounts for the intercept
     theta <- coef(tmp)
-    # Check if any coefficient is NA, which indicates a rank deficiency.
+    # Check if any coefficient is NA, which indicates a rank deficiency and recover theta
     if (any(is.na(theta))) {
       # # Compute the minimal-norm solution for theta using the Moore-Penrose generalized inverse.
       # theta <- as.numeric(ginv(basisMatrix2) %*% Y0)
       # # Now theta contains the computed coefficients that reproduce lm()'s fitted values.
       
-      matcb <- t(basisMatrix2) %*% basisMatrix2
-      matcbinv <- ginv(matcb)
-      theta <- as.numeric(matcbinv %*% t(basisMatrix2) %*% tmp$fitted.values)
+      # Compute t(basisMatrix2) %*% basisMatrix2 using crossprod (more efficient)
+      matcb <- crossprod(basisMatrix2)
+      matcbinv <- MASS::ginv(matcb)
+      theta <- as.numeric(matcbinv %*% crossprod(basisMatrix2, tmp$fitted.values))
+      
     }
     names(theta) <- sub("basisMatrix2", "", names(coef(tmp)))
     predicted <- tmp$fitted.values + offset
@@ -168,10 +170,27 @@ SplineReg_LM_Multivar <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)), base
   
   # 2) If coefficients are provided, use them to compute predicted values directly
   } else {
-    tmp <- NULL
     theta <- coefficients
-    f <- if (de_mean) basisMatrix2 %*% theta - mean(basisMatrix2 %*% theta) else basisMatrix2 %*% theta # to recover backfitting predictions need de_mean
-    predicted <- f + offset
+    fitted.values <- if (de_mean) basisMatrix2 %*% theta - mean(basisMatrix2 %*% theta) else basisMatrix2 %*% theta # to recover backfitting predictions need de_mean
+    predicted <- fitted.values + offset
+    # Manually reconstruct lm object to facilitate S3 methods application
+    form <- Y0 ~ -1 + basisMatrix2
+    mf   <- model.frame(form, weights = as.numeric(weights))
+    mm    <- model.matrix(form, data = mf)
+    tmp <- list(
+      coefficients = setNames(theta, colnames(mm)),
+      residuals = setNames(as.numeric(Y0 - fitted.values), rownames(mf)),
+      fitted.values = setNames(as.numeric(fitted.values), rownames(mf)),
+      weights = as.numeric(weights),
+      rank = qr(mm)$rank,  # or qr(basisMatrix2)$rank or rankMatrix(basisMatrix2) or length(coefficients)
+      qr = qr(mm), # or qr(basisMatrix2)
+      df.residual = as.numeric(nrow(basisMatrix2) - rankMatrix(basisMatrix2)), # residual degrees of freedom
+      y = Y0,
+      terms = terms(mf),
+      model = mf
+    )
+    class(tmp) <- "lm"
+    
   }
   
   # Control polygon knots
@@ -220,11 +239,11 @@ SplineReg_LM_Multivar <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)), base
   }
   
   resid <- Y - predicted
-  df <- if(!is.null(tmp)) tmp$df.residual else as.numeric(nrow(basisMatrix2) - rankMatrix(basisMatrix2)) # residual degrees of freedom
+  df <- tmp$df.residual
   sigma_hat <- sqrt(sum(resid^2)/df)
   prob <- 1 - 0.5 * (1 - prob)
   # CI_j =\hat{y_j} ± t_{α/2,df}*\hat{σ}*\sqrt{H_{jj}}; H = X(X'X)^{−1}X'
-  H_diag <- if(!is.null(tmp)) influence(tmp)$hat else stats::hat(basisMatrix2, intercept = FALSE)
+  H_diag <- stats::hat(basisMatrix2, intercept = FALSE) # or influence(tmp)$hat
   band <- qt(prob,df) * sigma_hat * H_diag^.5
   
   # Huang (2003) method for confidence band width (see Theorem 6.1)
@@ -233,17 +252,23 @@ SplineReg_LM_Multivar <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)), base
   if (NCOL(full_matrix) != 0 && n_obs < dim_threshold) {
     
     # i. E_n[B(X)B^t(X)] = (1/n)*\sum_{i=1}^nB(X_i)B^t(X_i)
-    matcb <- t(full_matrix) %*% full_matrix / n_obs
+    matcb <- crossprod(full_matrix) / n_obs
     matcbinv <- tryCatch({
-      solve(matcb)
-    }, error = function(e) {
-      # If there's an error with solve(), use ginv() as a fallback
-      # Moore-Penrose pseudo-inverse to skip multicolinearity issues that make matcb singular
-      message("Warning message in SplineReg_LM_Multivar: Variance matrix for computing asymptotic confidence intervals is singular; using ginv() as a fallback.")
-      MASS::ginv(matcb)
+      chol2inv(chol(matcb))  # Primary method: Fastest for SPD matrices
+    }, error = function(e1) {
+      message("SplineReg_LM_Multivar: Variance matrix for computing asymptotic confidence intervals is not SPD; falling back to solve().")
+      tryCatch({
+        solve(matcb)  # Secondary method: Standard inverse
+      }, error = function(e2) {
+        message("SplineReg_LM_Multivar: Variance matrix for computing asymptotic confidence intervals is singular; falling back to ginv().")
+        MASS::ginv(matcb)  # Final fallback
+      })
     })
+    
     # ii. Var(\hat{f} | X) = (1/n)*B^t(x) * E_n[B(X)B^t(X)]^-1 * B(x) * \hat{σ}^2
-    conditionalVariance <- diag((1/n_obs) * full_matrix %*% matcbinv %*% t(full_matrix) * sigma_hat^2)
+    S <- full_matrix %*% matcbinv
+    conditionalVariance <- (sigma_hat^2 / n_obs) * rowSums(S * full_matrix)
+    
     # iii. ± z_{1-α/2} * Var(\hat{f} | X)
     band_width_huang <- qnorm(prob) * sqrt(conditionalVariance)
     
@@ -255,8 +280,8 @@ SplineReg_LM_Multivar <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)), base
     Low = NULL
   }
   
-  out <- list(Fit = tmp, Theta = theta, Predicted = predicted, Residuals = resid, 
-              RSS = t(resid) %*% resid, NCI = list(Upp = predicted + 
+  out <- list(Theta = theta, Predicted = predicted, Residuals = resid, 
+              RSS = as.numeric(crossprod(resid)), NCI = list(Upp = predicted + 
                                                      band, Low = predicted - band), Basis = full_matrix, 
               Polygon = list(Kn = polyknots_list, Thetas = theta[1:NCOL(full_matrix)]), 
               temporary = tmp, ACI = list(Upp = Upp, 
@@ -391,7 +416,7 @@ SplineReg_GLM_Multivar <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)), bas
         mustart <- temp_env$mustart
       } else {
         if(length(inits)!= NCOL(basisMatrix2)) stop("'inits' must be of length length(InterKnots) + n + NCOL(Z)")
-        mustart <- family$linkinv(basisMatrix2%*%inits)
+        mustart <- family$linkinv(basisMatrix2 %*% inits)
       }
     }
     
@@ -410,15 +435,40 @@ SplineReg_GLM_Multivar <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)), bas
     theta <- coef(tmp)
     names(theta) <- sub("basisMatrix2", "", names(theta))
     # Compute predicted mean values of the response variable
-    # predicted <- family$linkinv(basisMatrix2%*%theta + offset)
+    # predicted <- family$linkinv(basisMatrix2 %*% theta + offset)
     predicted <- family$linkinv(tmp$linear.predictors + offset)
     
     # 2) If coefficients are provided, use them to compute predicted values directly
   } else {
-    tmp <- NULL
     theta <- coefficients
-    f <- if (de_mean) basisMatrix2 %*% theta - mean(basisMatrix2 %*% theta) else basisMatrix2 %*% theta # to recover backfitting predictions need de_mean
-    predicted <- family_linkinv(f + offset)
+    linear.predictors <- if (de_mean) basisMatrix2 %*% theta - mean(basisMatrix2 %*% theta) else basisMatrix2 %*% theta # to recover backfitting predictions need de_mean
+    fitted.values <- family_linkinv(linear.predictors)
+    predicted <- family_linkinv(linear.predictors + offset)
+    
+    # Manually reconstruct glm object to facilitate S3 methods application
+    form <- Y ~ -1 + basisMatrix2
+    mf   <- model.frame(form, weights = as.numeric(weights))
+    mm    <- model.matrix(form, data = mf)
+    tmp <- list(
+      coefficients = setNames(theta, colnames(mm)),
+      residuals = NULL, # working IWLS residuals
+      fitted.values = fitted.values,
+      null.deviance = sum(family$dev.resids(Y, family$linkinv(offset), weights)), # Y ~ -1: no intercept
+      weights = as.numeric(weights),
+      rank = qr(mm)$rank,  # or qr(basisMatrix2)$rank or qr(mm)$rank or rankMatrix(basisMatrix2) or length(coefficients)
+      qr = qr(mm), # or qr(basisMatrix2)
+      family = family,
+      linear.predictors = linear.predictors,
+      deviance =  sum(family$dev.resids(Y, fitted.values, weights)),
+      prior.weights = weights, # the weights initially supplied
+      df.residual = as.numeric(nrow(basisMatrix2) - rankMatrix(basisMatrix2)), # residual degrees of freedom
+      y = Y,
+      terms = terms(mf),
+      model = mf
+    )
+    logLik_val <- -0.5 * tmp$deviance
+    tmp$aic <- -2 * logLik_val + 2 * length(coefficients)
+    class(tmp) <- "glm"
   }
   
   # Control polygon knots
@@ -467,10 +517,10 @@ SplineReg_GLM_Multivar <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)), bas
     }
   }
   
-  resid <- if(!is.null(tmp)) tmp$residuals else NULL
-  deviance <- if(!is.null(tmp)) tmp$deviance else sum(family$dev.resids(Y, predicted, weights))
+  resid <- tmp$residuals
+  deviance <- tmp$deviance
   
-  out <- list(Fit = tmp, Theta = theta, Predicted = predicted,
+  out <- list(Theta = theta, Predicted = predicted,
               Residuals = resid, RSS = deviance,
               Basis = full_matrix,
               Polygon = list(Kn = polyknots_list, Thetas = theta[1:NCOL(full_matrix)]),

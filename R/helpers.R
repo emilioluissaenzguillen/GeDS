@@ -23,9 +23,9 @@ lm.wfit.light <- function (x, y, w, tol = 1e-07) {
 
 ################################################################################
 
-makeNewMatr <- function(matrice, tab, by.row=F){
+makeNewMatr <- function(basisMatrix, tab, by.row=F){
   if(is.null(tab)){
-    ret <- matrice
+    ret <- basisMatrix
   } else {
     recurr <- if(by.row) c(t(tab)) else c(tab)
     recurr <- recurr[recurr!=0]
@@ -35,9 +35,9 @@ makeNewMatr <- function(matrice, tab, by.row=F){
     newX <- numeric((length(ids)-1))
     newY <- numeric((length(ids)-1))
     for(i in 1:(length(ids)-1)){
-      newres[i] <- sum(matrice[(ids[i]+1):ids[i+1],3])
-      newX[i] <- matrice[i,1]
-      newY[i] <- matrice[i,2]
+      newres[i] <- sum(basisMatrix[(ids[i]+1):ids[i+1],3])
+      newX[i] <- basisMatrix[i,1]
+      newY[i] <- basisMatrix[i,2]
     }
     ret <- cbind(newX,newY,newres)
   }
@@ -76,18 +76,18 @@ SplineReg_fast_weighted_zed <- function(X, Y, Z, offset,
                                         weights = rep(1, length(X)), InterKnots,
                                         n, extr = range(X))
 {
-  matrice <- splineDesign(knots = sort(c(InterKnots, rep(extr,n))),
+  basisMatrix <- splineDesign(knots = sort(c(InterKnots, rep(extr,n))),
                           derivs = rep(0,length(X)), x = X, ord = n, outer.ok = TRUE)
-  matrice2 <- cbind(matrice,Z)
+  basisMatrix2 <- cbind(basisMatrix,Z)
   
   Y0 <- Y-offset
-  tmp <-  if(all(weights==1)) .lm.fit(matrice2, Y0) else lm.wfit.light(matrice2, Y0, weights)
+  tmp <-  if(all(weights==1)) .lm.fit(basisMatrix2, Y0) else lm.wfit.light(basisMatrix2, Y0, weights)
   theta <- coef(tmp)
-  predicted <- matrice2 %*% theta + offset
+  predicted <- basisMatrix2 %*% theta + offset
   resid <- Y - predicted
   out <- list("Theta" = theta,"Predicted" = predicted,
-              "Residuals" = resid, "RSS" = t(resid)%*%resid,
-              "Basis" = matrice2,
+              "Residuals" = resid, "RSS" = as.numeric(crossprod(resid)),
+              "Basis" = basisMatrix2,
               "temporary" = tmp)
   return(out)
 }
@@ -99,39 +99,39 @@ SplineReg_fast_biv <- function(X, Y, Z, W=NULL, weights = rep(1, length(X)),
                                Yextr = range(Y), flag=TRUE, 
                                center = c(sum(Xextr)/2,sum(Yextr)/2))
   {
-  matriceX <- splineDesign(knots = sort(c(InterKnotsX, rep(Xextr,n))), derivs = rep(0,length(X)),
+  basisMatrixX <- splineDesign(knots = sort(c(InterKnotsX, rep(Xextr,n))), derivs = rep(0,length(X)),
                            x = X, ord = n, outer.ok = TRUE)
-  matriceY <- splineDesign(knots = sort(c(InterKnotsY, rep(Yextr,n))), derivs = rep(0,length(Y)),
+  basisMatrixY <- splineDesign(knots = sort(c(InterKnotsY, rep(Yextr,n))), derivs = rep(0,length(Y)),
                            x = Y, ord = n, outer.ok = T)
-  matricebiv <- tensorProd(matriceX, matriceY)
-  matricebiv2 <- cbind(matricebiv, W)
+  basisMatrixbiv <- tensorProd(basisMatrixX, basisMatrixY)
+  basisMatrixbiv2 <- cbind(basisMatrixbiv, W)
   
   
-  #fff <- !rankMatrix(matricebiv)==8
+  #fff <- !rankMatrix(basisMatrixbiv)==8
   #  Xknots<-makenewknots(sort(c(InterKnotsX,rep(Xextr,n-1))),deg=n)
   #  Yknots<-makenewknots(sort(c(InterKnotsY,rep(Yextr,n-1))),deg=n)
   if(all(weights==1)){
-    tmp <- .lm.fit(matricebiv2, Z)
-    if (tmp$rank<ncol(matricebiv2)){
-      tmp <- lm.fit(matricebiv2, Z)
+    tmp <- .lm.fit(basisMatrixbiv2, Z)
+    if (tmp$rank<ncol(basisMatrixbiv2)){
+      tmp <- lm.fit(basisMatrixbiv2, Z)
     }
     resid <- residuals(tmp)
   } else {
-    tmp <- lm.wfit.light(matricebiv2, Z, weights) #ccc<-lm(Z ~ -1+matricebiv) #
+    tmp <- lm.wfit.light(basisMatrixbiv2, Z, weights) #ccc<-lm(Z ~ -1+basisMatrixbiv) #
     resid <- tmp$residuals
     
     
-    if (tmp$rank<ncol(matricebiv2)){
-      tmp <- lm.wfit(matricebiv2, Z, weights)
+    if (tmp$rank<ncol(basisMatrixbiv2)){
+      tmp <- lm.wfit(basisMatrixbiv2, Z, weights)
       resid <- residuals(tmp)
       
     }
   }
   theta <- as.numeric(coef(tmp))
   #  theta[is.na(theta)] <- 0
-  out <- list("Theta" = theta, "Predicted" = matricebiv2%*%theta,
-              "Residuals" = resid, "RSS" = t(resid)%*%resid,
-              "XBasis" = matriceX, "YBasis" = matriceY, #"Poly"=poly,
+  out <- list("Theta" = theta, "Predicted" = basisMatrixbiv2 %*% theta,
+              "Residuals" = resid, "RSS" = as.numeric(crossprod(resid)),
+              "XBasis" = basisMatrixX, "YBasis" = basisMatrixY, #"Poly"=poly,
               "temporary" = tmp)
   return(out)
 }

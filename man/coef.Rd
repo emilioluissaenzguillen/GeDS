@@ -2,21 +2,18 @@
 % Please edit documentation in R/S3methods.R
 \name{coef.GeDS}
 \alias{coef.GeDS}
-\alias{coefficients.GeDS}
 \title{Coef method for GeDS objects}
 \usage{
 \method{coef}{GeDS}(object, n = 3L, onlySpline = TRUE, ...)
-
-\method{coefficients}{GeDS}(object, n = 3L, onlySpline = TRUE, ...)
 }
 \arguments{
 \item{object}{the  \code{\link{GeDS-class}} object from which the
 coefficients of the selected GeDS regression should be extracted.}
 
 \item{n}{integer value (2, 3 or 4) specifying the order (\eqn{=} degree
-\eqn{+ 1}) of the GeDS fit whose coefficients should be extracted. By default
-equal to \code{3L}. Non-integer values will be passed to the function
-\code{\link{as.integer}}.}
+\eqn{+ 1}) of the GeDS/GeDSboost/GeDSgam fit whose coefficients should be
+extracted. By default equal to \code{3L}; non-integer values will be passed
+to the function \code{\link{as.integer}}.}
 
 \item{onlySpline}{logical variable specifying whether only the coefficients
 for the GeDS  component of a fitted multivariate regression model should be
@@ -35,9 +32,8 @@ the GeDS component are coded as "\code{N}" followed by the index of the
 corresponding B-spline.
 }
 \description{
-Methods for the functions \code{\link[stats]{coef}} and
-\code{\link[stats]{coefficients}} that allow to extract the estimated
-coefficients of a fitted GeDS regression from a \code{\link{GeDS-Class}}
+Methods for the functions \code{\link[stats]{coef}} that allow to extract the
+estimated coefficients of a fitted GeDS regression from a \code{\link{GeDS-Class}}
 object.
 }
 \details{

@@ -5,17 +5,11 @@
 \alias{coef.GeDSboost}
 \alias{coef.GeDSboost,}
 \alias{coef.GeDSgam}
-\alias{coefficients.GeDSboost}
-\alias{coefficients.GeDSgam}
 \title{Coef method for GeDSboost, GeDSgam}
 \usage{
 \method{coef}{GeDSboost}(object, n = 3L, ...)
 
-\method{coefficients}{GeDSboost}(object, n = 3L, ...)
-
 \method{coef}{GeDSgam}(object, n = 3L, ...)
-
-\method{coefficients}{GeDSgam}(object, n = 3L, ...)
 }
 \arguments{
 \item{object}{the \code{\link{GeDSboost-class}} or

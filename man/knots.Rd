@@ -19,8 +19,8 @@
 specified GeDS, FGB-GeDS or GAM-GeDS fit should be extracted.}
 
 \item{n}{integer value (2, 3 or 4) specifying the order (\eqn{=} degree
-\eqn{+ 1}) of the GeDS, FGB-GeDS or GAM-GeDS fit whose knots should be
-extracted. By default equal to \code{3L}. Non-integer values will be passed
+\eqn{+ 1}) of the GeDS/GeDSboost/GeDSgam fit whose knots should be
+extracted. By default equal to \code{3L}; non-integer values will be passed
 to the function \code{\link{as.integer}}.}
 
 \item{options}{a character string specifying whether "\code{all}" knots,

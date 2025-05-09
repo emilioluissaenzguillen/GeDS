@@ -11,7 +11,7 @@
 computation of the predicted values is required.}
 
 \item{newdata}{an optional \code{data.frame}, \code{list} or
-\code{environment} containing values of the independent variables for  which
+\code{environment} containing values of the independent variables for which
 predicted values of the predictor model (including the GeDS and the
 parametric components) should be computed. If left empty the values are
 extracted from the object \code{x} itself.}
@@ -21,9 +21,9 @@ default it is equal to \code{"response"}, i.e. the result is on the scale of
 the response variable. See details for the other options.}
 
 \item{n}{integer value (2, 3 or 4) specifying the order (\eqn{=} degree
-\eqn{ + 1}) of the GeDS fit whose predicted values should be computed. By
-default equal to \code{3L}. Non-integer values will be passed to the function
-\code{\link{as.integer}}.}
+\eqn{+ 1}) of the GeDS/GeDSboost/GeDSgam fit whose predicted values should be
+computed. By default equal to \code{3L}; non-integer values will be passed
+to the function \code{\link{as.integer}}.}
 
 \item{...}{potentially further arguments (required by the definition of the
 generic function). They are ignored, but with a warning.}

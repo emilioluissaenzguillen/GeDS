@@ -1,5 +1,5 @@
 ################################################################################
-################################# COEFFICIENTS #################################
+##################################### COEF #####################################
 ################################################################################
 #' @noRd
 coef.GeDSboost_GeDSgam <- function(object, n = 3L, ...)
@@ -97,16 +97,18 @@ coef.GeDSboost <- coef.GeDSboost_GeDSgam
 
 #' @export
 #' @rdname coef.GeDSboost_GeDSgam
-coefficients.GeDSboost <- coef.GeDSboost_GeDSgam
-
-#' @export
-#' @rdname coef.GeDSboost_GeDSgam
 coef.GeDSgam <- coef.GeDSboost_GeDSgam
 
+################################################################################
+################################### CONFINT ####################################
+################################################################################
 #' @export
-#' @rdname coef.GeDSboost_GeDSgam
-coefficients.GeDSgam <- coef.GeDSboost_GeDSgam
+#' @rdname confint.GeDS
+confint.GeDSboost <- confint.GeDS
 
+#' @export
+#' @rdname confint.GeDS
+confint.GeDSgam <- confint.GeDS
 
 ################################################################################
 ################################### DEVIANCE ###################################
@@ -152,6 +154,31 @@ deviance.GeDSboost <- deviance.GeDSboost_GeDSgam
 #' @rdname deviance.GeDS
 deviance.GeDSgam <- deviance.GeDSboost_GeDSgam
 
+
+################################################################################
+#################################### FAMILY ####################################
+################################################################################
+#' @noRd
+family.GeDSboost_GeDSgam <- function(object, ...) object$args$family
+
+#' @export
+#' @rdname family.GeDS
+family.GeDSboost <- family.GeDSboost_GeDSgam
+
+#' @export
+#' @rdname family.GeDS
+family.GeDSgam <- family.GeDSboost_GeDSgam
+
+################################################################################
+################################### FORMULA ####################################
+################################################################################
+#' @export
+#' @rdname formula.GeDS
+formula.GeDSboost <- formula.GeDS
+
+#' @export
+#' @rdname formula.GeDS
+formula.GeDSgam <- formula.GeDS
 
 ################################################################################
 ##################################### KNOTS ####################################
@@ -225,10 +252,57 @@ knots.GeDSboost <- knots.GeDSboost_GeDSgam
 #' @rdname knots
 knots.GeDSgam <- knots.GeDSboost_GeDSgam
 
+################################################################################
+#################################### LOGLIK ####################################
+################################################################################
+#' @export
+#' @rdname logLik.GeDS
+logLik.GeDSboost <- logLik.GeDS
+
+#' @export
+#' @rdname logLik.GeDS
+logLik.GeDSgam <- logLik.GeDS
+
+################################################################################
+################################# N.BOOST.ITER #################################
+################################################################################
+#' @title Extract Number of Boosting Iterations from a GeDSboost Object
+#' @name n.boost.iter
+#' @description
+#' Method for \code{n.boost.iter} that returns the number of boosting iterations 
+#' used in fitting a \code{\link{GeDSboost-class}} object.
+#'
+#' @param object a \code{\link{GeDSboost-class}} object.
+#' @param ... further arguments (ignored).
+#'
+#' @return An integer indicating the number of boosting iterations used.
+#' 
+#' @method n.boost.iter GeDSboost
+#' 
+#' @export
+#' @aliases n.boost.iter n.boost.iter.GeDSboost
+#' @rdname n.boost.iter
+#' @importFrom graphics mtext abline
+n.boost.iter.GeDSboost <- function(object, ...) {
+  object$iters
+}
+#' @export
+n.boost.iter <- n.boost.iter.GeDSboost
 
 ################################################################################
 #################################### PREDICT ###################################
 ################################################################################
+# Helper function to extract predictions
+extract_link_pred <- function(fit) {
+  if (inherits(fit, "glm")) {
+    return(as.numeric(fit$linear.predictors))
+  } else if (inherits(fit, "lm")) {
+    return(as.numeric(fit$fitted.values))
+  } else {
+    stop("Unsupported model type in extract_link_pred().")
+  }
+}
+
 #' @noRd
 predict.GeDSboost_GeDSgam <- function(object, newdata, n = 3L,
                                       base_learner = NULL, type = c("response", "link"), ...)
@@ -240,20 +314,65 @@ predict.GeDSboost_GeDSgam <- function(object, newdata, n = 3L,
   if (!inherits(object, "GeDSboost") && !inherits(object, "GeDSgam")) {
     stop("The input 'object' must be of class 'GeDSboost' or 'GeDSgam'")
   }
-  
-  # Check if order was wrongly set
-  n <- as.integer(n)
-  if(!(n %in% 2L:4L)) {
-    n <- 3L
-    warning("'n' incorrectly specified. Set to 3.")
-  }
-  type <- match.arg(type)
-  
-  # Ensure newdata is a data.frame
-  newdata <- as.data.frame(newdata)
+  # Validate and match the 'type' argument 
+  type <- match.arg(type, c("response", "link"))
   # Select final model
   model <- object$final_model
   
+  # ─────────── n = "all" ─────────── #
+  if (identical(n, "all")) {
+    if (missing(newdata)) {
+      if (type == "response") {
+        return(object$predictions)
+      } else if (type == "link") {
+        return(list(
+          pred_linear    = extract_link_pred(model$Linear.Fit$temporary),
+          pred_quadratic = extract_link_pred(model$Quadratic.Fit$temporary),
+          pred_cubic     = extract_link_pred(model$Cubic.Fit$temporary)
+        ))
+      }
+      
+    } else {
+      orders <- 2L:4L
+      names <- c("pred_linear", "pred_quadratic", "pred_cubic")
+      preds <- lapply(orders, function(k) predict(object, newdata = newdata, n = k, type = type))
+      return(setNames(preds, names))
+    }
+  }
+  
+  # ─────────── Specific n ─────────── #
+  n <- as.integer(n)
+  if (!(n %in% 2L:4L)) {
+    warning(sprintf("'n' incorrectly specified (%s). Set to 3.", n))
+    n <- 3L
+  }
+  
+  if (missing(newdata)) {
+    if (type == "response") {
+      key <- switch(as.character(n),
+                    "2" = "pred_linear",
+                    "3" = "pred_quadratic",
+                    "4" = "pred_cubic")
+      pred <- object$predictions[[key]]
+      if (is.null(pred)) stop(sprintf("Prediction for '%s' not found.", key))
+      return(pred)
+    } else if (type == "link") {
+      key <- switch(as.character(n),
+                    "2" = "Linear.Fit",
+                    "3" = "Quadratic.Fit",
+                    "4" = "Cubic.Fit")
+      Fit <- object$final_model[[key]]$temporary
+      
+      if (inherits(Fit, "glm")) {
+        return(as.numeric(Fit$linear.predictors))
+        } else if (inherits(Fit, "lm")) {
+          return(as.numeric(Fit$fitted.values))
+        }
+    }
+  }
+  
+  # Ensure newdata is a data.frame
+  newdata <- as.data.frame(newdata)
   
   ###############################################
   # I. Compute predictions for all base_leaners #
@@ -543,7 +662,7 @@ predict.GeDSboost_GeDSgam <- function(object, newdata, n = 3L,
       basisMatrix2 <- cbind(full_matrix, as.matrix(Z))
       
       # # Alternative 1 to compute predictions (required @importFrom stats predict)
-      # tmp <- model[[Fit]]$Fit
+      # tmp <- model[[Fit]]$temporary
       # # Set the environment of the model's terms to the current environment for variable access
       # environment(tmp$terms) <- environment()
       # pred <- predict(tmp, newdata=data.frame(basisMatrix2), type = "response")
@@ -551,7 +670,7 @@ predict.GeDSboost_GeDSgam <- function(object, newdata, n = 3L,
       # Alternative 2 to compute predictions
       coefs <- model[[Fit]]$Theta
       coefs[is.na(coefs)] <- 0
-      pred <- basisMatrix2%*%coefs+offset
+      pred <- basisMatrix2 %*% coefs + offset
       
       pred <- if (type == "response") family$linkinv(pred) else if (type == "link") pred
       
@@ -722,11 +841,7 @@ predict.GeDSboost_GeDSgam <- function(object, newdata, n = 3L,
         return(as.numeric(f_hat_XY_val))
         
       }
-    
-    
   }
-
-  
 }
 
 #' @title Predict method for GeDSboost, GeDSgam
@@ -737,20 +852,23 @@ predict.GeDSboost_GeDSgam <- function(object, newdata, n = 3L,
 #' GeDSboost or GeDSgam fits.
 #' @param object the \code{\link{GeDSboost-class}} or
 #' \code{\link{GeDSgam-class}} object.
-#' @param newdata an optional data frame for prediction.
+#' @param newdata an optional data frame containing values of the independent
+#' variables at which predictions are to be computed. If omitted, the fitted 
+#' values are extracted from the \code{object} itself.
 #' @param type character string indicating the type of prediction required. By
 #' default it is equal to \code{"response"}, i.e. the result is on the scale of
 #' the response variable. See details for the other options. Alternatively if one
 #' wants the predictions to be on the predictor scale, it is necessary to set
 #' \code{type = "link"}.
 #' @param n the order of the GeDS fit (\code{2L} for linear, \code{3L} for
-#' quadratic, and \code{4L} for cubic). Default is \code{3L}.
+#' quadratic, and \code{4L} for cubic). Alternatively, \code{"all"} can be used
+#' to return a list with the predictions from all three fits. Default is \code{3L}.
 #' @param base_learner either \code{NULL} or a \code{character} string specifying
 #' the base-learner of the model for which predictions should be computed. Note
 #' that single base-learner predictions are provided on the linear predictor scale.
 #' @param ... potentially further arguments.
 #' 
-#' @return Numeric vector of predictions (vector of means).
+#' @return Numeric vector (or list) of predictions.
 #' @aliases predict.GeDSboost, predict.GeDSgam
 #' 
 #' @examples
@@ -898,6 +1016,60 @@ print.GeDSboost <- print.GeDSboost_GeDSgam
 #' @export
 print.GeDSgam <- print.GeDSboost_GeDSgam
 
+################################################################################
+################################### SUMMARY ####################################
+################################################################################
+#' @noRd 
+summary.GeDSboost_GeDSgam <- function(object, ...)
+{
+  
+  # 1) Header
+  if (inherits(object, "GeDSboost")) {
+    cat("\nFGB-GeDS Model\n\n")
+  } else if (inherits(object, "GeDSgam")) {
+    cat("\nGAM-GeDS Model\n\n")
+  }
+  
+  # 2) Core print
+  print.GeDSboost_GeDSgam(object, ...)
+  
+  # 3) Normalize
+  if (object$args$normalize_data) cat("Data was normalized (standardized) before fitting.\n")
+
+  # 4) Boosting/GAM details
+  
+  if (inherits(object, "GeDSboost")) {
+    cat("\nBoosting details:\n")
+    print(family.GeDSboost(object,...),...)
+    cat("Number of boosting iterations:", object$iters, "\n")
+    cat("Final model corresponds to boosting iteration", sub("^model", "", object$final_model$model_name), "\n")
+    if (object$args$initial_learner) {
+      if (object$args$family@name == "Squared Error (Regression)") {
+        cat("A NGeDS() initial learner was used. ")
+      } else {
+        cat("A GGeDS() initial learner was used. ")
+      }
+      
+    } else {
+      cat("An offset initial learner was used. ")
+    }
+    cat("Number of base learners:", length(names(object$final_model$base_learners)), "\n\n")
+  } else if (inherits(object, "GeDSgam")) {
+    cat("\nLocal-scoring details:\n")
+    print(family.GeDSgam(object,...),...)
+    cat("Number of local-scoring iterations:", object$iters$local_scoring, "\n")
+  }
+  
+  invisible(object)
+}
+
+#' @rdname summary.GeDS
+#' @export
+summary.GeDSboost <- summary.GeDSboost_GeDSgam
+
+#' @rdname summary.GeDS
+#' @export
+summary.GeDSgam <- summary.GeDSboost_GeDSgam
 
 ################################################################################
 ################################################################################
