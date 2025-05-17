@@ -139,7 +139,7 @@ coef.GeDS <- function(object, n = 3L, onlySpline = TRUE, ...)
 #' @title Confidence Intervals for GeDS Model Coefficients
 #' @name confint.GeDS
 #' @description
-#' Method for \code{\link[stats]{confint}} to compute confidence intervals for
+#' Method for \code{\link[stats]{confint.default}} to compute confidence intervals for
 #' the coefficients of a fitted GeDS model stored in a \code{\link{GeDS-class}} object.
 #'
 #' @param object the \code{\link{GeDS-class}} object from which the confidence intervals 
@@ -156,7 +156,7 @@ coef.GeDS <- function(object, n = 3L, onlySpline = TRUE, ...)
 #' @return A matrix with columns giving lower and upper confidence limits for
 #' each spline coefficient of the selected GeDS model (by default 2.5% and 97.5%).
 #'
-#' @seealso \code{\link[stats]{confint}}, \code{\link{GeDS-class}}
+#' @seealso \code{\link[stats]{confint.default}}, \code{\link{GeDS-class}}
 #'
 #' @aliases confint.GeDS
 #' @rdname confint.GeDS
@@ -188,7 +188,20 @@ confint.GeDS <- function(object, parm, level = 0.95, n = 3L, ...) {
   }
   
   # Call stats::confint on the lm/glm object
-  stats::confint(fit_obj$temporary, parm = parm, level = level, ...)
+  if (is.numeric(fit_obj$Theta)) {
+    stats::confint.default(fit_obj$temporary, parm = parm, level = level, ...)
+    } else if (fit_obj$Theta == "When using bivariate base-learners, the 'single spline representation' (in pp form or B-spline form) of the boosted fit is not available.") {
+      cat("Note:\n")
+      cat(fit_obj$Theta, "\n")
+      if(!inherits(fit_obj$temporary, "glm")) {
+        cat("As a result, the intervals below are pointwise confidence intervals for the fitted values (not for coefficients).\n\n")
+        
+        ci_mat <- as.matrix(cbind(fit_obj$NCI$Low, fit_obj$NCI$Upp))
+        colnames(ci_mat) <- c("2.5 %", "97.5 %")
+        print(ci_mat)
+      }
+      
+    }
 }
 
 ################################################################################

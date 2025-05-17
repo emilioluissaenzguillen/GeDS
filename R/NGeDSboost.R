@@ -818,7 +818,8 @@ NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE,
   final_model <- list(
     model_name = model_min_deviance,
     DEV = min(deviances),
-    Y_hat = models[[model_min_deviance]]$Y_hat,      
+    Y_hat = models[[model_min_deviance]]$Y_hat,     
+    F_hat = models[[model_min_deviance]]$F_hat,
     base_learners = models[[model_min_deviance]]$base_learners
   )
   # Save linear internal knots for each base-learner
@@ -835,46 +836,45 @@ NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE,
   #############################
   # If all base-learners are univariate we transform the linear pp representation into B-spline form
   bivariate_learners <- base_learners[sapply(base_learners, function(bl) length(bl$variables)) == 2]
+  
+  # (i) Knots
+  ll_list <- compute_avg_int.knots(final_model, base_learners = base_learners,
+                                   args$X_sd, args$X_mean, normalize_data, n = 2)
+  # (ii) Coefficients
+  # Univariate GeDS base-learners B-spline coefficients
+  bSpline.base_learners <- args$base_learners[!names(args$base_learners) %in% linear_variables]
   if (length(bivariate_learners) == 0) {
-    # (i) Knots
-    ll_list <- compute_avg_int.knots(final_model, base_learners = base_learners,
-                                     args$X_sd, args$X_mean, normalize_data, n = 2)
-    
-    # (ii) Coefficients
-    # Univariate GeDS base-learners B-spline coefficients
-    bSpline.base_learners <- args$base_learners[!names(args$base_learners) %in% linear_variables]
     bSpline_coef <- unlist(bSpline.coef(final_model, univariate_learners = bSpline.base_learners))
-    
     # Handle linear and factor bl/variables
     linear_coef <- lin.coef(final_model, linear_variables)
-    
     theta <- c(bSpline_coef, linear_coef)
-    
-    # Initial learner
-    if (args$initial_learner) offset <- rep(0, NROW(args$response[[response]])) else offset <- models$model0$F_hat
-
-    linear_fit <- tryCatch({
-      suppressMessages(
-        SplineReg_Multivar(X = args$predictors[GeDS_variables], Y = args$response[[response]],
-                           Z = args$predictors[linear_variables], offset = offset,
-                           base_learners = bSpline.base_learners, InterKnotsList = ll_list,
-                           n = 2, family = args$family, link = args$link,
-                           coefficients = theta, linear_intercept = TRUE)
-        )
-      }, error = function(e) {
-        cat(paste0("Error computing linear fit:", e))
-        return(NULL)
-        })
-    
-    # De-normalize if necessary
-    if (normalize_data == TRUE && family_stats$family != "binomial") {
-      linear_fit$Predicted <- as.numeric(linear_fit$Predicted) * args$Y_sd + args$Y_mean
+    linear.pred <- NULL
+    } else {
+      theta <- "When using bivariate base-learners, the 'single spline representation' (in pp form or B-spline form) of the boosted fit is not available."
+      linear.pred <- final_model$F_hat
     }
-    
-    final_model$Linear.Fit <- linear_fit
-  } else {
-    final_model$Linear.Fit <- "When using bivariate base-learners, a single spline representation (in pp form or B-spline form) of the boosted fit is not available."
-  }
+  
+  # Initial learner
+  if (args$initial_learner) offset <- rep(0, NROW(args$response[[response]])) else offset <- models$model0$F_hat
+  
+  linear_fit <- tryCatch({
+    suppressMessages(
+      SplineReg_Multivar(X = args$predictors[GeDS_variables], Y = args$response[[response]],
+                         Z = args$predictors[linear_variables], offset = offset,
+                         base_learners = bSpline.base_learners, InterKnotsList = ll_list,
+                         n = 2, family = args$family, link = args$link,
+                         coefficients = theta, linear.predictors = linear.pred, linear_intercept = TRUE)
+      )
+    }, error = function(e) {
+      cat(paste0("Error computing linear fit:", e))
+      return(NULL)
+      })
+  
+  # De-normalize if necessary
+  if (normalize_data == TRUE && family_stats$family != "binomial") {
+    linear_fit$Predicted <- as.numeric(linear_fit$Predicted) * args$Y_sd + args$Y_mean
+    }
+  final_model$Linear.Fit <- linear_fit
   
   pred_linear <- as.numeric(final_model$Y_hat)
   

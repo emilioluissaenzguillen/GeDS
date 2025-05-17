@@ -198,3 +198,81 @@ newknot.guess <- function(intknots, extr, guess, newknot) {
 #   return(guess)
 # }
 
+################################################################################
+
+
+CI <- function(tmp, resid, prob = 0.95, basisMatrix, basisMatrix2, predicted,
+               n_obs, type = "lm", huang = TRUE) {
+  
+  if (type == "lm") {
+    # Residual standard error
+    df <- if(!is.null(tmp)) tmp$df.residual else as.numeric(nrow(basisMatrix2) - rankMatrix(basisMatrix2)) # residual degrees of freedom
+    sigma_hat <- sqrt(sum(resid^2)/df)
+    # Adjust probability for two-tailed test
+    prob <- 1-.5*(1-prob)
+    # Diagonal of the hat matrix
+    H_diag <- stats::hat(basisMatrix2, intercept = FALSE) # or influence(tmp)$hat
+    # CI_j =\hat{y_j} \pm t_{\alpha/2,df}*\hat{\sigma}*\sqrt{H_{jj}}; H = X(X'X)^{-1}X'
+    band <- qt(prob,df) * sigma_hat * H_diag^.5
+    
+    NCI = list("Upp" = predicted + band, "Low" = predicted - band)
+    
+    # Huang (2003) method for confidence band width (see Theorem 6.1)
+    band_width_huang <- ACI <- NULL; dim_threshold = 1500
+    if (huang && n_obs < dim_threshold && NCOL(basisMatrix) != 0) {
+      # i. E_n[B(X)B^t(X)] = (1/n)*\sum_{i=1}^nB(X_i)B^t(X_i)
+      matcb <- crossprod(basisMatrix) / n_obs
+      matcbinv <- tryCatch({
+        chol2inv(chol(matcb))  # Fastest if SPD
+      }, error = function(e1) {
+        message("SplineReg_LM, Huang CI: Matrix not SPD, using solve().")
+        tryCatch({
+          solve(matcb)
+        }, error = function(e2) {
+          message("SplineReg_LM, Huang CI: Matrix singular, using ginv().")
+          MASS::ginv(matcb)
+        })
+      })
+      # ii. Var(\hat{f} | X) = (1/n)*B^t(x) * E_n[B(X)B^t(X)]^-1 * B(x) * \hat{\sigma}^2
+      S <- basisMatrix %*% matcbinv
+      conditionalVariance <- (sigma_hat^2 / n_obs) * rowSums(S * basisMatrix)
+      # iii. +/- z_{1-\alpha/2} * Var(\hat{f} | X)
+      band_width_huang <- qnorm(prob) * sqrt(conditionalVariance)
+      
+      ACI = list("Upp" = predicted + band_width_huang,
+                 "Low" = predicted - band_width_huang)
+    }
+    
+    
+    
+  } else if (type == "glm") {
+    
+    if (is.numeric(tmp$coefficients)) {
+      NCI <- tryCatch({
+        alpha <- 1 - prob
+        z_val <- qnorm(1 - alpha / 2)  # For Wald-type CI
+        
+        eta_hat <- predict(tmp, type = "link", se.fit = TRUE)
+        lower_eta <- eta_hat$fit - z_val * eta_hat$se.fit
+        upper_eta <- eta_hat$fit + z_val * eta_hat$se.fit
+        
+        lower <- tmp$family$linkinv(lower_eta)
+        upper <- tmp$family$linkinv(upper_eta)
+        
+        list(Upp = upper, Low = lower)
+      }, error = function(e) {
+        message("CI: error during GLM-based CI computation - returning NULL")
+        NULL
+      })
+    } else {
+      NCI <- NULL
+    }
+    
+    ACI = NULL
+    
+  }
+  
+  return(list(NCI = NCI, ACI = ACI))
+  
+}
+

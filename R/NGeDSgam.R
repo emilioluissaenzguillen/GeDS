@@ -559,7 +559,7 @@ NGeDSgam <- function(formula, family = "gaussian", data, weights = NULL, offset 
   internal_knots <- list(linear.int.knots = linear.int.knots, quadratic.int.knots = quadratic.int.knots,
                          cubic.int.knots = cubic.int.knots)
   
-  output <- list(extcall = extcall, formula = formula, args = args, final_model = final_model, predictions = preds,
+  output <- list(extcall = extcall, Formula = formula, args = args, final_model = final_model, predictions = preds,
                  internal_knots = internal_knots, iters = list(local_scoring = iter, backfitting = n_iters))
   
   class(output) <- "GeDSgam"

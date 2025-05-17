@@ -45,9 +45,9 @@
 #' \item{rank}{the numeric rank of the fitted linear model;}
 #' \item{family}{the \code{\link[stats]{family}} object used;}
 #' \item{linear.predictors}{the fitted predictor;}
-#' \item{deviance}{a vector containing the deviances obtained at each IRLS
+#' \item{deviance_iters}{a vector containing the deviances obtained at each IRLS
 #' iteration;}
-#' \item{lastdeviance}{the deviance at the last IRLS iteration;}
+#' \item{deviance}{the deviance at the last IRLS iteration;}
 #' \item{null.deviance}{The deviance for the null model (see
 #' \code{\link[stats]{glm}} documentation);}
 #' \item{iter}{the number of IRLS iterations performed;}
@@ -410,8 +410,8 @@ IRLSfit <- function (x, y, weights = rep(1, nobs), mustart = NULL,
   list(coefficients = coef, residuals = residuals, res2 = res2, fitted.values = mu,
        effects = if (!EMPTY) fit$effects, R = if (!EMPTY) Rmat, rank = rank,
        qr = if (!EMPTY) structure(fit[c("qr", "rank","qraux", "pivot", "tol")],class = "qr"),
-       family = family, linear.predictors = eta, deviance = devi2,
-       lastdeviance = dev, null.deviance = nulldev, iter = iter, weights = wt, prior.weights = weights,
+       family = family, linear.predictors = eta, deviance_iters = devi2,
+       deviance = dev, null.deviance = nulldev, iter = iter, weights = wt, prior.weights = weights,
        df.residual = resdf, df.null = nulldf, y = y, z = z, converged = conv,
        boundary = boundary)
 }

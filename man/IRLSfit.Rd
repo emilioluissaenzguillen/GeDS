@@ -59,9 +59,9 @@ predictor by the inverse of the link function;}
 \item{rank}{the numeric rank of the fitted linear model;}
 \item{family}{the \code{\link[stats]{family}} object used;}
 \item{linear.predictors}{the fitted predictor;}
-\item{deviance}{a vector containing the deviances obtained at each IRLS
+\item{deviance_iters}{a vector containing the deviances obtained at each IRLS
 iteration;}
-\item{lastdeviance}{the deviance at the last IRLS iteration;}
+\item{deviance}{the deviance at the last IRLS iteration;}
 \item{null.deviance}{The deviance for the null model (see
 \code{\link[stats]{glm}} documentation);}
 \item{iter}{the number of IRLS iterations performed;}

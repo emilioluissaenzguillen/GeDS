@@ -113,8 +113,14 @@ SplineReg_biv_GLM <- function(X, Y, Z, W = NULL, offset = rep(0,nobs), weights =
         }
     }
     
-    tmp <- IRLSfit(basisMatrixbiv2, Z, offset = offset,
-                   family = family, mustart = mustart, weights = weights)
+    tmp <- tryCatch({
+      glm(Z ~ -1 + basisMatrixbiv2, family = family, weights = weights, mustart = mustart, offset = offset)
+    }, error = function(e) {
+      # If glm throws an error, fallback to IRLSfit
+      IRLSfit(basisMatrixbiv2, Z, offset = offset,
+              family = family, mustart = mustart, weights = weights)
+    })
+    
     # Extract fitted coefficients
     theta <- coef(tmp)
     # Avoid issues if there are NA values in the coefficients:
@@ -133,7 +139,7 @@ SplineReg_biv_GLM <- function(X, Y, Z, W = NULL, offset = rep(0,nobs), weights =
   resid <- Z - predicted
   
   out <- list("Theta" = theta, "Predicted" = predicted,
-              "Residuals" = resid,"RSS" = tmp$lastdeviance, "deviance" = tmp$deviance,
+              "Residuals" = resid, "RSS" = tmp$deviance,
               "XBasis" = basisMatrixX, "YBasis" = basisMatrixY,
               "Xknots" = sort(c(InterKnotsX,rep(Xextr,ord))),
               "Yknots" = sort(c(InterKnotsY,rep(Yextr,ord))),

@@ -727,8 +727,8 @@ predict.GeDSboost_GeDSgam <- function(object, newdata, n = 3L,
       # Extract estimated knots and coefficients
       if (n == 2) {
         
-        if (inherits(object, "GeDSboost") && !is.list(model$Linear.Fit) ) {
-          # model$Linear.Fit == "When using bivariate base-learners, a single spline representation (in pp form or B-spline form) of the boosted fit is not available.") {
+        if (inherits(object, "GeDSboost") && is.character(model$Linear.Fit$Theta) ) {
+          # model$Linear.Fit == "When using bivariate base-learners, the 'single spline representation' (in pp form or B-spline form) of the boosted fit is not available.") {
           object$args$base_learners <- object$args$base_learners[bl_name]
           object$args$predictors <- pred_vars
           object$args$extr <- object$args$extr[names(pred_vars)]

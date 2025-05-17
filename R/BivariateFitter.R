@@ -567,7 +567,7 @@ GenBivariateFitter <- function(X, Y, Z, W, family = family, weights = rep(1,leng
     
     # Store residuals and deviance 
     res.tmp <- first.deg$Residuals
-    RSS.tmp <- first.deg$temporary$lastdev
+    RSS.tmp <- first.deg$RSS
     RSSnew <- c(RSSnew, RSS.tmp)
     # Working weights (weights in the final iteration of the IRLS fit)
     working.weights <- first.deg$temporary$weights  

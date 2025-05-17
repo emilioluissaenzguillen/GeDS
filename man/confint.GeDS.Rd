@@ -33,9 +33,9 @@ A matrix with columns giving lower and upper confidence limits for
 each spline coefficient of the selected GeDS model (by default 2.5% and 97.5%).
 }
 \description{
-Method for \code{\link[stats]{confint}} to compute confidence intervals for
+Method for \code{\link[stats]{confint.default}} to compute confidence intervals for
 the coefficients of a fitted GeDS model stored in a \code{\link{GeDS-class}} object.
 }
 \seealso{
-\code{\link[stats]{confint}}, \code{\link{GeDS-class}}
+\code{\link[stats]{confint.default}}, \code{\link{GeDS-class}}
 }

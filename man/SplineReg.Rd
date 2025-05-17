@@ -119,12 +119,11 @@ of the parametric part evaluated at the sample values of the covariate(s).}
 \item{Polygon}{ a list containing x-y coordinates ("\code{Kn}" and
 "\code{Thetas}") of the vertices of the Control Polygon, see
 Dimitrova et al. (2023).}
-\item{deviance}{ a vector containing deviances computed at each IRLS step
+\item{deviance}{ the deviance at the last IRLS iteration
 (computed only with the \code{SplineReg_GLM}).}
 \item{temporary}{ the result of the function \code{\link[stats]{lm}} if
 \code{SplineReg_LM} is used or the output of the function
-\code{\link{IRLSfit}} (which is similar to the output from
-\code{\link[stats]{glm.fit}}), if \code{SplineReg_GLM} is used.}
+\code{\link[stats]{glm}}), if \code{SplineReg_GLM} is used.}
 \item{ACI}{ a list containing the lower (\code{Low}) and upper (\code{Upp})
 limits of the asymptotic confidence intervals computed at the sample values
 of the covariate(s).}

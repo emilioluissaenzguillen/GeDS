@@ -6,7 +6,7 @@ SplineReg_Multivar <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)), base_le
                                weights = rep(1, NROW(Y)), InterKnotsList, n, 
                                extrList = lapply(X, range), prob = 0.95, family, link,
                                mustart = NULL, inits = NULL, coefficients = NULL,
-                               linear_intercept = FALSE, de_mean = FALSE) {
+                               linear.predictors = NULL, linear_intercept = FALSE, de_mean = FALSE) {
   
   if (inherits(family, "boost_family_glm") || inherits(family, "boost_family")) {
     family_name <- get_mboost_family(family@name)$family
@@ -26,11 +26,13 @@ SplineReg_Multivar <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)), base_le
   if (family_name == "gaussian") {
     # Call Spline_LM_Multivar function
     result <- SplineReg_LM_Multivar(X, Y, Z, offset, base_learners, weights, InterKnotsList,
-                                    n, extrList, prob, coefficients, linear_intercept, de_mean)
+                                    n, extrList, prob, coefficients, linear.predictors,
+                                    linear_intercept, de_mean)
     } else {
       # Call Spline_GLM_Multivar function
       result <- SplineReg_GLM_Multivar(X, Y, Z, offset, base_learners, weights, InterKnotsList,
-                                       n, extrList, family, mustart, inits, coefficients, linear_intercept, de_mean)
+                                       n, extrList, family, mustart, inits, coefficients, linear.predictors,
+                                       linear_intercept, de_mean)
     }
   
   return(result)
@@ -39,12 +41,11 @@ SplineReg_Multivar <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)), base_le
 ###########################
 ## SplineReg_LM_Multivar ##
 ###########################
-#'
 #' @importFrom MASS ginv
-#' 
+
 SplineReg_LM_Multivar <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)), base_learners,
                                   weights = rep(1, NROW(Y)), InterKnotsList, n, extrList = lapply(X, range),
-                                  prob = 0.95, coefficients, linear_intercept = FALSE, de_mean = FALSE)
+                                  prob = 0.95, coefficients, linear.predictors, linear_intercept = FALSE, de_mean = FALSE)
 {
   n <- as.integer(n)
   
@@ -86,7 +87,7 @@ SplineReg_LM_Multivar <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)), base
     matrices_univ_list <- NULL
   }
   # Bivariate
-  if (length(InterKnotsList_biv) != 0){
+  if (length(InterKnotsList_biv) != 0) {
     bivariate_learners <- base_learners[sapply(base_learners, function(bl) length(bl$variables)) == 2]
     matrices_biv_list <- list()
     matrices_biv_list_aux <- list()
@@ -123,9 +124,9 @@ SplineReg_LM_Multivar <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)), base
   # Combine all matrices side-by-side
   matrices_list <- c(matrices_univ_list, matrices_biv_list)
   if (!is.null(matrices_list) && length(matrices_list) > 0) {
-    full_matrix <- do.call(cbind, matrices_list)
+    basisMatrix <- do.call(cbind, matrices_list)
   } else {
-    full_matrix <- matrix(ncol = 0, nrow = nrow(Z))
+    basisMatrix <- matrix(ncol = 0, nrow = nrow(Z))
   }
   
   # Convert any factor columns in Z to dummy variables
@@ -136,7 +137,7 @@ SplineReg_LM_Multivar <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)), base
       Z <- NULL
     }
   
-  basisMatrix2 <- cbind(full_matrix, Z)
+  basisMatrix2 <- cbind(basisMatrix, Z)
   
   # 1) If coefficients are NOT provided estimate the corresponding regression model
   Y0 <- Y - offset
@@ -171,25 +172,44 @@ SplineReg_LM_Multivar <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)), base
   # 2) If coefficients are provided, use them to compute predicted values directly
   } else {
     theta <- coefficients
-    fitted.values <- if (de_mean) basisMatrix2 %*% theta - mean(basisMatrix2 %*% theta) else basisMatrix2 %*% theta # to recover backfitting predictions need de_mean
+    if (is.null(linear.predictors)) {
+      fitted.values <- if (de_mean) basisMatrix2 %*% theta - mean(basisMatrix2 %*% theta) else basisMatrix2 %*% theta # to recover backfitting predictions need de_mean
+    } else {
+      fitted.values <- linear.predictors
+    }
     predicted <- fitted.values + offset
+    
     # Manually reconstruct lm object to facilitate S3 methods application
     form <- Y0 ~ -1 + basisMatrix2
     mf   <- model.frame(form, weights = as.numeric(weights))
     mm    <- model.matrix(form, data = mf)
-    tmp <- list(
-      coefficients = setNames(theta, colnames(mm)),
-      residuals = setNames(as.numeric(Y0 - fitted.values), rownames(mf)),
-      fitted.values = setNames(as.numeric(fitted.values), rownames(mf)),
-      weights = as.numeric(weights),
-      rank = qr(mm)$rank,  # or qr(basisMatrix2)$rank or rankMatrix(basisMatrix2) or length(coefficients)
-      qr = qr(mm), # or qr(basisMatrix2)
-      df.residual = as.numeric(nrow(basisMatrix2) - rankMatrix(basisMatrix2)), # residual degrees of freedom
-      y = Y0,
-      terms = terms(mf),
-      model = mf
-    )
-    class(tmp) <- "lm"
+    tmp <- lm(form, weights = as.numeric(weights))
+
+    tmp$coefficients <- if(is.character(theta)) theta else setNames(theta, colnames(mm))
+    tmp$fitted.values <- fitted.values
+    tmp$residuals <- setNames(as.numeric(Y0 - fitted.values), rownames(mf))
+    tmp$weights <- setNames(as.numeric(weights), rownames(mf))
+    tmp$qr <- qr(mm)
+    
+    # form <- Y0 ~ -1 + basisMatrix2
+    # mf   <- model.frame(form, weights = as.numeric(weights))
+    # mm    <- model.matrix(form, data = mf)
+    # tmp1 <- list(
+    #   coefficients = setNames(theta, colnames(mm)),
+    #   residuals = setNames(as.numeric(Y0 - fitted.values), rownames(mf)),
+    #   fitted.values = setNames(as.numeric(fitted.values), rownames(mf)),
+    #   weights = as.numeric(weights),
+    #   rank = qr(mm)$rank,  # or qr(basisMatrix2)$rank or rankMatrix(basisMatrix2) or length(coefficients)
+    #   qr = qr(mm), # or qr(basisMatrix2)
+    #   df.residual = as.numeric(nrow(basisMatrix2) - rankMatrix(basisMatrix2)), # residual degrees of freedom
+    #   y = Y0,
+    #   terms = terms(mf),
+    #   model = mf
+    # )
+    # class(tmp1) <- "lm"
+    
+    # print(round(stats::logLik(tmp1) - stats::logLik(tmp)), 6)
+    # print(round(stats::confint.default(tmp1) - stats::confint.default(tmp)), 6)
     
   }
   
@@ -239,53 +259,15 @@ SplineReg_LM_Multivar <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)), base
   }
   
   resid <- Y - predicted
-  df <- tmp$df.residual
-  sigma_hat <- sqrt(sum(resid^2)/df)
-  prob <- 1 - 0.5 * (1 - prob)
-  # CI_j =\hat{y_j} ± t_{α/2,df}*\hat{σ}*\sqrt{H_{jj}}; H = X(X'X)^{−1}X'
-  H_diag <- stats::hat(basisMatrix2, intercept = FALSE) # or influence(tmp)$hat
-  band <- qt(prob,df) * sigma_hat * H_diag^.5
-  
-  # Huang (2003) method for confidence band width (see Theorem 6.1)
-  n_obs <- length(Y)
-  dim_threshold <- 1500
-  if (NCOL(full_matrix) != 0 && n_obs < dim_threshold) {
-    
-    # i. E_n[B(X)B^t(X)] = (1/n)*\sum_{i=1}^nB(X_i)B^t(X_i)
-    matcb <- crossprod(full_matrix) / n_obs
-    matcbinv <- tryCatch({
-      chol2inv(chol(matcb))  # Primary method: Fastest for SPD matrices
-    }, error = function(e1) {
-      message("SplineReg_LM_Multivar: Variance matrix for computing asymptotic confidence intervals is not SPD; falling back to solve().")
-      tryCatch({
-        solve(matcb)  # Secondary method: Standard inverse
-      }, error = function(e2) {
-        message("SplineReg_LM_Multivar: Variance matrix for computing asymptotic confidence intervals is singular; falling back to ginv().")
-        MASS::ginv(matcb)  # Final fallback
-      })
-    })
-    
-    # ii. Var(\hat{f} | X) = (1/n)*B^t(x) * E_n[B(X)B^t(X)]^-1 * B(x) * \hat{σ}^2
-    S <- full_matrix %*% matcbinv
-    conditionalVariance <- (sigma_hat^2 / n_obs) * rowSums(S * full_matrix)
-    
-    # iii. ± z_{1-α/2} * Var(\hat{f} | X)
-    band_width_huang <- qnorm(prob) * sqrt(conditionalVariance)
-    
-    Upp = predicted + band_width_huang
-    Low = predicted - band_width_huang
-    
-  } else {
-    Upp = NULL
-    Low = NULL
-  }
+  # Confidence intervals
+  CI <- CI(tmp, resid, prob = 0.95, basisMatrix, basisMatrix2, predicted,
+           n_obs = length(Y), type = "lm", huang = TRUE)
+
   
   out <- list(Theta = theta, Predicted = predicted, Residuals = resid, 
-              RSS = as.numeric(crossprod(resid)), NCI = list(Upp = predicted + 
-                                                     band, Low = predicted - band), Basis = full_matrix, 
-              Polygon = list(Kn = polyknots_list, Thetas = theta[1:NCOL(full_matrix)]), 
-              temporary = tmp, ACI = list(Upp = Upp, 
-                                          Low = Low))
+              RSS = as.numeric(crossprod(resid)), NCI = CI$NCI, Basis = basisMatrix, 
+              Polygon = list(Kn = polyknots_list, Thetas = theta[1:NCOL(basisMatrix)]), 
+              temporary = tmp, ACI = CI$ACI)
   return(out)
   
 }
@@ -295,8 +277,8 @@ SplineReg_LM_Multivar <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)), base
 ############################
 SplineReg_GLM_Multivar <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)), base_learners,
                                    weights = rep(1, NROW(Y)), InterKnotsList, n, extrList = lapply(X, range),
-                                   family, mustart = NULL, inits = NULL, coefficients, linear_intercept = FALSE,
-                                   de_mean = FALSE)
+                                   family, mustart = NULL, inits = NULL, coefficients, linear.predictors,
+                                   linear_intercept = FALSE, de_mean = FALSE)
 {
   n <- as.integer(n)
   # If boosting family save some relevant functions before converting to glm familt
@@ -388,9 +370,9 @@ SplineReg_GLM_Multivar <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)), bas
   # Combine all matrices side-by-side
   matrices_list <- c(matrices_univ_list, matrices_biv_list)
   if (!is.null(matrices_list) && length(matrices_list) > 0) {
-    full_matrix <- do.call(cbind, matrices_list)
+    basisMatrix <- do.call(cbind, matrices_list)
   } else {
-    full_matrix <- matrix(ncol = 0, nrow = nrow(Z))
+    basisMatrix <- matrix(ncol = 0, nrow = nrow(Z))
   }
   
   # Convert any factor columns in Z to dummy variables
@@ -401,7 +383,7 @@ SplineReg_GLM_Multivar <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)), bas
       Z <- NULL
     }
   
-  basisMatrix2 <- cbind(full_matrix, Z)
+  basisMatrix2 <- cbind(basisMatrix, Z)
   
   # 1) If coefficients are NOT provided estimate the corresponding regression model
   if (is.null(coefficients)) {
@@ -425,7 +407,7 @@ SplineReg_GLM_Multivar <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)), bas
     # tmp <- glm.fit(basisMatrix2, Y, family = family,
     #                weights = weights, mustart = mustart)
     tmp <- tryCatch({
-      glm(Y ~ -1 + basisMatrix2, family = family, weights = weights, mustart = mustart)
+      glm(Y ~ -1 + basisMatrix2, family = family, weights = weights, mustart = mustart, offset = offset)
       }, error = function(e) {
         # If glm throws an error, fallback to IRLSfit
         IRLSfit(basisMatrix2, Y, offset = offset, family = family, mustart = mustart, weights = weights)
@@ -441,34 +423,53 @@ SplineReg_GLM_Multivar <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)), bas
     # 2) If coefficients are provided, use them to compute predicted values directly
   } else {
     theta <- coefficients
-    linear.predictors <- if (de_mean) basisMatrix2 %*% theta - mean(basisMatrix2 %*% theta) else basisMatrix2 %*% theta # to recover backfitting predictions need de_mean
+    if (is.null(linear.predictors)) {
+      linear.predictors <- if (de_mean) basisMatrix2 %*% theta - mean(basisMatrix2 %*% theta) else basisMatrix2 %*% theta # to recover backfitting predictions need de_mean
+    }
     fitted.values <- family_linkinv(linear.predictors)
     predicted <- family_linkinv(linear.predictors + offset)
     
     # Manually reconstruct glm object to facilitate S3 methods application
     form <- Y ~ -1 + basisMatrix2
-    mf   <- model.frame(form, weights = as.numeric(weights))
+    mf   <- model.frame(form, weights = weights)
     mm    <- model.matrix(form, data = mf)
-    tmp <- list(
-      coefficients = setNames(theta, colnames(mm)),
-      residuals = NULL, # working IWLS residuals
-      fitted.values = fitted.values,
-      null.deviance = sum(family$dev.resids(Y, family$linkinv(offset), weights)), # Y ~ -1: no intercept
-      weights = as.numeric(weights),
-      rank = qr(mm)$rank,  # or qr(basisMatrix2)$rank or qr(mm)$rank or rankMatrix(basisMatrix2) or length(coefficients)
-      qr = qr(mm), # or qr(basisMatrix2)
-      family = family,
-      linear.predictors = linear.predictors,
-      deviance =  sum(family$dev.resids(Y, fitted.values, weights)),
-      prior.weights = weights, # the weights initially supplied
-      df.residual = as.numeric(nrow(basisMatrix2) - rankMatrix(basisMatrix2)), # residual degrees of freedom
-      y = Y,
-      terms = terms(mf),
-      model = mf
-    )
-    logLik_val <- -0.5 * tmp$deviance
-    tmp$aic <- -2 * logLik_val + 2 * length(coefficients)
-    class(tmp) <- "glm"
+    tmp <- glm(form, family = family, weights = weights, mustart = mustart)
+
+    tmp$coefficients <- if(is.character(theta)) theta else setNames(theta, colnames(mm))
+    tmp$linear.predictors <- linear.predictors
+    tmp$fitted.values <- fitted.values
+    tmp$qr <- qr(mm)
+    tmp$deviance <- sum(family$dev.resids(Y, tmp$fitted.values, weights))
+    tmp$null.deviance <- sum(family$dev.resids(Y, family$linkinv(offset), weights))
+    tmp$aic <- family$aic(y = Y, n = rep(1, length(Y)), mu = fitted.values, wt = weights, dev = tmp$deviance)
+    
+    
+    # form <- Y ~ -1 + basisMatrix2
+    # mf   <- model.frame(form, weights = weights)
+    # mm    <- model.matrix(form, data = mf)
+    # tmp1 <- list(
+    #   call = as.call(list(quote(glm), formula = form, family = family, weights = weights, mustart = mustart)),
+    #   coefficients = setNames(theta, colnames(mm)),
+    #   residuals = NULL, # working IWLS residuals
+    #   fitted.values = fitted.values,
+    #   null.deviance = sum(family$dev.resids(Y, family$linkinv(offset), weights)), # Y ~ -1: no intercept
+    #   weights = as.numeric(weights),
+    #   rank = qr(mm)$rank,  # or qr(basisMatrix2)$rank or qr(mm)$rank or rankMatrix(basisMatrix2) or length(coefficients)
+    #   qr = qr(mm), # or qr(basisMatrix2)
+    #   family = family,
+    #   linear.predictors = linear.predictors,
+    #   deviance =  sum(family$dev.resids(Y, fitted.values, weights)),
+    #   prior.weights = weights, # the weights initially supplied
+    #   df.residual = as.numeric(nrow(basisMatrix2) - rankMatrix(basisMatrix2)), # residual degrees of freedom
+    #   y = Y,
+    #   terms = terms(mf),
+    #   model = mf,
+    #   control = glm.control()
+    # )
+    # 
+    # tmp1$aic <- family$aic(y = Y, mu = fitted.values, wt = weights, dev = tmp1$deviance)
+    # class(tmp1) <- "glm"
+    
   }
   
   # Control polygon knots
@@ -520,10 +521,15 @@ SplineReg_GLM_Multivar <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)), bas
   resid <- tmp$residuals
   deviance <- tmp$deviance
   
+  # Confidence intervals
+  CI <- CI(tmp, resid, prob = 0.95, basisMatrix, basisMatrix2, predicted,
+           n_obs = length(Y), type = "glm", huang = FALSE)
+  
   out <- list(Theta = theta, Predicted = predicted,
               Residuals = resid, RSS = deviance,
-              Basis = full_matrix,
-              Polygon = list(Kn = polyknots_list, Thetas = theta[1:NCOL(full_matrix)]),
+              Basis = basisMatrix,
+              NCI = CI$NCI,
+              Polygon = list(Kn = polyknots_list, Thetas = theta[1:NCOL(basisMatrix)]),
               temporary = tmp, deviance = deviance)
   return(out)
 }

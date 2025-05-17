@@ -77,12 +77,11 @@
 #' \item{Polygon}{ a list containing x-y coordinates ("\code{Kn}" and
 #' "\code{Thetas}") of the vertices of the Control Polygon, see
 #' Dimitrova et al. (2023).}
-#' \item{deviance}{ a vector containing deviances computed at each IRLS step
+#' \item{deviance}{ the deviance at the last IRLS iteration
 #' (computed only with the \code{SplineReg_GLM}).}
 #' \item{temporary}{ the result of the function \code{\link[stats]{lm}} if
 #' \code{SplineReg_LM} is used or the output of the function
-#' \code{\link{IRLSfit}} (which is similar to the output from
-#' \code{\link[stats]{glm.fit}}), if \code{SplineReg_GLM} is used.}
+#' \code{\link[stats]{glm}}), if \code{SplineReg_GLM} is used.}
 #' \item{ACI}{ a list containing the lower (\code{Low}) and upper (\code{Upp})
 #' limits of the asymptotic confidence intervals computed at the sample values
 #' of the covariate(s).}
@@ -192,54 +191,21 @@ SplineReg_LM <- function(X, Y, Z = NULL, offset = rep(0,length(X)), weights = re
     # Knots for control polygon
     nodes <- sort(c(InterKnots,rep(extr,n)))[-c(1, NCOL(basisMatrix)+1)]
     polyknots <- makenewknots(nodes, degree = n)
-    # Residual standard error
-    df <- if(!is.null(tmp)) tmp$df.residual else as.numeric(nrow(basisMatrix2) - rankMatrix(basisMatrix2)) # residual degrees of freedom
-    sigma_hat <- sqrt(sum(resid^2)/df)
-    # Recalculate the probability for a two-tailed test
-    prob <- 1-.5*(1-prob)
-    # CI_j =\hat{y_j} ± t_{α/2,df}*\hat{σ}*\sqrt{H_{jj}}; H = X(X'X)^{−1}X'
-    H_diag <- if(!is.null(tmp)) influence(tmp)$hat else stats::hat(basisMatrix2, intercept = FALSE)
-    band <- qt(prob,df) * sigma_hat * H_diag^.5
     
-    # Huang (2003) method for confidence band width (see Theorem 6.1)
-    n_obs <- length(Y)
-    dim_threshold <- 1500
-    if (n_obs < dim_threshold) {
-      
-      # i. E_n[B(X)B^t(X)] = (1/n)*\sum_{i=1}^nB(X_i)B^t(X_i)
-      matcb <- crossprod(basisMatrix) / n_obs
-      matcbinv <- tryCatch({
-        chol2inv(chol(matcb))  # Primary method: Fastest for SPD matrices
-      }, error = function(e1) {
-        message("SplineReg_LM: Variance matrix for computing asymptotic confidence intervals is not SPD; falling back to solve().")
-        tryCatch({
-          solve(matcb)  # Secondary method: Standard inverse
-        }, error = function(e2) {
-          message("SplineReg_LM: Variance matrix for computing asymptotic confidence intervals is singular; falling back to ginv().")
-          MASS::ginv(matcb)  # Final fallback
-        })
-      })
-      
-      # ii. Var(\hat{f} | X) = (1/n)*B^t(x) * E_n[B(X)B^t(X)]^-1 * B(x) * \hat{σ}^2
-      S <- basisMatrix %*% matcbinv
-      conditionalVariance <- (sigma_hat^2 / n_obs) * rowSums(S * basisMatrix)
-      
-      # iii. ± z_{1-α/2} * Var(\hat{f} | X)
-      band_width_huang <- qnorm(prob) * sqrt(conditionalVariance)
-      
-      } else {
-        band_width_huang <- NULL
-      }
-  } else {
-    polyknots <- band <- band_width_huang <- NULL
-  }
+    # Confidence intervals
+    CI <- CI(tmp, resid, prob = 0.95, basisMatrix, basisMatrix2, predicted,
+             n_obs = length(Y), type = "lm", huang = TRUE)
+    NCI <- CI$NCI; ACI <- CI$ACI
+    
+    } else {
+      polyknots <- NCI <- ACI <- NULL
+    }
   
   out <- list("Theta" = theta, "Predicted" = predicted, "Residuals" = resid, "RSS" = as.numeric(crossprod(resid)),
-              "NCI" = list("Upp" = predicted + band, "Low" = predicted - band),
-              "Basis" = basisMatrix, "Polygon" = list("Kn" = polyknots,
-                                                  "Thetas" = theta[1:NCOL(basisMatrix)]),
-              "temporary" = tmp, "ACI" = list("Upp" = predicted + band_width_huang,
-                                              "Low" = predicted - band_width_huang))
+              "NCI" = NCI, "Basis" = basisMatrix,
+              "Polygon" = list("Kn" = polyknots,
+                               "Thetas" = theta[1:NCOL(basisMatrix)]),
+              "temporary" = tmp, "ACI" = ACI)
   return(out)
 }
 
@@ -305,8 +271,12 @@ SplineReg_GLM <- function(X, Y, Z, offset = rep(0,nobs), weights = rep(1,length(
   # Extract residuals
   resid <- tmp$residuals
   
+  CI <- CI(tmp, resid, prob = 0.95, basisMatrix, basisMatrix2, predicted,
+           n_obs = length(Y), type = "glm", huang = FALSE)
+  
   out <- list("Theta" = theta, "Predicted" = predicted, "Residuals" = resid,
               "RSS" = tmp$deviance, "Basis" = basisMatrix, 
+              "NCI" = CI$NCI,
               "Polygon" = list("Kn" = polyknots,
                                "Thetas" = theta[1:NCOL(basisMatrix)]),
               "temporary" = tmp)

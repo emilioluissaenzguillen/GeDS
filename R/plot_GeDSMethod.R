@@ -354,9 +354,12 @@ setMethod("plot", signature(x = "GeDS"), function(x, f = NULL, which, DEV = FALS
           ", b = ",
           knot_values[length(knot_values)]
         )
-        if (length(knt_text) > 18) {
-          knt_text1 <- paste(knt_text[1:round(length(knt_text) / 2)], collapse = ", ")
-          knt_text2 <- paste(knt_text[(round(length(knt_text) / 2) + 1):length(knt_text)], collapse = ", ")
+        if (nchar(knt_text) > 50) {
+          
+          knt_text_split <- strsplit(knt_text, ",\\s*")[[1]]
+          mid <- ceiling(length(knt_text_split) / 2)
+          knt_text1 <- paste0(paste(knt_text_split[1:mid], collapse = ", "), ",")
+          knt_text2 <- paste(knt_text_split[(mid + 1):length(knt_text_split)], collapse = ", ")
           
           knots_text1 <- bquote(italic(bold(t)[1 * ";" * k[1] * "," * 2]) == italic(.(paste0("{", knt_text1))))
           knots_text2 <- bquote(italic(.(paste0(knt_text2, "}"))))
