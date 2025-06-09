@@ -202,7 +202,9 @@ newknot.guess <- function(intknots, extr, guess, newknot) {
 
 
 CI <- function(tmp, resid, prob = 0.95, basisMatrix, basisMatrix2, predicted,
-               n_obs, type = "lm", huang = TRUE) {
+               n_obs = NROW(basisMatrix),
+               type = "lm",
+               huang = TRUE) {
   
   if (type == "lm") {
     # Residual standard error
@@ -212,7 +214,7 @@ CI <- function(tmp, resid, prob = 0.95, basisMatrix, basisMatrix2, predicted,
     prob <- 1-.5*(1-prob)
     # Diagonal of the hat matrix
     H_diag <- stats::hat(basisMatrix2, intercept = FALSE) # or influence(tmp)$hat
-    # CI_j =\hat{y_j} \pm t_{\alpha/2,df}*\hat{\sigma}*\sqrt{H_{jj}}; H = X(X'X)^{-1}X'
+    # CI_j =\hat{y_j} ± t_{α/2,df}*\hat{σ}*\sqrt{H_{jj}}; H = X(X'X)^{−1}X'
     band <- qt(prob,df) * sigma_hat * H_diag^.5
     
     NCI = list("Upp" = predicted + band, "Low" = predicted - band)
@@ -233,10 +235,10 @@ CI <- function(tmp, resid, prob = 0.95, basisMatrix, basisMatrix2, predicted,
           MASS::ginv(matcb)
         })
       })
-      # ii. Var(\hat{f} | X) = (1/n)*B^t(x) * E_n[B(X)B^t(X)]^-1 * B(x) * \hat{\sigma}^2
+      # ii. Var(\hat{f} | X) = (1/n)*B^t(x) * E_n[B(X)B^t(X)]^-1 * B(x) * \hat{σ}^2
       S <- basisMatrix %*% matcbinv
       conditionalVariance <- (sigma_hat^2 / n_obs) * rowSums(S * basisMatrix)
-      # iii. +/- z_{1-\alpha/2} * Var(\hat{f} | X)
+      # iii. ± z_{1-α/2} * Var(\hat{f} | X)
       band_width_huang <- qnorm(prob) * sqrt(conditionalVariance)
       
       ACI = list("Upp" = predicted + band_width_huang,
@@ -248,25 +250,37 @@ CI <- function(tmp, resid, prob = 0.95, basisMatrix, basisMatrix2, predicted,
   } else if (type == "glm") {
     
     if (is.numeric(tmp$coefficients)) {
-      NCI <- tryCatch({
-        alpha <- 1 - prob
-        z_val <- qnorm(1 - alpha / 2)  # For Wald-type CI
+      alpha <- 1 - prob
+      z_val <- qnorm(1 - alpha / 2)  # For Wald-type CI
+      
+      # eta_hat <- predict(tmp, type = "link", se.fit = TRUE)
+      eta_hat <- tryCatch(
+        predict(tmp, type = "link", se.fit = TRUE),
         
-        eta_hat <- predict(tmp, type = "link", se.fit = TRUE)
-        lower_eta <- eta_hat$fit - z_val * eta_hat$se.fit
-        upper_eta <- eta_hat$fit + z_val * eta_hat$se.fit
-        
-        lower <- tmp$family$linkinv(lower_eta)
-        upper <- tmp$family$linkinv(upper_eta)
-        
-        list(Upp = upper, Low = lower)
-      }, error = function(e) {
-        message("CI: error during GLM-based CI computation - returning NULL")
-        NULL
-      })
-    } else {
-      NCI <- NULL
-    }
+        error = function(e) {
+          
+          eta <- predict(tmp, type = "link")
+          
+          matcb <- t(basisMatrix2) %*% diag(tmp$weights) %*% basisMatrix2
+          Sigma <- summary(tmp)$dispersion * MASS::ginv(matcb)
+          se_eta   <- sqrt(rowSums((basisMatrix2 %*% Sigma) * basisMatrix2))
+          
+          list(fit = eta, se.fit = se_eta)
+        }
+      )
+      
+      lower_eta <- eta_hat$fit - z_val * eta_hat$se.fit
+      upper_eta <- eta_hat$fit + z_val * eta_hat$se.fit
+      
+      lower <- tmp$family$linkinv(lower_eta)
+      upper <- tmp$family$linkinv(upper_eta)
+      
+      NCI = list("Upp" = upper, "Low" = lower)
+      
+      } else {
+        # tmp$coefficients == "When using bivariate base-learners, the 'single spline representation' (in pp form or B-spline form) of the boosted fit is not available."
+        NCI = NULL
+      }
     
     ACI = NULL
     

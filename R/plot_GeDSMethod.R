@@ -230,8 +230,7 @@ setMethod("plot", signature(x = "GeDS"), function(x, f = NULL, which, DEV = FALS
     
     # Set y-axis limits
     yylim <- range(c(Y, x$Linear.Fit$Predicted)) + 0.05 * c(-1, 1) *  range(c(Y, x$Linear.Fit$Predicted))
-    ylim <- if (!is.null(others$ylim)) others$ylim else yylim
-    
+
     # Determine the maximum number of iterations
     maxim <- nrow(x$Stored)
     
@@ -298,7 +297,11 @@ setMethod("plot", signature(x = "GeDS"), function(x, f = NULL, which, DEV = FALS
         main
       }
       # Plot
-      plot(X, Y, main = main0, ...)
+      if (!is.null(others$ylim)) {
+        plot(X, Y, main = main0, ...)  
+      } else {
+        plot(X, Y, main = main0, ylim = yylim, ...)
+      }
       if (!is.null(f)) lines(X, f(X), col = "black", lwd = 2)
       
       # Obtain stage A knots and perform spline regression
@@ -785,7 +788,11 @@ setMethod("plot", signature(x = "GeDSboost"), function(x, n = 3L,...)
       paste0(length(int.knots), " internal knots")
     }
     
-    plot(X_mat, Y, main = main0, ylim = y_range, ...)
+    if (!is.null(additional_params$ylim)) {
+      plot(X_mat, Y, main = main0, ...)  
+    } else {
+      plot(X_mat, Y, main = main0, ylim = y_range, ...)
+    }
     
     pred <- data.frame(X_mat, fit)
     pred <- pred[order(pred$X_mat),]

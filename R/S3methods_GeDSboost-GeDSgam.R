@@ -977,19 +977,19 @@ print.GeDSboost_GeDSgam <- function(x, digits = max(3L, getOption("digits") - 3L
     
     # 1) No knots or linear base-learner
     if (is.null(int.knt)) {
-      cat(paste0("Number of internal knots of the second order spline for '",
+      cat(paste0("Number of internal knots of the second order (linear) spline for '",
                  bl_name, "': 0\n"))
     } else {
       # 2) Bivariate GeDS
       if (is.list(int.knt)) {
         for (component_name in names(int.knt)) {
           component <- int.knt[[component_name]]
-          cat(paste0("Number of internal knots of the second order spline for '",
+          cat(paste0("Number of internal knots of the second order (linear) spline for '",
                      bl_name, "', ", component_name, ": ", length(component), "\n"))
         }
         # 3) Univariate GeDS
       } else { 
-        cat(paste0("Number of internal knots of the second order spline for '",
+        cat(paste0("Number of internal knots of the second order (linear) spline for '",
                    bl_name, "': ", length(int.knt), "\n"))
       }
     }
@@ -1045,15 +1045,15 @@ summary.GeDSboost_GeDSgam <- function(object, ...)
     cat("Final model corresponds to boosting iteration", sub("^model", "", object$final_model$model_name), "\n")
     if (object$args$initial_learner) {
       if (object$args$family@name == "Squared Error (Regression)") {
-        cat("A NGeDS() initial learner was used. ")
+        cat("A NGeDS() initial learner was used; ")
       } else {
-        cat("A GGeDS() initial learner was used. ")
+        cat("A GGeDS() initial learner was used; ")
       }
       
     } else {
-      cat("An offset initial learner was used. ")
+      cat("An offset initial learner was used; ")
     }
-    cat("Number of base learners:", length(names(object$final_model$base_learners)), "\n\n")
+    cat("number of base learners:", length(names(object$final_model$base_learners)), "\n\n")
   } else if (inherits(object, "GeDSgam")) {
     cat("\nLocal-scoring details:\n")
     print(family.GeDSgam(object,...),...)

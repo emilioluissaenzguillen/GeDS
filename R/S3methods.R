@@ -194,7 +194,7 @@ confint.GeDS <- function(object, parm, level = 0.95, n = 3L, ...) {
       cat("Note:\n")
       cat(fit_obj$Theta, "\n")
       if(!inherits(fit_obj$temporary, "glm")) {
-        cat("As a result, the intervals below are pointwise confidence intervals for the fitted values (not for coefficients).\n\n")
+        cat("As a result, the intervals printed below are pointwise confidence intervals for the fitted values (not for the coefficients).\n\n")
         
         ci_mat <- as.matrix(cbind(fit_obj$NCI$Low, fit_obj$NCI$Upp))
         colnames(ci_mat) <- c("2.5 %", "97.5 %")
@@ -776,7 +776,7 @@ print.GeDS <- function(x, digits = max(3L, getOption("digits") - 3L), ...)
     
     if (length(kn)) {
       
-      cat(paste0("Number of internal knots of the second order spline: ", length(kn)))
+      cat(paste0("Number of internal knots of the second order (linear) spline: ", length(kn)))
       cat("\n")
       
       DEVs[1] <- x$Dev.Linear
@@ -799,9 +799,9 @@ print.GeDS <- function(x, digits = max(3L, getOption("digits") - 3L), ...)
     
     if(length(kn[[1]])||length(kn[[2]])) {
       
-      cat(paste0("Number of internal knots of the second order spline in the X direction: ", length(kn[[1]])))
+      cat(paste0("Number of internal knots of the second order (linear) spline in the X direction: ", length(kn[[1]])))
       cat("\n")
-      cat(paste0("Number of internal knots of the second order spline in the Y direction: ", length(kn[[2]])))
+      cat(paste0("Number of internal knots of the second order (linear) spline in the Y direction: ", length(kn[[2]])))
       cat("\n")
       cat("\n")
       
@@ -860,7 +860,7 @@ summary.GeDS <- function(object, ...)
     print(object$Args$family)
   }
   
-  cat("phi = ", object$Args$phi, "and q = ", object$Args$q, "(stopping rule parameters).\n")
+  cat("phi = ", object$Args$phi, "and q = ", object$Args$q, "(stopping rule parameters);\n")
   cat("beta = ", object$Args$beta)
   
   if (object$Args$beta == 0.5) {
