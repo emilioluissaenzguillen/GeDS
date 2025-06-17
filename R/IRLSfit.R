@@ -8,57 +8,57 @@
 #' @description
 #' This function is an implementation of the IRLS estimation algorithm adjusted
 #' to the specific usage within the function \code{\link{SplineReg_GLM}}.
-#' @param x a matrix of regression functions (e.g. B-splines and/or terms of the
+#' @param x A matrix of regression functions (e.g. B-splines and/or terms of the
 #' parametric part) evaluated at the sample values of the covariate(s).
-#' @param y a vector of size \eqn{N} containing the observed values of the
+#' @param y A vector of size \eqn{N} containing the observed values of the
 #' response variable \eqn{y}.
-#' @param weights an optional vector of prior weights for the observations,
+#' @param weights An optional vector of prior weights for the observations,
 #' used when weighted IRLS fitting is required. By default, this is a vector of
 #' 1s.
-#' @param mustart initial values for the vector of means of the response
+#' @param mustart Initial values for the vector of means of the response
 #' variable in the IRLS regression estimation. Must be a vector of length \eqn{N}.
-#' @param offset a vector of size \eqn{N} that can be used to specify a fixed
+#' @param offset A vector of size \eqn{N} that can be used to specify a fixed
 #' covariate to be included in the predictor model  avoiding the estimation of
 #' its corresponding regression coefficient. In the case that more than one
 #' covariate is fixed, the user should sum the corresponding coordinates of the
 #' fixed covariates to produce one common \eqn{N}-vector of coordinates.
-#' @param family a description of the error distribution and link function to be
+#' @param family A description of the error distribution and link function to be
 #' used in the model. This can be a character string naming a family function
 #' (e.g. \code{"gaussian"}), the family function itself (e.g.
 #' \code{\link[stats]{gaussian}}) or the result of a call to a family function
 #' (e.g. \code{gaussian()}). See \link[stats]{family} for details on family
 #' functions.
-#' @param control a list of parameters for controlling the IRLS fitting process
+#' @param control A list of parameters for controlling the IRLS fitting process
 #' to be passed on to \code{\link[stats]{glm.control}}. See
 #' \code{\link[stats]{glm.fit}} for further details.
 #' 
 #' @return A list containing:
-#' \item{coefficients}{a named vector containing the estimated regression
+#' \item{coefficients}{A named vector containing the estimated regression
 #' coefficients;}
-#' \item{residuals}{the working residuals, which are the residuals from the 
+#' \item{residuals}{The working residuals, which are the residuals from the 
 #' final iteration of the IRLS fit. Cases with zero weights are omitted, and
 #' their working residuals are \code{NA};}
-#' \item{res2}{the working residuals after the final IRLS iteration. They are
+#' \item{res2}{The working residuals after the final IRLS iteration. They are
 #' used within the knot placement steps of stage A of GeDS;}
-#' \item{fitted.values}{the fitted mean values, obtained by transforming the
+#' \item{fitted.values}{The fitted mean values, obtained by transforming the
 #' predictor by the inverse of the link function;}
-#' \item{rank}{the numeric rank of the fitted linear model;}
-#' \item{family}{the \code{\link[stats]{family}} object used;}
-#' \item{linear.predictors}{the fitted predictor;}
-#' \item{deviance_iters}{a vector containing the deviances obtained at each IRLS
+#' \item{rank}{The numeric rank of the fitted linear model;}
+#' \item{family}{The \code{\link[stats]{family}} object used;}
+#' \item{linear.predictors}{The fitted predictor;}
+#' \item{deviance_iters}{A vector containing the deviances obtained at each IRLS
 #' iteration;}
-#' \item{deviance}{the deviance at the last IRLS iteration;}
+#' \item{deviance}{The deviance at the last IRLS iteration;}
 #' \item{null.deviance}{The deviance for the null model (see
 #' \code{\link[stats]{glm}} documentation);}
-#' \item{iter}{the number of IRLS iterations performed;}
-#' \item{weights}{the working weights after the last IRLS iteration;}
-#' \item{prior.weights}{the ``prior weights" (see the \code{weights} argument);}
-#' \item{df.residual}{the residual degrees of freedom;}
-#' \item{df.null}{the residual degrees of freedom for the null model;}
-#' \item{y}{the vector of values of the response variable used in the fitting;}
-#' \item{z}{the transformed responses computed after the last IRLS iteration;}
-#' \item{converged}{logical. Was the IRLS algorithm judged to have converged?}
-#' \item{boundary}{logical. Is the fitted value on the boundary of the
+#' \item{iter}{The number of IRLS iterations performed;}
+#' \item{weights}{The working weights after the last IRLS iteration;}
+#' \item{prior.weights}{The ``prior weights" (see the \code{weights} argument);}
+#' \item{df.residual}{The residual degrees of freedom;}
+#' \item{df.null}{The residual degrees of freedom for the null model;}
+#' \item{y}{The vector of values of the response variable used in the fitting;}
+#' \item{z}{The transformed responses computed after the last IRLS iteration;}
+#' \item{converged}{Logical. Was the IRLS algorithm judged to have converged?}
+#' \item{boundary}{Logical. Is the fitted value on the boundary of the
 #' attainable values?}
 #' In addition, non-empty fits will have components \code{qr}, \code{R} and
 #' \code{effects} relating to the final weighted linear fit, see
@@ -83,7 +83,7 @@
 #' is time consuming, but they could be run for inspection purposes.
 #' 
 #' @seealso \code{\link[stats]{glm.fit}}
-#' 
+#' @importFrom stats glm.control gaussian .lm.fit
 #' @export
 
 IRLSfit <- function (x, y, weights = rep(1, nobs), mustart = NULL,

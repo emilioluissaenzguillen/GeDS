@@ -2,32 +2,32 @@
 % Please edit documentation in R/IntegrateDerive.R
 \name{Integrate}
 \alias{Integrate}
-\title{Defined integral of GeDS objects}
+\title{Defined Integral of GeDS Objects}
 \usage{
 Integrate(object = NULL, knots = NULL, coef = NULL, from, to, n = 3L)
 }
 \arguments{
-\item{object}{the \code{\link{GeDS-class}} object containing the  GeDS fit
+\item{object}{An object of class \code{"GeDS"} containing the  GeDS fit
 which should be integrated. It should be the result of fitting a univariate
 GeDS regression via \code{\link{NGeDS}} or \code{\link{GGeDS}}. If this is
 provided, the \code{knots} and \code{coef} parameters will be automatically
 extracted from the \code{GeDS} object. If \code{object} is \code{NULL}, the
 user must provide the \code{knots} and \code{coef} vectors explicitly.}
 
-\item{knots}{a numeric vector of knots. This is required if \code{object} is 
+\item{knots}{A numeric vector of knots. This is required if \code{object} is 
 \code{NULL}. If a \code{GeDS} object is provided, this parameter is ignored.}
 
-\item{coef}{a numeric vector of coefficients. This is required if \code{object} is 
+\item{coef}{A numeric vector of coefficients. This is required if \code{object} is 
 \code{NULL}. If a \code{GeDS} object is provided, this parameter is ignored}
 
-\item{from}{optional numeric vector containing the lower limit(s) of
+\item{from}{Optional numeric vector containing the lower limit(s) of
 integration. It should be either of size one or of the same size as the
 argument \code{to}. If left unspecified, by default it is set to the left-most
 limit of the interval embedding the observations of the independent variable.}
 
-\item{to}{numeric vector containing the upper limit(s) of integration.}
+\item{to}{Numeric vector containing the upper limit(s) of integration.}
 
-\item{n}{integer value (2, 3 or 4) specifying the order (\eqn{=} degree
+\item{n}{Integer value (2, 3 or 4) specifying the order (\eqn{=} degree
 \eqn{ + 1}) of the GeDS fit to be integrated. By default equal to \code{3L}.
 Non-integer values will be passed to the function \code{\link{as.integer}}.}
 }
@@ -74,9 +74,7 @@ Integrate(Gmod, from = 1, to = c(-1,1), n = 3)
 # and $\int_{-1}^{1} f(x)dx$
 # $f$ being the quadratic fit
 Integrate(Gmod, from = c(1,-1), to = c(-1,1), n = 3)
-## Not run:
-## This gives an error
-Integrate(Gmod, from = c(1,-1), to = c(1,1), n = 3)
+Integrate(Gmod, from = rep(-Inf, N), to = X, n = 3)
 
 }
 \references{

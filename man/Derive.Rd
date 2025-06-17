@@ -2,24 +2,24 @@
 % Please edit documentation in R/IntegrateDerive.R
 \name{Derive}
 \alias{Derive}
-\title{Derivative of GeDS objects}
+\title{Derivative of GeDS Objects}
 \usage{
 Derive(object, order = 1L, x, n = 3L)
 }
 \arguments{
-\item{object}{the \code{\link{GeDS-Class}} object containing the GeDS fit
+\item{object}{An object of class \code{"GeDS"} containing the GeDS fit
 which should be differentiated. It should be the result of fitting a 
 univariate GeDS regression via \code{\link{NGeDS}} or \code{\link{GGeDS}}.}
 
-\item{order}{integer value indicating the order of differentiation required
+\item{order}{Integer value indicating the order of differentiation required
 (e.g. first, second or higher derivatives). Note that \code{order} should be
 lower than \code{n} and that non-integer values will be passed to the
 function \code{\link{as.integer}}.}
 
-\item{x}{numeric vector containing values of the independent variable at
+\item{x}{Numeric vector containing values of the independent variable at
 which the derivatives of order \code{order} should be computed.}
 
-\item{n}{integer value (2, 3 or 4) specifying the order (\eqn{=} degree
+\item{n}{Integer value (2, 3 or 4) specifying the order (\eqn{=} degree
 \eqn{ + 1}) of the GeDS fit to be differentiated. By default equal to
 \code{3L}.}
 }
@@ -57,7 +57,6 @@ Gmod <- NGeDS(Y ~ f(X), beta = 0.6, phi = 0.995, Xextr = c(-2,2))
 # Compute the second derivative of the cubic GeDS fit
 # at the points 0, -1 and 1
 Derive(Gmod, x = c(0, -1, 1), order = 2, n = 4)
-
 }
 \references{
 De Boor, C. (2001). \emph{A Practical Guide to Splines (Revised Edition)}.

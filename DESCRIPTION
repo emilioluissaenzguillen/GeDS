@@ -1,51 +1,67 @@
-Package: GeDS
 Type: Package
+Package: GeDS
 Title: Geometrically Designed Spline Regression
-Version: 0.3.2
+Version: 0.3.3
 Date: 2025-06-09
-Authors@R: c(person(given = c("Dimitrina", "S."),
-                      family = "Dimitrova",
-                      role = "aut",
-                      email = "D.Dimitrova@citystgeorges.ac.uk"),
-              person(given = c("Vladimir", "K."),
-                      family = "Kaishev",
-                      role = "aut",
-                      email = "Vladimir.Kaishev.1@citystgeorges.ac.uk"),
-              person(given = "Andrea",
-                      family = "Lattuada",
-                      role = "aut",
-                      email = "Andrea.Lattuada@hotmail.com"),
-              person(given = c("Emilio", "L."),
-                      family = "Sáenz Guillén",
-                      role = c("aut", "cre"),
-                      email = "Emilio.Saenz-Guillen@citystgeorges.ac.uk"),
-              person(given = c("Richard", "J."),
-                      family = "Verrall",
-                      role = "aut",
-                      email = "R.J.Verrall@citystgeorges.ac.uk"))
-Maintainer: Emilio L. Sáenz Guillén <Emilio.Saenz-Guillen@citystgeorges.ac.uk>
-Description: Spline Regression, Generalized Additive Models, and Component-wise Gradient
-  Boosting, utilizing Geometrically Designed (GeD) Splines. GeDS regression is a
-  non-parametric method inspired by geometric principles, for fitting spline regression
-  models with variable knots in one or two independent variables. It efficiently estimates
-  the number of knots and their positions, as well as the spline order, assuming the
-  response variable follows a distribution from the exponential family. GeDS models
-  integrate the broader category of Generalized (Non-)Linear Models, offering a flexible
-  approach to modeling complex relationships. A description of the method can be found in
-  Kaishev et al. (2016) <doi:10.1007/s00180-015-0621-7> and Dimitrova et al. (2023)
-  <doi:10.1016/j.amc.2022.127493>. Further extending its capabilities, GeDS's implementation
-  includes Generalized Additive Models (GAM) and Functional Gradient Boosting (FGB),
-  enabling versatile multivariate predictor modeling, as discussed in the forthcoming work of
-  Dimitrova et al. (2025).
+Authors@R: c(
+    person(c("Dimitrina", "S."), "Dimitrova", , "D.Dimitrova@citystgeorges.ac.uk", role = "aut"),
+    person(c("Vladimir", "K."), "Kaishev", , "Vladimir.Kaishev.1@citystgeorges.ac.uk", role = "aut"),
+    person("Andrea", "Lattuada", , "Andrea.Lattuada@hotmail.com", role = "aut"),
+    person(c("Emilio", "L."), "Sáenz Guillén", , "Emilio.Saenz-Guillen@citystgeorges.ac.uk", role = c("aut", "cre")),
+    person(c("Richard", "J."), "Verrall", , "R.J.Verrall@citystgeorges.ac.uk", role = "aut")
+  )
+Maintainer: Emilio L. Sáenz Guillén
+    <Emilio.Saenz-Guillen@citystgeorges.ac.uk>
+Description: Spline Regression, Generalized Additive Models, and
+    Component-wise Gradient Boosting, utilizing Geometrically Designed
+    (GeD) Splines. GeDS regression is a non-parametric method inspired by
+    geometric principles, for fitting spline regression models with
+    variable knots in one or two independent variables. It efficiently
+    estimates the number of knots and their positions, as well as the
+    spline order, assuming the response variable follows a distribution
+    from the exponential family. GeDS models integrate the broader
+    category of Generalized (Non-)Linear Models, offering a flexible
+    approach to modeling complex relationships. A description of the
+    method can be found in Kaishev et al. (2016)
+    <doi:10.1007/s00180-015-0621-7> and Dimitrova et al. (2023)
+    <doi:10.1016/j.amc.2022.127493>. Further extending its capabilities,
+    GeDS's implementation includes Generalized Additive Models (GAM) and
+    Functional Gradient Boosting (FGB), enabling versatile multivariate
+    predictor modeling, as discussed in the forthcoming work of Dimitrova
+    et al. (2025).
 License: GPL-3
 URL: https://github.com/emilioluissaenzguillen/GeDS
 BugReports: https://github.com/emilioluissaenzguillen/GeDS/issues
-LazyData: TRUE
-Depends: R (>= 3.0.1), Rcpp (>= 1.0.0), splines, stats, utils, Matrix, methods, mi, Rmpfr
-LinkingTo: Rcpp
-Suggests: R.rsp, testthat (>= 3.0.0)
-RoxygenNote: 7.3.2
-Encoding: UTF-8
-Imports: doFuture, doParallel, doRNG, foreach, future, MASS, mboost, parallel,  plot3D, TH.data
+Depends: 
+    R (>= 4.4.0)
+Imports:
+    doFuture,
+    doParallel,
+    doRNG,
+    foreach,
+    future,
+    graphics,
+    grDevices,
+    MASS,
+    Matrix,
+    mboost,
+    parallel,
+    plot3D,
+    Rcpp,
+    splines,
+    stats,
+    utils
+Suggests: 
+    knitr,
+    R.rsp,
+    rmarkdown,
+    testthat (>= 3.0.0),
+    TH.data
+LinkingTo: 
+    Rcpp
+VignetteBuilder: 
+    R.rsp
 Config/testthat/edition: 3
-VignetteBuilder: R.rsp
+Encoding: UTF-8
+LazyData: TRUE
+RoxygenNote: 7.3.2

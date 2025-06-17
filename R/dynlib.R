@@ -1,15 +1,7 @@
 #' @useDynLib GeDS
-#' @importFrom Rcpp sourceCpp
-#' @importFrom Matrix rankMatrix
-#' @importFrom splines splineDesign splineOrder splineKnots polySpline
-#' @importFrom stats knots .lm.fit influence as.formula coef glm predict.glm qnorm delete.response gaussian glm.fit lm lm.fit lm.wfit model.frame model.matrix model.response pchisq pnorm pt qchisq qt residuals summary.lm terms coefficients
-#' @importFrom methods setMethod setClass as new
-#' @importFrom grDevices dev.new devAskNewPage trans3d
-#' @importFrom graphics legend lines.default plot.default persp points rug
-#' @importFrom Rmpfr Bernoulli
+#' @importFrom Rcpp  sourceCpp
 #' @importFrom utils packageDescription
 NULL
-
 
 .onAttach <- function(libname, pkgname) {
   #nice basic info
@@ -131,7 +123,7 @@ NULL
 ################################## coalMining ##################################
 ################################################################################
 ################################################################################
-#' @title Coal Mining Disasters data
+#' @title Coal Mining Disasters Data
 #' @name coalMining
 #' @description
 #' A dataset with 112 entries containing annual numbers of accidents due to
@@ -162,7 +154,7 @@ NULL
 ################################# EWmortality ##################################
 ################################################################################
 ################################################################################
-#' @title Death counts in England and Wales
+#' @title Death Counts in England and Wales
 #' @name EWmortality
 #' @description
 #' The dataset consists of information about the mortality of the English and

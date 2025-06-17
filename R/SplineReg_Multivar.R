@@ -42,7 +42,8 @@ SplineReg_Multivar <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)), base_le
 ## SplineReg_LM_Multivar ##
 ###########################
 #' @importFrom MASS ginv
-
+#' @importFrom splines splineDesign
+#' @importFrom stats lm model.matrix model.frame terms coef
 SplineReg_LM_Multivar <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)), base_learners,
                                   weights = rep(1, NROW(Y)), InterKnotsList, n, extrList = lapply(X, range),
                                   prob = 0.95, coefficients, linear.predictors, linear_intercept = FALSE, de_mean = FALSE)
@@ -154,7 +155,7 @@ SplineReg_LM_Multivar <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)), base
       
       # Compute t(basisMatrix2) %*% basisMatrix2 using crossprod (more efficient)
       matcb <- crossprod(basisMatrix2)
-      matcbinv <- MASS::ginv(matcb)
+      matcbinv <- ginv(matcb)
       theta <- as.numeric(matcbinv %*% crossprod(basisMatrix2, tmp$fitted.values))
       
     }
@@ -275,6 +276,8 @@ SplineReg_LM_Multivar <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)), base
 ############################
 ## SplineReg_GLM_Multivar ##
 ############################
+#' @importFrom splines splineDesign
+#' @importFrom stats glm coef model.frame model.matrix terms
 SplineReg_GLM_Multivar <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)), base_learners,
                                    weights = rep(1, NROW(Y)), InterKnotsList, n, extrList = lapply(X, range),
                                    family, mustart = NULL, inits = NULL, coefficients, linear.predictors,
@@ -454,13 +457,13 @@ SplineReg_GLM_Multivar <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)), bas
     #   fitted.values = fitted.values,
     #   null.deviance = sum(family$dev.resids(Y, family$linkinv(offset), weights)), # Y ~ -1: no intercept
     #   weights = as.numeric(weights),
-    #   rank = qr(mm)$rank,  # or qr(basisMatrix2)$rank or qr(mm)$rank or rankMatrix(basisMatrix2) or length(coefficients)
+    #   rank = qr(mm)$rank,  # or qr(basisMatrix2)$rank or qr(mm)$rank or Matrix::rankMatrix(basisMatrix2) or length(coefficients)
     #   qr = qr(mm), # or qr(basisMatrix2)
     #   family = family,
     #   linear.predictors = linear.predictors,
     #   deviance =  sum(family$dev.resids(Y, fitted.values, weights)),
     #   prior.weights = weights, # the weights initially supplied
-    #   df.residual = as.numeric(nrow(basisMatrix2) - rankMatrix(basisMatrix2)), # residual degrees of freedom
+    #   df.residual = as.numeric(nrow(basisMatrix2) - Matrix::rankMatrix(basisMatrix2)), # residual degrees of freedom
     #   y = Y,
     #   terms = terms(mf),
     #   model = mf,

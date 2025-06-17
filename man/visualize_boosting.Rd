@@ -8,11 +8,11 @@
 \method{visualize_boosting}{GeDSboost}(object, iters = NULL, final_fits = FALSE)
 }
 \arguments{
-\item{object}{a \code{\link{GeDSboost-class}} object.}
+\item{object}{A \code{"GeDSboost"} class object.}
 
-\item{iters}{numeric, specifies the iteration(s) number.}
+\item{iters}{Numeric, specifies the iteration(s) number.}
 
-\item{final_fits}{logical indicating whether the final linear, quadratic and
+\item{final_fits}{Logical indicating whether the final linear, quadratic and
 cubic fits should be plotted.}
 }
 \description{

@@ -4,7 +4,7 @@
 \name{GeDS-package}
 \alias{GeDS-package}
 \alias{GeDS}
-\title{GeDS}
+\title{Geometrically Designed Spline Regression}
 \description{
 Geometrically Designed Splines (GeDS) regression is a non-parametric method
 for fitting spline regression models with variable knots. The GeDS technique
@@ -63,10 +63,10 @@ the functional gradient descent algorithm by utilizing normal GeD splines (i.e.,
 \code{\link{NGeDSboost}}.
 
 The outputs of both \code{\link{NGeDS}} and \code{\link{GGeDS}} functions are
-\code{\link{GeDS-class}} objects, while the outputs of \code{\link{NGeDSgam}}
-and \code{\link{NGeDSboost}} functions are \code{\link{GeDSgam-class}} and
-\code{\link{GeDSboost-class}} objects, respectively. \code{\link{GeDS-class}},
-\code{\link{GeDSgam-class}} and \code{\link{GeDSboost-class}} objects contain
+\code{"GeDS"} class objects, while the outputs of \code{\link{NGeDSgam}}
+and \code{\link{NGeDSboost}} functions are\code{"GeDSgam"} class and
+\code{"GeDSboost"} class objects, respectively.\code{"GeDS"} class,
+\code{"GeDSgam"} class and\code{"GeDSboost"} class objects contain
 second, third and fourth order spline fits. As described in 
 Kaishev et al. (2016), Dimitrova et al. (2023) and  Dimitrova et al. (2025),
 the "final" GeDS fit is the one minimizing the empirical deviance. Nevertheless,
@@ -75,8 +75,8 @@ the user can choose to use any of the available fits.
 The \pkg{GeDS} package also includes some datasets where GeDS regression
 proves to be very efficient and some user friendly functions that are designed
 to easily extract required information. Several methods are also provided to
-handle GeDS, GAM-GeDS and FGB-GeDS output results (see \code{\link{GeDS-class}},
-\code{\link{GeDSgam-class}} and \code{\link{GeDSboost-class}}, respectively).
+handle GeDS, GAM-GeDS and FGB-GeDS output results (see\code{"GeDS"} class,
+\code{"GeDSgam"} class and\code{"GeDSboost"} class, respectively).
 
 Throughout this document, we use the terms GeDS predictor model, GeDS
 regression and GeDS fit interchangeably.

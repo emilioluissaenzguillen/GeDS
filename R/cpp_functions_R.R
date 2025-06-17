@@ -83,8 +83,7 @@ Knotnew_R <- function(wht, restmp, x, dcm, oldknots, tol) {
   return(c(newknot, index))
 }
 
-
-
+#' @importFrom stats weighted.mean
 findNewDimKnot_R <- function(dcumFixedDim.Dim, Dim.weights, Dim.oldknots, matrFixedDim, Dim.index)
 {
   

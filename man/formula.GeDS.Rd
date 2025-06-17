@@ -4,7 +4,7 @@
 \alias{formula.GeDS}
 \alias{formula.GeDSboost}
 \alias{formula.GeDSgam}
-\title{Formula for the predictor model}
+\title{Formula for the Predictor Model}
 \usage{
 \method{formula}{GeDS}(x, ...)
 
@@ -13,7 +13,7 @@
 \method{formula}{GeDSgam}(x, ...)
 }
 \arguments{
-\item{x}{fitted \code{\link{GeDS-class}} object, produced by 
+\item{x}{fitted \code{"GeDS"} class object, produced by 
 \code{\link{NGeDS}} or \code{\link{GGeDS}}, from which the predictor model
 \code{\link[stats]{formula}} should be extracted.}
 

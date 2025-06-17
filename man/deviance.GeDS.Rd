@@ -4,7 +4,7 @@
 \alias{deviance.GeDS}
 \alias{deviance.GeDSboost}
 \alias{deviance.GeDSgam}
-\title{Deviance method for GeDS, GeDSboost, GeDSgam}
+\title{Deviance Method for GeDS, GeDSboost, GeDSgam}
 \usage{
 \method{deviance}{GeDS}(object, n = 3L, ...)
 
@@ -13,15 +13,15 @@
 \method{deviance}{GeDSgam}(object, n = 3L, ...)
 }
 \arguments{
-\item{object}{the \code{\link{GeDS-class}}, \code{\link{GeDSboost-class}} or
-\code{\link{GeDSgam-class}} object from which the deviance should be extracted.}
+\item{object}{The \code{"GeDS"} class, \code{\link{NGeDSboost}} or
+\code{\link{NGeDSgam}} object from which the deviance should be extracted.}
 
-\item{n}{integer value (2, 3 or 4) specifying the order (\eqn{=} degree
+\item{n}{Integer value (2, 3 or 4) specifying the order (\eqn{=} degree
 \eqn{+ 1}) of the GeDS/GeDSboost/GeDSgam fit whose deviance should be
 extracted. By default equal to \code{3L}; non-integer values will be passed
 to the function \code{\link{as.integer}}.}
 
-\item{...}{potentially further arguments (required by the definition of the
+\item{...}{Potentially further arguments (required by the definition of the
 generic function). These will be ignored, but with a warning.}
 }
 \value{
@@ -31,13 +31,13 @@ GeDS/GeDSboost/GeDSgam fit.
 \description{
 Method for the function \code{\link[stats]{deviance}} that allows the user to
 extract  the value of the deviance corresponding to a selected GeDS, GeDSboost
-or GeDSgam fit from a \code{\link{GeDS-Class}},
-\code{\link{GeDSboost-Class}} or \code{\link{GeDSgam-Class}} object.
+or GeDSgam fit from a \code{"GeDS"} class,
+\code{\link{NGeDSboost}} or \code{\link{NGeDSgam}} object.
 }
 \details{
 This is a method for the function \code{\link[stats]{deviance}}. As
-\code{\link{GeDS-class}}, \code{\link{GeDSboost-class}} and
-\code{\link{GeDSgam-class}} objects contain three different fits (linear,
+\code{"GeDS"} class, \code{\link{NGeDSboost}} and
+\code{\link{NGeDSgam}} objects contain three different fits (linear,
 quadratic and cubic), it is possible to specify the order of the GeDS fit
 for which the deviance is required via the input argument \code{n}.
 }

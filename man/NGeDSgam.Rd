@@ -23,7 +23,7 @@ NGeDSgam(
 )
 }
 \arguments{
-\item{formula}{a description of the model structure to be fitted,
+\item{formula}{A description of the model structure to be fitted,
 specifying both the dependent and independent variables. Unlike \code{\link{NGeDS}}
 and \code{\link{GGeDS}}, this formula supports multiple additive (normal) GeD
 spline regression components as well as linear components. For example, setting
@@ -31,33 +31,33 @@ spline regression components as well as linear components. For example, setting
 spline as the smoother for \code{X1} and for \code{X2}, while for \code{X3} a
 linear model would be used.}
 
-\item{family}{a character string indicating the response variable distribution
+\item{family}{A character string indicating the response variable distribution
 and link function to be used. Default is \code{"gaussian"}. This should be a
 character or a family object.}
 
-\item{data}{a data frame containing the variables referenced in the formula.}
+\item{data}{A data frame containing the variables referenced in the formula.}
 
-\item{weights}{an optional vector of `prior weights' to be put on the
+\item{weights}{An optional vector of `prior weights' to be put on the
 observations during the fitting process. It should be \code{NULL} or a numeric
 vector of the same length as the response variable defined in the formula.}
 
-\item{offset}{a vector of size \eqn{N} that can be used to specify a fixed
+\item{offset}{A vector of size \eqn{N} that can be used to specify a fixed
 component to be included in the linear predictor during fitting. In case
 more than one covariate is fixed, the user should sum the corresponding
 coordinates of the fixed covariates to produce one common \eqn{N}-vector of
 coordinates.}
 
-\item{normalize_data}{a logical that defines whether the data should be
+\item{normalize_data}{A logical that defines whether the data should be
 normalized (standardized) before fitting the baseline linear model, i.e.,
 before running the local-scoring algorithm. Normalizing the data involves
 scaling the predictor variables to have a mean of 0 and a standard deviation
 of 1. This process alters the scale and interpretation of the knots and
 coefficients estimated. Default is equal to \code{FALSE}.}
 
-\item{min_iterations}{optional parameter to manually set a minimum number of
+\item{min_iterations}{Optional parameter to manually set a minimum number of
 boosting iterations to be run. If not specified, it defaults to 0L.}
 
-\item{max_iterations}{optional parameter to manually set the maximum number
+\item{max_iterations}{Optional parameter to manually set the maximum number
 of boosting iterations to be run. If not specified, it defaults to \code{100L}.
 This setting serves as a fallback when the stopping rule, based on
 consecutive deviances and tuned by \code{phi_gam_exit} and \code{q_gam},
@@ -70,15 +70,15 @@ or directly specify \code{max_iterations}.}
 Both algorithms stop when the relative change in the deviance is below this
 threshold. Default is \code{0.99}.}
 
-\item{q_gam}{numeric parameter which allows to fine-tune the stopping rule of
+\item{q_gam}{Numeric parameter which allows to fine-tune the stopping rule of
 the local-scoring and backfitting iterations. By default equal to \code{2L}.}
 
-\item{beta}{numeric parameter in the interval \eqn{[0,1]}
+\item{beta}{Numeric parameter in the interval \eqn{[0,1]}
 tuning the knot placement in stage A of GeDS, for each of the GeD spline
 components of the model. Default is equal to \code{0.5}.
 See details in \code{\link{NGeDS}}.}
 
-\item{phi}{numeric parameter in the interval \eqn{[0,1]} specifying the
+\item{phi}{Numeric parameter in the interval \eqn{[0,1]} specifying the
 threshold for the stopping rule  (model selector) in stage A of GeDS, for each
 of the GeD spline components of the model. Default is equal to \code{0.99}.
 See details in \code{\link{NGeDS}}.}
@@ -88,7 +88,7 @@ by the GeDS base-learners in each boosting iteration, effectively setting the
 value of \code{max.intknots} in \code{\link{NGeDS}} at each backfitting
 iteration. Default is \code{500L}.}
 
-\item{q}{numeric parameter which allows to fine-tune the stopping rule of
+\item{q}{Numeric parameter which allows to fine-tune the stopping rule of
 stage A of GeDS, for each of the GeD spline components of the model. By
 default equal to \code{2L}. See details in \code{\link{NGeDS}}.}
 
@@ -97,12 +97,77 @@ fits (quadratic and cubic) after the local-scoring algorithm is run. Default
 is \code{TRUE}.}
 }
 \value{
-\code{\link{GeDSgam-Class}} object, i.e. a list of items that
-summarizes the main details of the fitted GAM-GeDS model. See
-\code{\link{GeDSgam-Class}} for details. Some S3 methods are available in
-order to make these objects tractable, such as
-\code{\link[=coef.GeDSgam]{coef}}, \code{\link[=knots.GeDSgam]{knots}},
-\code{\link[=print.GeDSgam]{print}} and \code{\link[=predict.GeDSgam]{predict}}.
+An object of class \code{"GeDSgam"} (a named list) with components:
+\describe{
+  \item{extcall}{Call to the \code{\link{NGeDSgam}} function.}
+  \item{formula}{A formula object representing the model to be fitted.}
+  \item{args}{A list containing the arguments passed to the \code{\link{NGeDSgam}} function.
+  This list includes:
+    \describe{
+      \item{\code{response}}{\code{data.frame} containing the response variable
+      observations.}
+      \item{\code{predictors}}{\code{data.frame} containing the corresponding
+      observations of the predictor variables included in the model.}
+      \item{\code{base_learners}}{Description of the model's base learners
+      ("smooth functions").}
+      \item{\code{family}}{The statistical family. The possible options are:
+              \code{binomial(link = "logit", "probit", "cauchit", "log", "cloglog")},
+              \code{gaussian(link = "identity", "log", "inverse")},
+              \code{Gamma(link = "inverse", "identity", "log")},
+              \code{inverse.gaussian(link = "1/mu^2", "inverse", "identity", "log")},
+              \code{poisson(link = "log", "identity", "sqrt")},
+              \code{quasi(link = "identity", variance = "constant")},
+              \code{quasibinomial(link = "logit", "probit", "cloglog", "identity", "inverse", "log", "1/mu^2", "sqrt")}
+              and \code{quasipoisson(link = "log", "identity", "sqrt")}.
+        
+      }
+      \item{\code{normalize_data}}{If \code{TRUE}, then response and predictors
+      were standardized before running the local-scoring algorithm.}
+      \item{\code{X_mean}}{Mean of the predictor variables (only if
+      \code{normalize_data = TRUE}).}
+      \item{\code{X_sd}}{Standard deviation of the predictors (only if
+      \code{normalize_data = TRUE}, else is \code{NULL}).}
+      \item{\code{Y_mean}}{Mean of the response variable (only if
+      \code{normalize_data = TRUE}, else is \code{NULL}).}
+      \item{\code{Y_sd}}{Standard deviation of the response variable (only if
+      \code{normalize_data = TRUE}, else is \code{NULL}).}
+    }
+  }
+
+  \item{final_model}{A list detailing the final GeDSgam model selected after
+  running the local scoring algorithm. The chosen model minimizes deviance
+  across all models generated by each local-scoring iteration. This list includes:
+    \describe{
+    \item{\code{model_name}}{Local-scoring iteration that yielded the "best"
+    model. Note that when \code{family = "gaussian"}, it will always correspond
+    to \code{iter1}, as only one local-scoring iteration is conducted in this
+    scenario. This occurs because, with \code{family = "gaussian"}, the
+    algorithm is tantamount to directly implementing backfitting.}
+    \item{\code{DEV}}{Deviance of the final model. For \code{family = "gaussian"}
+    this coincides with the Residual Sum of Squares.}
+    \item{\code{Y_hat}}{Fitted values, including:
+      - \code{eta}: the additive predictor,
+      - \code{mu}: the vector of means,
+      - \code{z}: the adjusted dependent variable.}
+    \item{\code{base_learners}}{A list containing, for each base-learner, the
+    corresponding linear fit piecewise polynomial coefficients. It includes the
+    knots for each order fit, resulting from computing the averaging knot
+    location. Although if the number of internal knots of the final linear fit
+    is less than \eqn{n-1}, the averaging knot location is not computed.}
+    \item{\code{Linear.Fit}}{Final linear fit in B-spline form (see \code{\link{SplineReg}}).}
+    \item{\code{Quadratic.Fit}}{Quadratic fit obtained via Schoenberg
+    variation diminishing approximation (see \code{\link{SplineReg}}).}
+    \item{\code{Cubic.Fit}}{Cubic fit obtained via via Schoenberg variation
+    diminishing approximation (see \code{\link{SplineReg}}).}
+    }
+  }
+  \item{predictions}{A list containing the predicted values obtained for each of
+  the fits (linear, quadratic, and cubic). Each of the predictions contains
+  both the additive predictor \code{eta} and the vector of means \code{mu}.}
+
+  \item{internal_knots}{A list detailing the internal knots obtained for the
+  fits of different order (linear, quadratic, and cubic).}
+}
 }
 \description{
 Implements the Local Scoring Algorithm (Hastie and Tibshirani
@@ -197,7 +262,10 @@ Models and Functional Gradient Boosting, based on Geometrically Designed
 (GeD) Splines. \emph{Manuscript submitted for publication.}
 }
 \seealso{
-\code{\link{NGeDS}}; \code{\link{GGeDS}}; \code{\link{GeDSgam-Class}};
-S3 methods such as \code{\link{knots.GeDSgam}}; \code{\link{coef.GeDSgam}};
-\code{\link{deviance.GeDSgam}}; \code{\link{predict.GeDSgam}}
+\code{\link{NGeDS}}; \code{\link{GGeDS}};S3 methods such as
+\code{\link[=coef.GeDSgam]{coef}}, \code{\link[=confint.GeDSgam]{confint}},
+\code{\link{deviance.GeDSgam}}, \code{\link{family}}, \code{\link{formula}},
+\code{\link[=knots.GeDSgam]{knots}}, \code{\link{logLik}},
+\code{\link[=predict.GeDSgam]{predict}}, \code{\link[=print.GeDSgam]{print}},
+\code{\link[=summary.GeDSgam]{summary}}.
 }

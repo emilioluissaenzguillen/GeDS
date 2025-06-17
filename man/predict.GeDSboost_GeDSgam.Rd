@@ -5,7 +5,7 @@
 \alias{predict.GeDSboost}
 \alias{predict.GeDSboost,}
 \alias{predict.GeDSgam}
-\title{Predict method for GeDSboost, GeDSgam}
+\title{Predict Method for GeDSboost, GeDSgam}
 \usage{
 \method{predict}{GeDSboost}(
   object,
@@ -26,28 +26,28 @@
 )
 }
 \arguments{
-\item{object}{the \code{\link{GeDSboost-class}} or
-\code{\link{GeDSgam-class}} object.}
+\item{object}{The \code{"GeDSboost"} class or
+\code{"GeDSgam"} class object.}
 
-\item{newdata}{an optional data frame containing values of the independent
+\item{newdata}{An optional data frame containing values of the independent
 variables at which predictions are to be computed. If omitted, the fitted 
 values are extracted from the \code{object} itself.}
 
-\item{n}{the order of the GeDS fit (\code{2L} for linear, \code{3L} for
+\item{n}{The order of the GeDS fit (\code{2L} for linear, \code{3L} for
 quadratic, and \code{4L} for cubic). Alternatively, \code{"all"} can be used
 to return a list with the predictions from all three fits. Default is \code{3L}.}
 
-\item{base_learner}{either \code{NULL} or a \code{character} string specifying
+\item{base_learner}{Either \code{NULL} or a \code{character} string specifying
 the base-learner of the model for which predictions should be computed. Note
 that single base-learner predictions are provided on the linear predictor scale.}
 
-\item{type}{character string indicating the type of prediction required. By
+\item{type}{Character string indicating the type of prediction required. By
 default it is equal to \code{"response"}, i.e. the result is on the scale of
 the response variable. See details for the other options. Alternatively if one
 wants the predictions to be on the predictor scale, it is necessary to set
 \code{type = "link"}.}
 
-\item{...}{potentially further arguments.}
+\item{...}{Potentially further arguments.}
 }
 \value{
 Numeric vector (or list) of predictions.

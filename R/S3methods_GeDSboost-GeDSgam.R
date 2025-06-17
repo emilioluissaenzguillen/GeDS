@@ -54,17 +54,17 @@ coef.GeDSboost_GeDSgam <- function(object, n = 3L, ...)
   return(coefficients)
 }
 
-#' @title Coef method for GeDSboost, GeDSgam
+#' @title Coef Method for GeDSboost, GeDSgam
 #' @name coef.GeDSboost,gam
 #' @description
 #' Methods for the functions \code{\link[stats]{coef}} and
 #' \code{\link[stats]{coefficients}} that allow to extract the estimated
-#' coefficients of a \code{\link{GeDSboost-class}} or \code{\link{GeDSgam-class}}
+#' coefficients of a \code{"GeDSboost"} class or \code{"GeDSgam"} class
 #' object.
-#' @param object the \code{\link{GeDSboost-class}} or
-#' \code{\link{GeDSgam-class}} object from which the coefficients should be
+#' @param object The \code{"GeDSboost"} class or
+#' \code{"GeDSgam"} class object from which the coefficients should be
 #' extracted.
-#' @param n integer value (2, 3 or 4) specifying the order (\eqn{=} degree
+#' @param n Integer value (2, 3 or 4) specifying the order (\eqn{=} degree
 #' \eqn{ + 1}) of the FGB-GeDS/GAM-GeDS fit whose coefficients should be
 #' extracted. 
 #' \itemize{
@@ -80,7 +80,7 @@ coef.GeDSboost_GeDSgam <- function(object, n = 3L, ...)
 #' }
 #' By default \code{n} is equal to \code{3L}. Non-integer values will be passed
 #' to the function \code{\link{as.integer}}.
-#' @param ... potentially further arguments (required by the definition of the
+#' @param ... Potentially further arguments (required by the definition of the
 #' generic function). These will be ignored, but with a warning.
 #' 
 #' @return
@@ -270,10 +270,10 @@ logLik.GeDSgam <- logLik.GeDS
 #' @name n.boost.iter
 #' @description
 #' Method for \code{n.boost.iter} that returns the number of boosting iterations 
-#' used in fitting a \code{\link{GeDSboost-class}} object.
+#' used in fitting a \code{"GeDSboost"} class object.
 #'
-#' @param object a \code{\link{GeDSboost-class}} object.
-#' @param ... further arguments (ignored).
+#' @param object A \code{"GeDSboost"} class object.
+#' @param ... Further arguments (ignored).
 #'
 #' @return An integer indicating the number of boosting iterations used.
 #' 
@@ -303,6 +303,7 @@ extract_link_pred <- function(fit) {
   }
 }
 
+#' @importFrom splines splineDesign
 #' @noRd
 predict.GeDSboost_GeDSgam <- function(object, newdata, n = 3L,
                                       base_learner = NULL, type = c("response", "link"), ...)
@@ -844,29 +845,29 @@ predict.GeDSboost_GeDSgam <- function(object, newdata, n = 3L,
   }
 }
 
-#' @title Predict method for GeDSboost, GeDSgam
+#' @title Predict Method for GeDSboost, GeDSgam
 #' @name predict.GeDSboost,gam
 #' @description 
 #' This method computes predictions from GeDSboost and GeDSgam objects. 
 #' It is designed to be user-friendly and accommodate different orders of the
 #' GeDSboost or GeDSgam fits.
-#' @param object the \code{\link{GeDSboost-class}} or
-#' \code{\link{GeDSgam-class}} object.
-#' @param newdata an optional data frame containing values of the independent
+#' @param object The \code{"GeDSboost"} class or
+#' \code{"GeDSgam"} class object.
+#' @param newdata An optional data frame containing values of the independent
 #' variables at which predictions are to be computed. If omitted, the fitted 
 #' values are extracted from the \code{object} itself.
-#' @param type character string indicating the type of prediction required. By
+#' @param type Character string indicating the type of prediction required. By
 #' default it is equal to \code{"response"}, i.e. the result is on the scale of
 #' the response variable. See details for the other options. Alternatively if one
 #' wants the predictions to be on the predictor scale, it is necessary to set
 #' \code{type = "link"}.
-#' @param n the order of the GeDS fit (\code{2L} for linear, \code{3L} for
+#' @param n The order of the GeDS fit (\code{2L} for linear, \code{3L} for
 #' quadratic, and \code{4L} for cubic). Alternatively, \code{"all"} can be used
 #' to return a list with the predictions from all three fits. Default is \code{3L}.
-#' @param base_learner either \code{NULL} or a \code{character} string specifying
+#' @param base_learner Either \code{NULL} or a \code{character} string specifying
 #' the base-learner of the model for which predictions should be computed. Note
 #' that single base-learner predictions are provided on the linear predictor scale.
-#' @param ... potentially further arguments.
+#' @param ... Potentially further arguments.
 #' 
 #' @return Numeric vector (or list) of predictions.
 #' @aliases predict.GeDSboost, predict.GeDSgam
@@ -1123,9 +1124,9 @@ split_into_lines <- function(text, max_length)
 #' \code{\link{NGeDS}} fit on the corresponding negative gradient.
 #' Note: Applicable only for \code{\link{NGeDSboost}} models with a single
 #' univariate base-learner.
-#' @param iters numeric, specifies the iteration(s) number.
-#' @param object a \code{\link{GeDSboost-class}} object.
-#' @param final_fits logical indicating whether the final linear, quadratic and
+#' @param iters Numeric, specifies the iteration(s) number.
+#' @param object A \code{"GeDSboost"} class object.
+#' @param final_fits Logical indicating whether the final linear, quadratic and
 #' cubic fits should be plotted.
 #' 
 #' @method visualize_boosting GeDSboost
@@ -1166,10 +1167,10 @@ split_into_lines <- function(text, max_length)
 #' visualize_boosting(Gmodboost, iters = 0:3, final_fits = TRUE)
 #' par(mfrow=c(1,1))
 #' 
+#' @importFrom graphics plot lines legend rug points abline mtext
 #' @export
 #' @aliases visualize_boosting visualize_boosting.GeDSboost
 #' @rdname visualize_boosting
-#' @importFrom graphics mtext abline
 
 visualize_boosting.GeDSboost <- function(object, iters = NULL, final_fits = FALSE)
 {
@@ -1337,10 +1338,10 @@ visualize_boosting <- visualize_boosting.GeDSboost
 ################################################################################
 ############################ BASE LEARNER IMPORTANCE ###########################
 ################################################################################
-#' @title Base Learner Importance for GeDSboost objects
+#' @title Base Learner Importance for GeDSboost Objects
 #' @name bl_imp.GeDSboost
 #' @description
-#' S3 method for \code{\link{GeDSboost-class}} objects that calculates the
+#' S3 method for \code{"GeDSboost"} class objects that calculates the
 #' in-bag risk reduction ascribable to each base-learner of an FGB-GeDS model.
 #' Essentially, it measures and aggregates the decrease in the empirical risk
 #' attributable to each base-learner for every time it is selected across the
@@ -1350,11 +1351,11 @@ visualize_boosting <- visualize_boosting.GeDSboost
 #' from \code{\link[mboost]{varimp}} and is compatible with the available
 #' \code{\link[mboost]{mboost-package}} methods for \code{\link[mboost]{varimp}},
 #' including \code{plot}, \code{print} and \code{as.data.frame}.
-#' @param object an object of class \code{\link{GeDSboost-class}}.
-#' @param boosting_iter_only logical value, if \code{TRUE} then base-learner
+#' @param object An object of class \code{"GeDSboost"} class.
+#' @param boosting_iter_only Logical value, if \code{TRUE} then base-learner
 #' in-bag risk reduction is only computed across boosting iterations, i.e.,
 #' without taking into account a potential initial GeDS learner.
-#' @param ... potentially further arguments.
+#' @param ... Potentially further arguments.
 #'
 #' @return An object of class \code{varimp} with available \code{plot},
 #' \code{print} and \code{as.data.frame} methods.

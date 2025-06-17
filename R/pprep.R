@@ -8,7 +8,7 @@
 #' @description
 #' The function converts a GeDS fit which has a  B-spline representation to a
 #' piecewise polynomial form.
-#' @param object  the \code{\link{GeDS-class}} where the GeDS fit to be
+#' @param object  the \code{"GeDS"} class where the GeDS fit to be
 #' converted is found.
 #' @param n integer value (2, 3 or 4) specifying the order (\eqn{=} degree
 #' \eqn{+ 1}) of the GeDS fit which should be converted to a piecewise
@@ -24,12 +24,12 @@
 #' representation. }
 #' 
 #' @details
-#' This function converts a selected GeDS fit from a \code{\link{GeDS-class}}
+#' This function converts a selected GeDS fit from a \code{"GeDS"} class
 #' object represented in terms of B-splines into an object where the fit is
 #' represented in terms of piecewise polynomials.
 #'
 #' The function  wraps \code{\link[splines]{polySpline}} in order to let it 
-#' accept \code{\link{GeDS-class}} objects as input. Hence the function provides
+#' accept \code{"GeDS"} class objects as input. Hence the function provides
 #' a useful link between the package \pkg{GeDS} and the package \pkg{splines},
 #' allowing the user to take advantage of the functions provided in the
 #' \pkg{splines} package.
@@ -73,7 +73,9 @@
 #'         add = TRUE, col = cols[i])
 #'   abline(v = knt[i])
 #' }
-#'
+#' 
+#' @importFrom splines polySpline
+#' @importFrom stats as.formula
 #' @export
 #' 
 #' @note Let us note that the first \eqn{k+1} rows of the matrix contain the

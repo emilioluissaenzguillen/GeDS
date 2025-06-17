@@ -31,9 +31,7 @@ validate_iterations <- function(iterations, default, name) {
 ##########################
 ## 3. get_mboost_family ##
 #########################
-#' @import mboost
-#' @import stats
-#' @import mi
+#' @importFrom stats gaussian Gamma binomial poisson
 
 # Input should be "family`at`name", with family being a boost_family_glm object
 get_mboost_family <- function(family) {
@@ -54,7 +52,7 @@ get_mboost_family <- function(family) {
          "Negative Binomial Likelihood -- cloglog link" = stats::binomial(link = "cloglog"),
          # Poisson
          "Poisson Likelihood" = stats::poisson(link = "log"),
-         "Negative Multinomial Likelihood" = mi::multinomial(link = "logit"),
+         #"Negative Multinomial Likelihood" = mi::multinomial(link = "logit"),
          stop("Invalid distribution type")
   )
 }

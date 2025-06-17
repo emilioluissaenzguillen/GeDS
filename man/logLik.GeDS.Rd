@@ -13,7 +13,7 @@
 \method{logLik}{GeDSgam}(object, n = 3L, ...)
 }
 \arguments{
-\item{object}{a \code{\link{GeDS-class}} object.}
+\item{object}{a \code{"GeDS"} class object.}
 
 \item{n}{integer value (2, 3 or 4) specifying the order (\eqn{=} degree
 \eqn{+ 1}) of the GeDS/GeDSboost/GeDSgam fit whose loglikelihood should be
@@ -30,5 +30,5 @@ Method for \code{\link[stats]{logLik}} that returns the log-likelihood of
 the selected GeDS regression model.
 }
 \seealso{
-\code{\link[stats]{logLik}}, \code{\link{GeDS-class}}
+\code{\link[stats]{logLik}}, \code{"GeDS"} class
 }

@@ -2,12 +2,12 @@
 % Please edit documentation in R/S3methods.R
 \name{predict.GeDS}
 \alias{predict.GeDS}
-\title{Predict method for GeDS objects}
+\title{Predict Method for GeDS Objects}
 \usage{
 \method{predict}{GeDS}(object, newdata, type = c("response", "link", "terms"), n = 3L, ...)
 }
 \arguments{
-\item{object}{the \code{\link{GeDS-class}} object for which the
+\item{object}{the \code{"GeDS"} class object for which the
 computation of the predicted values is required.}
 
 \item{newdata}{an optional \code{data.frame}, \code{list} or
@@ -38,7 +38,7 @@ This is a user friendly method to compute predictions from GeDS objects.
 }
 \details{
 This is a method for the function \code{\link[stats]{predict}} that allows
-the user to handle \code{\link{GeDS-Class}} objects.
+the user to handle \code{"GeDS"} class objects.
 
 In analogy with the function \code{\link[stats]{predict.glm}} in the
 \pkg{stats} package, the user can specify the scale on which the predictions

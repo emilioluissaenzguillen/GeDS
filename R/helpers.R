@@ -1,5 +1,5 @@
 ################################################################################
-
+#' @importFrom stats .lm.fit
 lm.wfit.light <- function (x, y, w, tol = 1e-07) {
   x.asgn <- attr(x, "assign")
   zero.weights <- any(w == 0)
@@ -71,7 +71,8 @@ makeNewRes2 <- function(resold, recurr, weights){
 }
 
 ################################################################################
-
+#' @importFrom splines splineDesign
+#' @importFrom stats coef .lm.fit
 SplineReg_fast_weighted_zed <- function(X, Y, Z, offset,
                                         weights = rep(1, length(X)), InterKnots,
                                         n, extr = range(X))
@@ -93,7 +94,8 @@ SplineReg_fast_weighted_zed <- function(X, Y, Z, offset,
 }
 
 ################################################################################
-
+#' @importFrom splines splineDesign
+#' @importFrom stats .lm.fit lm.fit lm.wfit residuals coef
 SplineReg_fast_biv <- function(X, Y, Z, W=NULL, weights = rep(1, length(X)),
                                InterKnotsX, InterKnotsY, n, Xextr = range(X),
                                Yextr = range(Y), flag=TRUE, 
@@ -137,7 +139,7 @@ SplineReg_fast_biv <- function(X, Y, Z, W=NULL, weights = rep(1, length(X)),
 }
 
 ################################################################################
-
+#' @importFrom splines splineDesign
 newknot.guess <- function(intknots, extr, guess, newknot) {
   # i. Determine the position of the new knot relative to existing internal knots
   newknot.position <- sum(intknots < as.numeric(newknot))
@@ -199,8 +201,9 @@ newknot.guess <- function(intknots, extr, guess, newknot) {
 # }
 
 ################################################################################
-
-
+#' @importFrom MASS ginv
+#' @importFrom Matrix rankMatrix
+#' @importFrom stats qt qnorm
 CI <- function(tmp, resid, prob = 0.95, basisMatrix, basisMatrix2, predicted,
                n_obs = NROW(basisMatrix),
                type = "lm",
@@ -232,7 +235,7 @@ CI <- function(tmp, resid, prob = 0.95, basisMatrix, basisMatrix2, predicted,
           solve(matcb)
         }, error = function(e2) {
           message("SplineReg_LM, Huang CI: Matrix singular, using ginv().")
-          MASS::ginv(matcb)
+          ginv(matcb)
         })
       })
       # ii. Var(\hat{f} | X) = (1/n)*B^t(x) * E_n[B(X)B^t(X)]^-1 * B(x) * \hat{σ}^2
@@ -262,7 +265,7 @@ CI <- function(tmp, resid, prob = 0.95, basisMatrix, basisMatrix2, predicted,
           eta <- predict(tmp, type = "link")
           
           matcb <- t(basisMatrix2) %*% diag(tmp$weights) %*% basisMatrix2
-          Sigma <- summary(tmp)$dispersion * MASS::ginv(matcb)
+          Sigma <- summary(tmp)$dispersion * ginv(matcb)
           se_eta   <- sqrt(rowSums((basisMatrix2 %*% Sigma) * basisMatrix2))
           
           list(fit = eta, se.fit = se_eta)

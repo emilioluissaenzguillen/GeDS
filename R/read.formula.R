@@ -7,6 +7,7 @@
 #######################################################
 # Function for reading the formula of NGeDS and GGeDS #
 #######################################################
+#' @importFrom stats terms model.matrix model.frame model.response na.omit
 read.formula <- function(formula, data, weights, offset)
   {
   # Determine model terms based on 'formula', using 'data' if provided
@@ -75,6 +76,7 @@ read.formula <- function(formula, data, weights, offset)
 ###############################################################
 # Function for reading the formula of NGeDSboost and NGeDSgam #
 ###############################################################
+#' @importFrom stats setNames
 read.formula.boost <- read.formula.gam <- function(formula, data){
   
   formula <- as.formula(formula)
@@ -140,7 +142,7 @@ read.formula.boost <- read.formula.gam <- function(formula, data){
   return(list(terms = terms, response = response, predictors = predictors, base_learners = base_learners))
 }
 
-#' @title Defining the covariates for the spline component in a GeDS formula.
+#' @title Defining the Covariates for the Spline Component in a GeDS Formula
 #' @name f
 #' @description
 #' In general the GeDS predictor model may include a GeD spline regression

@@ -5,3 +5,4 @@
 ^vignettes/jss_article\.pdf$
 ^\.github(/|$)
 
+^dev$

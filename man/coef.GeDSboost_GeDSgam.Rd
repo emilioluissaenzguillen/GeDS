@@ -5,18 +5,18 @@
 \alias{coef.GeDSboost}
 \alias{coef.GeDSboost,}
 \alias{coef.GeDSgam}
-\title{Coef method for GeDSboost, GeDSgam}
+\title{Coef Method for GeDSboost, GeDSgam}
 \usage{
 \method{coef}{GeDSboost}(object, n = 3L, ...)
 
 \method{coef}{GeDSgam}(object, n = 3L, ...)
 }
 \arguments{
-\item{object}{the \code{\link{GeDSboost-class}} or
-\code{\link{GeDSgam-class}} object from which the coefficients should be
+\item{object}{The \code{"GeDSboost"} class or
+\code{"GeDSgam"} class object from which the coefficients should be
 extracted.}
 
-\item{n}{integer value (2, 3 or 4) specifying the order (\eqn{=} degree
+\item{n}{Integer value (2, 3 or 4) specifying the order (\eqn{=} degree
 \eqn{ + 1}) of the FGB-GeDS/GAM-GeDS fit whose coefficients should be
 extracted. 
 \itemize{
@@ -33,7 +33,7 @@ extracted.
 By default \code{n} is equal to \code{3L}. Non-integer values will be passed
 to the function \code{\link{as.integer}}.}
 
-\item{...}{potentially further arguments (required by the definition of the
+\item{...}{Potentially further arguments (required by the definition of the
 generic function). These will be ignored, but with a warning.}
 }
 \value{
@@ -43,7 +43,7 @@ multivariate predictor model.
 \description{
 Methods for the functions \code{\link[stats]{coef}} and
 \code{\link[stats]{coefficients}} that allow to extract the estimated
-coefficients of a \code{\link{GeDSboost-class}} or \code{\link{GeDSgam-class}}
+coefficients of a \code{"GeDSboost"} class or \code{"GeDSgam"} class
 object.
 }
 \seealso{

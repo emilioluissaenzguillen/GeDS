@@ -13,7 +13,7 @@
 \method{family}{GeDSgam}(object, ...)
 }
 \arguments{
-\item{object}{A \code{\link{GeDS-class}} object.}
+\item{object}{A \code{"GeDS"} class object.}
 
 \item{...}{further arguments (ignored).}
 }
@@ -26,5 +26,5 @@ Method for \code{\link[stats]{family}} that returns the error distribution
 family used in the fitted GeDS model.
 }
 \seealso{
-\code{\link[stats]{family}}, \code{\link{GeDS-class}}
+\code{\link[stats]{family}}, \code{"GeDS"} class
 }

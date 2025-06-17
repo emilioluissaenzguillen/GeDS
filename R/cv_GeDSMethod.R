@@ -3,23 +3,24 @@
 #################################### Cross-validation ###################################
 #########################################################################################
 #########################################################################################
-#' @title k-fold cross-validation
+#' @title K-Fold Cross-Validation
 #' @name crossv_GeDS
 #' @description
 #' \code{crossv_GeDS} performs k-fold cross-validation for tuning the relevant
 #' parameters of the \code{NGeDS}, \code{GGeDS}, \code{NGeDSgam}, and
 #' \code{NGeDSboost} models.
-#' @param formula a description of the structure of the model structure,
+#' @param formula A description of the structure of the model structure,
 #' including the dependent and independent variables.
-#' @param data a data frame containing the variables referenced in the formula.
-#' @param model_fun the GeDS model to be fitted, that is, \code{NGeDS},
+#' @param data A data frame containing the variables referenced in the formula.
+#' @param model_fun The GeDS model to be fitted, that is, \code{NGeDS},
 #' \code{GGeDS}, \code{NGeDSgam} or \code{NGeDSboost}.
-#' @param parameters to tune via cross-validation. These are: \code{beta}, \code{phi} and
-#' \code{q} in the case of \code{NGeDS}, \code{GGeDS} and \code{NGeDSgam}. In
-#' addition, for \code{NGeDSboost}, \code{int.knots_init} and \code{shrinkage}
-#' can also be tuned. Default values are \code{int.knots_init_grid = c(0, 1, 2)},
-#' \code{shrinkage_grid = c(0.1, 0.5, 1)}, \code{beta_grid = c(0.3, 0.5, 0.7)},
-#' \code{phi_grid = c(0.9, 0.95, 0.99)}, \code{q_grid = c(2, 3))}.
+#' @param parameters A set of parameters to be tuned via cross-validation.
+#' These are: \code{beta}, \code{phi} and \code{q} in the case of \code{NGeDS},
+#' \code{GGeDS} and \code{NGeDSgam}. In addition, for \code{NGeDSboost},
+#' \code{int.knots_init} and \code{shrinkage} can also be tuned. Default values
+#' are \code{int.knots_init_grid = c(0, 1, 2)}, \code{shrinkage_grid = c(0.1, 0.5, 1)},
+#' \code{beta_grid = c(0.3, 0.5, 0.7)}, \code{phi_grid = c(0.9, 0.95, 0.99)},
+#' \code{q_grid = c(2, 3))}.
 #'
 #' @return Two data frames, \code{best_params} and \code{results}.
 #' \code{best_params} contains the best combination of parameters according to
@@ -72,9 +73,10 @@
 #' }
 #' 
 #' @export
-#' @importFrom foreach foreach %dopar%
+#' @importFrom foreach foreach %dopar% %:%
 #' @importFrom doParallel registerDoParallel
 #' @importFrom parallel makeCluster stopCluster detectCores
+#' @importFrom stats predict
 #' @importFrom utils globalVariables
 
 # Declare loop variables
@@ -153,9 +155,9 @@ cross_validate.GeDS <- function(formula, data, model_fun, n = 2L, n_folds = 5L,
                            ncol = 11)
 
   # Register parallel backend
-  n_cores <- max(1, parallel::detectCores() - 1) # Avoid using all cores
-  cl <- parallel::makeCluster(n_cores)
-  doParallel::registerDoParallel(cl)
+  n_cores <- max(1, detectCores() - 1) # Avoid using all cores
+  cl <- makeCluster(n_cores)
+  registerDoParallel(cl)
 
   # Parallel processing
   results_list <- foreach(i = 1:length(beta_grid), .combine = rbind, .packages = "GeDS") %:%
@@ -235,7 +237,7 @@ cross_validate.GeDS <- function(formula, data, model_fun, n = 2L, n_folds = 5L,
     }
 
   # Stop the parallel backend
-  parallel::stopCluster(cl)
+  stopCluster(cl)
 
   # Convert results to a dataframe
   results_matrix <- do.call(cbind, results_list)
@@ -299,9 +301,9 @@ cross_validate.GeDSboost <- function(formula, data, model_fun, n = 2L, n_folds =
                            ncol = 11)
 
   # Register parallel backend
-  n_cores <- parallel::detectCores()
-  cl <- parallel::makeCluster(n_cores)
-  doParallel::registerDoParallel(cl)
+  n_cores <- detectCores()
+  cl <- makeCluster(n_cores)
+  registerDoParallel(cl)
 
   # Parallel processing
   results_list <- foreach(i = 1:length(int.knots_init_grid), .combine = rbind, .packages = "GeDS",
@@ -367,7 +369,7 @@ cross_validate.GeDSboost <- function(formula, data, model_fun, n = 2L, n_folds =
     }
 
   # Stop the parallel backend
-  parallel::stopCluster(cl)
+  stopCluster(cl)
 
   # Convert results to a dataframe
   results_matrix <- do.call(cbind, results_list)

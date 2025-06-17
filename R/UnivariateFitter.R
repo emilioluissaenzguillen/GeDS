@@ -3,75 +3,74 @@
 ############################## Univariate Fitters ##############################
 ################################################################################
 ################################################################################
-#' @title Functions used to fit GeDS objects with an univariate spline regression
-#' component
+#' @title Functions Used to Fit GeDS Objects with a Univariate Spline Regression
 #' @name UnivariateFitters
 #' @aliases Fitters UnivariateFitter GenUnivariateFitter
 #' @description
 #' These are computing engines called by \code{\link{NGeDS}} and
 #' \code{\link{GGeDS}}, needed for the underlying fitting procedures.
-#' @param X a numeric vector containing \eqn{N} sample values of the covariate
+#' @param X A numeric vector containing \eqn{N} sample values of the covariate
 #' chosen to enter the spline regression component of the predictor model.
-#' @param Y a vector of size \eqn{N} containing the observed values of the
+#' @param Y A vector of size \eqn{N} containing the observed values of the
 #' response variable \eqn{y}.
-#' @param Z a design matrix with \eqn{N} rows containing other covariates
+#' @param Z A design matrix with \eqn{N} rows containing other covariates
 #' selected to enter the parametric component of the predictor model (see
 #' \code{\link[=formula.GeDS]{formula}}). If no such covariates are selected, it
 #' is set to \code{NULL} by default.
-#' @param family a description of the error distribution and link function to be
+#' @param family A description of the error distribution and link function to be
 #' used in the model. This can be a character string naming a family function
 #' (e.g. \code{"gaussian"}), the family function itself (e.g.
 #' \code{\link[stats]{gaussian}}) or the result of a call to a family function
 #' (e.g. \code{gaussian()}). See \link[stats]{family} for details on family
 #' functions.
-#' @param weights an optional vector of size \eqn{N} of `prior weights' to be
+#' @param weights An optional vector of size \eqn{N} of `prior weights' to be
 #' put on the observations in the fitting process in case the user requires
 #' weighted GeDS fitting. It is \code{NULL} by default.
-#' @param beta numeric parameter in the interval \eqn{[0,1]} tuning the knot
+#' @param beta Numeric parameter in the interval \eqn{[0,1]} tuning the knot
 #' placement in stage A of GeDS. See the description of \code{\link{NGeDS}} or
 #' \code{\link{GGeDS}}.
-#' @param phi numeric parameter in the interval \eqn{[0,1]} specifying the
+#' @param phi Numeric parameter in the interval \eqn{[0,1]} specifying the
 #' threshold for the stopping rule  (model selector) in stage A of GeDS. See
 #' also \code{stoptype} and details in the description of \code{\link{NGeDS}} or
 #' \code{\link{GGeDS}}.
-#' @param min.intknots optional parameter allowing the user to set a minimum
+#' @param min.intknots Optional parameter allowing the user to set a minimum
 #' number of internal knots required. By default equal to zero.
-#' @param max.intknots optional parameter allowing the user to set a maximum
+#' @param max.intknots Optional parameter allowing the user to set a maximum
 #' number of internal knots to be added by the GeDS estimation algorithm. By
 #' default equal to the number of internal knots \eqn{\kappa} for the saturated
 #' GeDS model (i.e. \eqn{\kappa=N-2}).
-#' @param q numeric parameter which allows to fine-tune the stopping rule of
+#' @param q Numeric parameter which allows to fine-tune the stopping rule of
 #' stage A of GeDS, by default equal to 2. See details in the description of
 #' \code{\link{NGeDS}} or \code{\link{GGeDS}}.
-#' @param extr numeric vector of 2 elements representing the left-most and
+#' @param extr Numeric vector of 2 elements representing the left-most and
 #' right-most limits of the interval embedding the sample values of \code{X}. By
 #' default equal correspondingly to the smallest and largest values of \code{X}.
-#' @param show.iters logical variable indicating whether or not to print 
+#' @param show.iters Logical variable indicating whether or not to print 
 #' information at each step. By default equal to \code{FALSE}.
-#' @param stoptype a character string indicating the type of GeDS stopping rule
+#' @param stoptype A character string indicating the type of GeDS stopping rule
 #' to be used. It should be either \code{"SR"}, \code{"RD"} or \code{"LR"},
 #' partial match allowed. See details of \code{\link{NGeDS}} or
 #' \code{\link{GGeDS}}.
-#' @param offset a vector of size \eqn{N} that can be used to specify a fixed
+#' @param offset A vector of size \eqn{N} that can be used to specify a fixed
 #' covariate to be included in the predictor model avoiding the estimation of
 #' its corresponding regression coefficient. In case more than one covariate is
 #' fixed, the user should sum the corresponding coordinates of the fixed
 #' covariates to produce one common \eqn{N}-vector of coordinates. The
 #' \code{offset} argument is particularly useful when using 
 #' \code{GenUnivariateFitter} if the link function used is not the identity.
-#' @param tol numeric value indicating the tolerance to be used in the knot
+#' @param tol Numeric value indicating the tolerance to be used in the knot
 #' placement steps in stage A. By default equal to 1E-12. See details below.
-#' @param higher_order a logical that defines whether to compute the higher
+#' @param higher_order A logical that defines whether to compute the higher
 #' order fits (quadratic and cubic) after stage A is run. Default is
 #' \code{TRUE}.
-#' @param intknots_init vector of initial internal knots from which to start the GeDS
+#' @param intknots_init Vector of initial internal knots from which to start the GeDS
 #' Stage A iterations. See Section 3 of Kaishev et al. (2016). Default is \code{NULL}.
 #' @param fit_init A list containing fitted values \code{pred}, along with
 #' corresponding \code{intknots} and \code{coef}, representing the initial fit from
 #' which to begin Stage A GeDS iteration (i.e. departing from step 2).
-#' @param only_pred logical, if \code{TRUE} only predictions are computed.
+#' @param only_pred Logical, if \code{TRUE} only predictions are computed.
 #' 
-#' @return A \code{\link{GeDS-Class}} object, but without the \code{Formula},
+#' @return A \code{"GeDS"} class object, but without the \code{Formula},
 #' \code{extcall}, \code{terms} and \code{znames} slots.
 #' 
 #' @details
@@ -131,7 +130,7 @@
 #'        lty = c(1,2))
 #'
 #' @seealso  \code{\link{NGeDS}} and \code{\link{GGeDS}}.
-#' 
+#' @importFrom stats .lm.fit qchisq pchisq
 #' @export
 #' @rdname UnivariateFitters
 #' 
@@ -421,6 +420,8 @@ UnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0,NROW(Y)),
 ############################# GenUnivariateFitter ##############################
 ################################################################################
 #' @rdname UnivariateFitters
+#' @importFrom Matrix rankMatrix
+#' @importFrom stats gaussian Gamma binomial poisson quasibinomial quasipoisson .lm.fit pchisq qchisq
 #' @export
 GenUnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)),
                                 weights = rep(1, length(X)), family = gaussian(),
@@ -491,7 +492,7 @@ GenUnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)),
     # 1. Check for NA values in the Theta vector to handle potential singularities
     if(anyNA(first.deg$Theta)) {
       # Calculate the rank of the basis matrix and check for singularities
-      rank.basis <- Matrix::rankMatrix(first.deg$Basis)
+      rank.basis <- rankMatrix(first.deg$Basis)
       cols <- NCOL(first.deg$Basis)
       
       # (i) Handle the case when the basis matrix is singular

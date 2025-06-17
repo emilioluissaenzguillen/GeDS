@@ -2,7 +2,7 @@
 % Please edit documentation in R/read.formula.R
 \name{f}
 \alias{f}
-\title{Defining the covariates for the spline component in a GeDS formula.}
+\title{Defining the Covariates for the Spline Component in a GeDS Formula}
 \usage{
 f(x, xx = NULL, ...)
 }

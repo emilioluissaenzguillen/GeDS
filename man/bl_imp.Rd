@@ -3,25 +3,25 @@
 \name{bl_imp.GeDSboost}
 \alias{bl_imp.GeDSboost}
 \alias{bl_imp}
-\title{Base Learner Importance for GeDSboost objects}
+\title{Base Learner Importance for GeDSboost Objects}
 \usage{
 \method{bl_imp}{GeDSboost}(object, boosting_iter_only = FALSE, ...)
 }
 \arguments{
-\item{object}{an object of class \code{\link{GeDSboost-class}}.}
+\item{object}{An object of class \code{"GeDSboost"} class.}
 
-\item{boosting_iter_only}{logical value, if \code{TRUE} then base-learner
+\item{boosting_iter_only}{Logical value, if \code{TRUE} then base-learner
 in-bag risk reduction is only computed across boosting iterations, i.e.,
 without taking into account a potential initial GeDS learner.}
 
-\item{...}{potentially further arguments.}
+\item{...}{Potentially further arguments.}
 }
 \value{
 An object of class \code{varimp} with available \code{plot},
 \code{print} and \code{as.data.frame} methods.
 }
 \description{
-S3 method for \code{\link{GeDSboost-class}} objects that calculates the
+S3 method for \code{"GeDSboost"} class objects that calculates the
 in-bag risk reduction ascribable to each base-learner of an FGB-GeDS model.
 Essentially, it measures and aggregates the decrease in the empirical risk
 attributable to each base-learner for every time it is selected across the

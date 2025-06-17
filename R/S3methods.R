@@ -1,23 +1,23 @@
 ################################################################################
 ##################################### COEF #####################################
 ################################################################################
-#' @title Coef method for GeDS objects
+#' @title Coef Method for GeDS Objects
 #' @name coef.GeDS
 #' @description
 #' Methods for the functions \code{\link[stats]{coef}} that allow to extract the
-#' estimated coefficients of a fitted GeDS regression from a \code{\link{GeDS-Class}}
+#' estimated coefficients of a fitted GeDS regression model from a \code{"GeDS"} class
 #' object.
-#' @param object the  \code{\link{GeDS-class}} object from which the
-#' coefficients of the selected GeDS regression should be extracted.
-#' @param n integer value (2, 3 or 4) specifying the order (\eqn{=} degree
+#' @param object The  \code{"GeDS"} class object from which the
+#' coefficients of the selected GeDS regression model should be extracted.
+#' @param n Integer value (2, 3 or 4) specifying the order (\eqn{=} degree
 #' \eqn{+ 1}) of the GeDS/GeDSboost/GeDSgam fit whose coefficients should be
 #' extracted. By default equal to \code{3L}; non-integer values will be passed
 #' to the function \code{\link{as.integer}}.
-#' @param onlySpline logical variable specifying whether only the coefficients
+#' @param onlySpline Logical variable specifying whether only the coefficients
 #' for the GeDS  component of a fitted multivariate regression model should be
 #' extracted or if, alternatively, also the coefficients of the parametric component
 #' should also be extracted.
-#' @param ... potentially further arguments (required by the definition of the
+#' @param ... Potentially further arguments (required by the definition of the
 #' generic function). These will be ignored, but with a warning.
 #' 
 #' @return A named vector containing the required coefficients of the fitted
@@ -28,10 +28,9 @@
 #' corresponding B-spline.
 #'
 #' @details
-#' These are simple methods for the functions \code{\link[stats]{coef}} and
-#' \code{\link[stats]{coefficients}}.
+#' Simple method for the function \code{\link[stats]{coef}}.
 #'
-#' As \code{\link{GeDS-class}} objects contain three different fits (linear,
+#' As \code{"GeDS"} class objects contain three different fits (linear,
 #' quadratic and cubic), it is possible to specify the order of the fit for
 #' which GeDS regression coefficients are required via the input argument
 #' \code{n}.
@@ -80,12 +79,6 @@
 
 coef.GeDS <- function(object, n = 3L, onlySpline = TRUE, ...)
   {
-  
-  # CDF GeDS
-  if (object$Type == "CDF") {
-    coef <- object$coef
-    return(coef)
-  }
   
   # Handle additional arguments
   if(!missing(...)) warning("Only 'object', 'n' and 'onlySpline' arguments will be considered")
@@ -140,26 +133,27 @@ coef.GeDS <- function(object, n = 3L, onlySpline = TRUE, ...)
 #' @name confint.GeDS
 #' @description
 #' Method for \code{\link[stats]{confint.default}} to compute confidence intervals for
-#' the coefficients of a fitted GeDS model stored in a \code{\link{GeDS-class}} object.
+#' the coefficients of a fitted GeDS model stored in a \code{"GeDS"} class object.
 #'
-#' @param object the \code{\link{GeDS-class}} object from which the confidence intervals 
+#' @param object The \code{"GeDS"} class object from which the confidence intervals 
 #' for the selected GeDS regression should be extracted.
-#' @param parm a specification of which parameters are to be given confidence intervals, 
+#' @param parm A specification of which parameters are to be given confidence intervals, 
 #' either a vector of numbers or names; defaults to all parameters.
-#' @param level the confidence level required (default is 0.95).
-#' @param n integer value (2, 3 or 4) specifying the order (\eqn{=} degree
+#' @param level The confidence level required (default is 0.95).
+#' @param n Integer value (2, 3 or 4) specifying the order (\eqn{=} degree
 #' \eqn{+ 1}) of the GeDS/GeDSboost/GeDSgam fit for which to compute confidence
 #' intervals. By default equal to \code{3L}; non-integer values will be passed
 #' to the function \code{\link{as.integer}}.
-#' @param ... additional arguments passed to \code{\link[stats]{confint}}.
+#' @param ... Additional arguments passed to \code{\link[stats]{confint}}.
 #'
 #' @return A matrix with columns giving lower and upper confidence limits for
 #' each spline coefficient of the selected GeDS model (by default 2.5% and 97.5%).
 #'
-#' @seealso \code{\link[stats]{confint.default}}, \code{\link{GeDS-class}}
+#' @seealso \code{\link[stats]{confint.default}}, \code{"GeDS"} class
 #'
 #' @aliases confint.GeDS
 #' @rdname confint.GeDS
+#' @importFrom stats confint.default
 #' @export
 
 confint.GeDS <- function(object, parm, level = 0.95, n = 3L, ...) {
@@ -180,8 +174,22 @@ confint.GeDS <- function(object, parm, level = 0.95, n = 3L, ...) {
   # Check model availability
   if (inherits(object, "GeDS")) {
     fit_obj <- object[[fit_name]]
+    # names
+    if (object$Type == "LM - Univ" || object$Type == "GLM - Univ") {
+      nth <- NCOL(fit_obj$Basis)
+    } else if (object$Type == "LM - Biv" || object$Type == "GLM - Biv") {
+      nth <- NCOL(fit_obj$XBasis) * NCOL(fit_obj$YBasis)
+    }
+    if (!is.null(object$Args$Z)) {
+      znames <- attr(object$terms, "term.labels")[-1]
+      names <- c(paste0("N", 1:nth), znames)
+    } else {
+      names <- paste0("N", 1:nth)
+    }
+    
   } else if (inherits(object, "GeDSboost") || inherits(object, "GeDSgam")){
     fit_obj <- object$final[[fit_name]]
+    names <- names(fit_obj$Theta)
   }
   if (is.null(fit_obj) || is.null(fit_obj$temporary)) {
     stop("The requested model (", fit_name, ") is not available in the GeDS object.")
@@ -189,7 +197,11 @@ confint.GeDS <- function(object, parm, level = 0.95, n = 3L, ...) {
   
   # Call stats::confint on the lm/glm object
   if (is.numeric(fit_obj$Theta)) {
-    stats::confint.default(fit_obj$temporary, parm = parm, level = level, ...)
+    ci <- confint.default(fit_obj$temporary, parm = parm, level = level, ...)
+    rownames(ci) <- names
+    
+    ci
+    
     } else if (fit_obj$Theta == "When using bivariate base-learners, the 'single spline representation' (in pp form or B-spline form) of the boosted fit is not available.") {
       cat("Note:\n")
       cat(fit_obj$Theta, "\n")
@@ -207,20 +219,20 @@ confint.GeDS <- function(object, parm, level = 0.95, n = 3L, ...) {
 ################################################################################
 ################################### DEVIANCE ###################################
 ################################################################################
-#' @title Deviance method for GeDS, GeDSboost, GeDSgam
+#' @title Deviance Method for GeDS, GeDSboost, GeDSgam
 #' @name deviance.GeDS
 #' @description
 #' Method for the function \code{\link[stats]{deviance}} that allows the user to
 #' extract  the value of the deviance corresponding to a selected GeDS, GeDSboost
-#' or GeDSgam fit from a \code{\link{GeDS-Class}},
-#' \code{\link{GeDSboost-Class}} or \code{\link{GeDSgam-Class}} object.
-#' @param object the \code{\link{GeDS-class}}, \code{\link{GeDSboost-class}} or
-#' \code{\link{GeDSgam-class}} object from which the deviance should be extracted.
-#' @param n integer value (2, 3 or 4) specifying the order (\eqn{=} degree
+#' or GeDSgam fit from a \code{"GeDS"} class,
+#' \code{\link{NGeDSboost}} or \code{\link{NGeDSgam}} object.
+#' @param object The \code{"GeDS"} class, \code{\link{NGeDSboost}} or
+#' \code{\link{NGeDSgam}} object from which the deviance should be extracted.
+#' @param n Integer value (2, 3 or 4) specifying the order (\eqn{=} degree
 #' \eqn{+ 1}) of the GeDS/GeDSboost/GeDSgam fit whose deviance should be
 #' extracted. By default equal to \code{3L}; non-integer values will be passed
 #' to the function \code{\link{as.integer}}.
-#' @param ... potentially further arguments (required by the definition of the
+#' @param ... Potentially further arguments (required by the definition of the
 #' generic function). These will be ignored, but with a warning.
 #' 
 #' @return A numeric value corresponding to the  deviance of the selected
@@ -228,14 +240,14 @@ confint.GeDS <- function(object, parm, level = 0.95, n = 3L, ...) {
 #' 
 #' @details
 #' This is a method for the function \code{\link[stats]{deviance}}. As
-#' \code{\link{GeDS-class}}, \code{\link{GeDSboost-class}} and
-#' \code{\link{GeDSgam-class}} objects contain three different fits (linear,
+#' \code{"GeDS"} class, \code{\link{NGeDSboost}} and
+#' \code{\link{NGeDSgam}} objects contain three different fits (linear,
 #' quadratic and cubic), it is possible to specify the order of the GeDS fit
 #' for which the deviance is required via the input argument \code{n}.
 #' 
 #' @seealso \code{\link[stats]{deviance}} for the standard definition;
 #' \code{\link{GGeDS}} for examples.
-#' 
+#' @importFrom stats deviance
 #' @export
 #' 
 #' @aliases deviance.GeDS deviance.GeDSboost deviance.GeDSgam
@@ -278,21 +290,22 @@ deviance.GeDS <- function(object, n = 3L, ...)
 #' Method for \code{\link[stats]{family}} that returns the error distribution 
 #' family used in the fitted GeDS model.
 #'
-#' @param object A \code{\link{GeDS-class}} object.
+#' @param object A \code{"GeDS"} class object.
 #' @param ... further arguments (ignored).
 #'
 #' @return An object of class \code{\link[stats]{family}} describing the 
 #' distribution and link function used in the GeDS fit.
 #'
-#' @seealso \code{\link[stats]{family}}, \code{\link{GeDS-class}}
+#' @seealso \code{\link[stats]{family}}, \code{"GeDS"} class
 #'
 #' @aliases family.GeDS
 #' @rdname family.GeDS
+#' @importFrom stats family gaussian
 #' @export
 
 family.GeDS  <- function(object, ...) {
   if (object$Type == "LM - Univ" || object$Type == "LM - Biv") {
-    stats::gaussian()
+    gaussian()
     
   } else if (object$Type == "GLM - Univ" || object$Type == "GLM - Biv") {
     object$Args$family
@@ -302,12 +315,12 @@ family.GeDS  <- function(object, ...) {
 ################################################################################
 ################################### FORMULA ####################################
 ################################################################################
-#' @title Formula for the predictor model
+#' @title Formula for the Predictor Model
 #' @name formula.GeDS
 #' @description
 #' A description of the structure of the predictor model fitted using
 #' \code{\link{NGeDS}} or \code{\link{GGeDS}}.
-#' @param x fitted \code{\link{GeDS-class}} object, produced by 
+#' @param x fitted \code{"GeDS"} class object, produced by 
 #' \code{\link{NGeDS}} or \code{\link{GGeDS}}, from which the predictor model
 #' \code{\link[stats]{formula}} should be extracted.
 #' @param ... unused in this case.
@@ -353,15 +366,15 @@ family.GeDS  <- function(object, ...) {
 #' \code{y ~ f(x1) + f(x2, x3) + x4} should be provided, where \code{f()} denotes 
 #' GeD spline-based (univariate or bivariate) regression base-learners/smoothing 
 #' functions, and \code{x4} is included as a linear term in the predictor model.
-
-#'
+#' 
+#' @importFrom stats formula
 #' @export
 #' 
 #' @aliases formula.GeDS
 
 formula.GeDS <- function(x,...)
 {
-  formula <- stats::formula(x$Formula)
+  formula <- formula(x$Formula)
   if(is.null(formula)) stop("Unable to extract the formula. \n
                             Please re-fit using 'NGeDS', 'GGeDS', 'NGeDSboost or 'NGeDSgam")
   return(formula)
@@ -370,16 +383,16 @@ formula.GeDS <- function(x,...)
 ################################################################################
 ##################################### KNOTS ####################################
 ################################################################################
-#' @title Knots method for GeDS, GeDSboost, GeDSgam
+#' @title Knots Method for GeDS, GeDSboost, GeDSgam
 #' @name knots.GeDS
 #' @description
 #' Method for the generic function \code{\link[stats]{knots}} that allows the
 #' user to extract the vector of knots of a GeDS, GeDSboost or GeDSgam fit of a
-#' specified order contained in a \code{\link{GeDS-class}},
-#' \code{\link{GeDSboost-class}} or \code{\link{GeDSgam-class}} object,
+#' specified order contained in a \code{"GeDS"} class,
+#' \code{\link{NGeDSboost}} or \code{\link{NGeDSgam}} object,
 #' respectively.
-#' @param Fn the \code{\link{GeDS-class}}, \code{\link{GeDSboost-class}} or
-#' \code{\link{GeDSgam-class}} object from which the vector of knots for the
+#' @param Fn the \code{"GeDS"} class, \code{\link{NGeDSboost}} or
+#' \code{\link{NGeDSgam}} object from which the vector of knots for the
 #' specified GeDS, FGB-GeDS or GAM-GeDS fit should be extracted.
 #' @param n integer value (2, 3 or 4) specifying the order (\eqn{=} degree
 #' \eqn{+ 1}) of the GeDS/GeDSboost/GeDSgam fit whose knots should be
@@ -398,27 +411,22 @@ formula.GeDS <- function(x,...)
 #' This is a method for the function \code{\link[stats]{knots}} in the
 #' \pkg{stats} package.
 #'
-#' As \code{\link{GeDS-class}}, \code{\link{GeDSboost-class}} and
-#' \code{\link{GeDSgam-class}} objects contain three different fits (linear,
+#' As \code{"GeDS"} class, \code{\link{NGeDSboost}} and
+#' \code{\link{NGeDSgam}} objects contain three different fits (linear,
 #' quadratic and cubic), it is possible to specify the order of the GeDS fit
 #' whose knots are required via the input argument \code{n}.
 #'
 #' @seealso \code{\link[stats]{knots}} for the definition of the generic function; \code{\link{NGeDS}}, \code{\link{GGeDS}},
 #' \code{\link{NGeDSboost}} and \code{\link{NGeDSgam}} for examples.
-#'
+#' @importFrom stats knots
 #' @export
 #'
-#' @aliases knots.GeDS knots.GeDSboost, knots.GeDSgam
+#' @aliases knots.GeDS knots.GeDSboost knots.GeDSgam
 #' @rdname knots
 
 knots.GeDS <- function(Fn, n = 3L, options = c("all","internal"), ...)
   {
   
-  # CDF GeDS
-  if (Fn$Type == "CDF") {
-    kn <- Fn$knots
-    return(kn)
-  }
   
   # Handle additional arguments
   if(!missing(...)) warning("Arguments other than 'Fn', 'n' and 'options' currenly igored. \n Please check if the input parameters have been correctly specified.")
@@ -462,7 +470,7 @@ knots.GeDS <- function(Fn, n = 3L, options = c("all","internal"), ...)
 #' Method for \code{\link[stats]{logLik}} that returns the log-likelihood of 
 #' the selected GeDS regression model.
 #'
-#' @param object a \code{\link{GeDS-class}} object.
+#' @param object a \code{"GeDS"} class object.
 #' @param n integer value (2, 3 or 4) specifying the order (\eqn{=} degree
 #' \eqn{+ 1}) of the GeDS/GeDSboost/GeDSgam fit whose loglikelihood should be
 #' extracted. By default equal to \code{3L}; non-integer values will be passed
@@ -471,10 +479,11 @@ knots.GeDS <- function(Fn, n = 3L, options = c("all","internal"), ...)
 #'
 #' @return An object of class \code{\link[stats]{logLik}}.
 #'
-#' @seealso \code{\link[stats]{logLik}}, \code{\link{GeDS-class}}
+#' @seealso \code{\link[stats]{logLik}}, \code{"GeDS"} class
 #'
 #' @aliases logLik.GeDS
 #' @rdname logLik.GeDS
+#' @importFrom stats logLik
 #' @export
 
 logLik.GeDS <- function(object, n = 3L, ...) {
@@ -505,18 +514,18 @@ logLik.GeDS <- function(object, n = 3L, ...) {
   }
   
   # Call stats::logLik on the lm/glm object
-  stats::logLik(fit_obj$temporary, ...)
+  logLik(fit_obj$temporary, ...)
   
 }
 
 ################################################################################
 #################################### PREDICT ###################################
 ################################################################################
-#' @title Predict method for GeDS objects
+#' @title Predict Method for GeDS Objects
 #' @name predict.GeDS
 #' @description
 #' This is a user friendly method to compute predictions from GeDS objects.
-#' @param object the \code{\link{GeDS-class}} object for which the
+#' @param object the \code{"GeDS"} class object for which the
 #' computation of the predicted values is required.
 #' @param newdata an optional \code{data.frame}, \code{list} or
 #' \code{environment} containing values of the independent variables for which
@@ -539,7 +548,7 @@ logLik.GeDS <- function(object, n = 3L, ...) {
 #'
 #' @details
 #' This is a method for the function \code{\link[stats]{predict}} that allows
-#' the user to handle \code{\link{GeDS-Class}} objects.
+#' the user to handle \code{"GeDS"} class objects.
 #'
 #' In analogy with the function \code{\link[stats]{predict.glm}} in the
 #' \pkg{stats} package, the user can specify the scale on which the predictions
@@ -561,7 +570,8 @@ logLik.GeDS <- function(object, n = 3L, ...) {
 #'
 #' @seealso \code{\link[stats]{predict}} for the standard definition;
 #' \code{\link{GGeDS}} for examples.
-#'
+#' @importFrom splines splineDesign
+#' @importFrom stats delete.response model.frame model.matrix
 #' @export
 #'
 #' @aliases predict.GeDS
@@ -727,14 +737,14 @@ predict.GeDS <- function(object, newdata,
 ################################################################################
 ##################################### PRINT ####################################
 ################################################################################
-#' @title Print method for GeDS, GeDSboost, GeDSgam
+#' @title Print Method for GeDS, GeDSboost, GeDSgam
 #' @name print.GeDS
 #' @description
 #' Method for the generic function \code{\link[base]{print}} that allows to
-#' print on screen the main information related to a fitted \code{\link{GeDS-class}},
-#' \code{\link{GeDSboost-class}} or \code{\link{GeDSgam-class}} model.
-#' @param x the \code{\link{GeDS-class}}, \code{\link{GeDSboost-class}} or
-#' \code{\link{GeDSgam-class}} object for which the main information should be
+#' print on screen the main information related to a fitted \code{"GeDS"} class,
+#' \code{\link{NGeDSboost}} or \code{\link{NGeDSgam}} model.
+#' @param x the \code{"GeDS"} class, \code{\link{NGeDSboost}} or
+#' \code{\link{NGeDSgam}} object for which the main information should be
 #' printed on screen.
 #' @param digits number of digits to be printed.
 #' @param ... potentially further arguments (required by the definition of the
@@ -754,7 +764,7 @@ predict.GeDS <- function(object, newdata,
 #' predictor model such as the function \code{call}, the number of internal
 #' knots for the linear GeDS/FGB-GeDS/GAM-GeDS fit and the deviances for the
 #' three (linear, quadratic and cubic) fitted predictor models embedded in the
-#' \code{\link{GeDSboost-class}} or \code{\link{GeDSgam-class}} object.
+#' \code{\link{NGeDSboost}} or \code{\link{NGeDSgam}} object.
 #'
 #' @seealso \code{\link[base]{print}} for the standard definition.
 #' 
@@ -827,15 +837,15 @@ print.GeDS <- function(x, digits = max(3L, getOption("digits") - 3L), ...)
 ################################################################################
 ################################### SUMMARY ####################################
 ################################################################################
-#' @title Summary method for GeDS, GeDSboost, GeDSgam
+#' @title Summary Method for GeDS, GeDSboost, GeDSgam
 #' @name summary.GeDS
 #' @description
 #' Method for the generic function \code{\link[base]{summary}} that allows you to
-#' print on screen the main information related to a fitted \code{\link{GeDS-class}},
-#' \code{\link{GeDSboost-class}} or \code{\link{GeDSgam-class}} model.
+#' print on screen the main information related to a fitted \code{"GeDS"} class,
+#' \code{\link{NGeDSboost}} or \code{\link{NGeDSgam}} model.
 #' Similar to \code{\link{print.GeDS}} but with some extra detail.
-#' @param object the \code{\link{GeDS-class}}, \code{\link{GeDSboost-class}} or
-#' \code{\link{GeDSgam-class}} object for which the main information should be
+#' @param object the \code{"GeDS"} class, \code{\link{NGeDSboost}} or
+#' \code{\link{NGeDSgam}} object for which the main information should be
 #' printed on screen.
 #' @param ... potentially further arguments (required by the definition of the
 #' generic function).

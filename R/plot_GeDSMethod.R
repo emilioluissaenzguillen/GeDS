@@ -1,14 +1,14 @@
 ################################################################################
 ################################################################################
-################################ Plot_GeDSMethod ###############################
+############################### plot.GeDS Method ###############################
 ################################################################################
 ################################################################################
-#' @title Plot method for GeDS objects.
-#' @name plot,GeDS-method
+#' @title Plot Method for GeDS Objects
+#' @name plot.GeDS
 #' @description
 #' Plot method for GeDS objects. Plots GeDS fits.
-#' @param x a \code{\link{GeDS-class}} object from which the GeDS fit(s) should
-#' be extracted.
+#' @param x an object of class \code{"GeDS"}, as returned by \code{NGeDS()} or
+#' \code{GGeDS()}.
 #' @param f (optional) specifies the underlying function or generating process
 #' to which the model was fit. This parameter is useful if the user wishes to
 #' plot the specified function/process alongside the model fit and the data 
@@ -43,7 +43,7 @@
 #'
 #' @details
 #' This method is provided in order to allow the user to plot the GeDS  fits
-#' contained in the \code{\link{GeDS-Class}} objects.
+#' contained in the \code{"GeDS"} class objects.
 #' 
 #' Since in Stage A of the GeDS algorithm the knots of a linear spline fit are
 #' sequentially located, one at a time, the user may wish to visually inspect
@@ -135,14 +135,16 @@
 #' 
 #' @export 
 #' @importFrom plot3D persp3D points3D
-#' @importFrom graphics abline
-#' 
-#' @aliases plot.GeDS plot,GeDS-method plot,GeDS,ANY-method
+#' @importFrom grDevices dev.new devAskNewPage
+#' @importFrom graphics plot lines legend rug points abline mtext
+#' @importFrom stats predict.glm
+#' @export
+#' @method plot GeDS
 
-setMethod("plot", signature(x = "GeDS"), function(x, f = NULL, which, DEV = FALSE, ask = FALSE,
-                                                  main, legend.pos = "topright", legend.text = NULL,
-                                                  new.window = FALSE, wait = 0.5,
-                                                  n = 3L, type = c("none", "Polygon", "NCI", "ACI"), ...)
+plot.GeDS <- function(x, f = NULL, which, DEV = FALSE, ask = FALSE,
+                      main, legend.pos = "topright", legend.text = NULL,
+                      new.window = FALSE, wait = 0.5,
+                      n = 3L, type = c("none", "Polygon", "NCI", "ACI"), ...)
 {
   results <- list()
   results$terms <- x$terms
@@ -706,15 +708,15 @@ setMethod("plot", signature(x = "GeDS"), function(x, f = NULL, which, DEV = FALS
   x$Plotinfo <- results
   invisible(x)
 }
-)
+
 
 ################################################################################
 ################################################################################
-############################# Plot_GeDSboostMethod #############################
+############################ plot.GeDSboost method #############################
 ################################################################################
 ################################################################################
-#' @title Plot method for GeDSboost objects.
-#' @name plot,GeDSboost-method
+#' @title Plot Method for GeDSboost Objects
+#' @name plot.GeDSboost
 #' @description
 #' Plots the component functions of a GeDSboost object fitted using
 #' \code{\link{NGeDSboost}}. If the model has a single base-learner, the plot
@@ -725,16 +727,17 @@ setMethod("plot", signature(x = "GeDS"), function(x, f = NULL, which, DEV = FALS
 #' addition since component-wise gradient boosting inherently performs base-learner
 #' selection, you should only expect plots for the base-learners that where selected
 #' across the boosting iterations.
-#' @param x a \code{\link{GeDSboost-class}} object from which the GeDSboost fit
-#' should be extracted.
+#' @param x a GeDSboost object, as returned by \code{NGeDSboost()}.
 #' @param n integer value (2, 3 or 4) specifying the order (\eqn{=} degree
 #' \eqn{+ 1}) of the FGB-GeDS fit to be extracted.
 #' @param ... further arguments to be passed to the
 #' \code{\link[graphics]{plot.default}} function.
 #' 
-#' @export 
-#' 
-#' @aliases plot.GeDSboost plot,GeDSboost-method plot,GeDSboost,ANY-method
+#' @seealso \code{\link{NGeDSboost}}
+#' @importFrom graphics plot lines legend abline rug barplot par
+#' @importFrom splines splineDesign 
+#' @export
+#' @method plot GeDSboost
 #' 
 #' @references
 #' Dimitrova, D. S., Kaishev, V. K. and Saenz Guillen, E. L. (2025).
@@ -742,7 +745,7 @@ setMethod("plot", signature(x = "GeDS"), function(x, f = NULL, which, DEV = FALS
 #' Models and Functional Gradient Boosting, based on Geometrically Designed
 #' (GeD) Splines. \emph{Manuscript submitted for publication.}
 
-setMethod("plot", signature(x = "GeDSboost"), function(x, n = 3L,...)
+plot.GeDSboost <- function(x, n = 3L,...)
 {
   
   # Check if x is of class "GeDSboost"
@@ -907,21 +910,19 @@ setMethod("plot", signature(x = "GeDSboost"), function(x, n = 3L,...)
     
   }
 }
-)
 
 ################################################################################
 ################################################################################
-############################## Plot_GeDSgamMethod ##############################
+############################# plot.GeDSgam method ##############################
 ################################################################################
 ################################################################################
-#' @title Plot method for GeDSgam objects.
-#' @name plot,GeDSgam-method
+#' @title Plot Method for GeDSgam Objects
+#' @name plot.GeDSgam
 #' @description
 #' Plots on the linear predictor scale the component functions of a GeDSgam
 #' object fitted using \code{\link{NGeDSgam}}.
 #' 
-#' @param x a \code{\link{GeDSgam-class}} object from which the GeDSgam fit(s) should
-#' be extracted.
+#' @param x a GeDSgam object, as returned by \code{NGeDSgam()}.
 #' @param n integer value (2, 3 or 4) specifying the order (\eqn{=} degree
 #' \eqn{+ 1}) of the GAM-GeDS fit.
 #' @param base_learners either NULL or a vector of character string specifying
@@ -929,20 +930,19 @@ setMethod("plot", signature(x = "GeDSboost"), function(x, n = 3L,...)
 #' that single base-learner predictions are provided on the linear predictor scale.
 #' @param f (optional) specifies the underlying component function or generating
 #' process to which the model was fit. This parameter is useful if the user wishes
-#' to plot the specified function/process alongside the model fit and the data. 
-
-
+#' to plot the specified function/process alongside the model fit and the data.
 #' @param ... further arguments to be passed to the
 #' \code{\link[graphics]{plot.default}} function.
 #' 
-#' @export 
+#' @seealso \code{\link{NGeDSgam}}
 #' @importFrom plot3D persp3D segments3D
-#' @importFrom graphics barplot par
-#' 
-#' @aliases plot.GeDSgam plot,GeDSgam-method plot,GeDSgam,ANY-method
+#' @importFrom graphics plot lines abline rug barplot par
+#' @importFrom splines splineDesign
+#' @export
+#' @method plot GeDSgam
 
-setMethod("plot", signature(x = "GeDSgam"), function(x, base_learners = NULL,
-                                                     f = NULL, n = 3L,...)
+plot.GeDSgam <- function(x, base_learners = NULL,
+                         f = NULL, n = 3L,...)
 {
   
   # Check if x is of class "GeDSgam"
@@ -1123,5 +1123,5 @@ setMethod("plot", signature(x = "GeDSgam"), function(x, base_learners = NULL,
   
 }
 
-)
+
 

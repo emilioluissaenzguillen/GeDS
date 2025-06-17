@@ -8,14 +8,14 @@
 \method{n.boost.iter}{GeDSboost}(object, ...)
 }
 \arguments{
-\item{object}{a \code{\link{GeDSboost-class}} object.}
+\item{object}{A \code{"GeDSboost"} class object.}
 
-\item{...}{further arguments (ignored).}
+\item{...}{Further arguments (ignored).}
 }
 \value{
 An integer indicating the number of boosting iterations used.
 }
 \description{
 Method for \code{n.boost.iter} that returns the number of boosting iterations 
-used in fitting a \code{\link{GeDSboost-class}} object.
+used in fitting a \code{"GeDSboost"} class object.
 }

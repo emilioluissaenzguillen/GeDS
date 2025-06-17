@@ -3,26 +3,26 @@
 ################################### Integrate ##################################
 ################################################################################
 ################################################################################
-#' @title Defined integral of GeDS objects
+#' @title Defined Integral of GeDS Objects
 #' @name Integrate 
 #' @description
 #' This function computes defined integrals of a fitted GeDS regression model.
-#' @param object the \code{\link{GeDS-class}} object containing the  GeDS fit
+#' @param object An object of class \code{"GeDS"} containing the  GeDS fit
 #' which should be integrated. It should be the result of fitting a univariate
 #' GeDS regression via \code{\link{NGeDS}} or \code{\link{GGeDS}}. If this is
 #' provided, the \code{knots} and \code{coef} parameters will be automatically
 #' extracted from the \code{GeDS} object. If \code{object} is \code{NULL}, the
 #' user must provide the \code{knots} and \code{coef} vectors explicitly.
-#' @param knots a numeric vector of knots. This is required if \code{object} is 
+#' @param knots A numeric vector of knots. This is required if \code{object} is 
 #'   \code{NULL}. If a \code{GeDS} object is provided, this parameter is ignored.
-#' @param coef a numeric vector of coefficients. This is required if \code{object} is 
+#' @param coef A numeric vector of coefficients. This is required if \code{object} is 
 #'   \code{NULL}. If a \code{GeDS} object is provided, this parameter is ignored
-#' @param from optional numeric vector containing the lower limit(s) of
+#' @param from Optional numeric vector containing the lower limit(s) of
 #' integration. It should be either of size one or of the same size as the
 #' argument \code{to}. If left unspecified, by default it is set to the left-most
 #' limit of the interval embedding the observations of the independent variable.
-#' @param to numeric vector containing the upper limit(s) of integration.
-#' @param n integer value (2, 3 or 4) specifying the order (\eqn{=} degree
+#' @param to Numeric vector containing the upper limit(s) of integration.
+#' @param n Integer value (2, 3 or 4) specifying the order (\eqn{=} degree
 #' \eqn{ + 1}) of the GeDS fit to be integrated. By default equal to \code{3L}.
 #' Non-integer values will be passed to the function \code{\link{as.integer}}.
 #'
@@ -66,9 +66,7 @@
 #' # and $\int_{-1}^{1} f(x)dx$
 #' # $f$ being the quadratic fit
 #' Integrate(Gmod, from = c(1,-1), to = c(-1,1), n = 3)
-#' ## Not run:
-#' ## This gives an error
-#' Integrate(Gmod, from = c(1,-1), to = c(1,1), n = 3)
+#' Integrate(Gmod, from = rep(-Inf, N), to = X, n = 3)
 #' 
 #' @export
 #'
@@ -129,13 +127,14 @@ Integrate <- function(object = NULL, knots = NULL, coef = NULL, from, to, n = 3L
   return(res)
 }
 
+#' @importFrom splines splineDesign
 gedsint <- function(val, knts, coefs, n){
   if (val <= min(knts)) return(0)
   if (val >= max(knts))  return(1)
   pos <- min(which(knts>=val))
-  basisMatrix <- splines::splineDesign(knots = c(knts,max(knts)),
-                                   derivs = rep(0,length(val)),
-                                   x = val, ord = n+1, outer.ok = T)
+  basisMatrix <- splineDesign(knots = c(knts,max(knts)),
+                              derivs = rep(0,length(val)),
+                              x = val, ord = n+1, outer.ok = T)
   
   ris <- as.numeric(basisMatrix[,1:(pos-1)]%*%coefs[1:(pos-1)])
   return(ris)
@@ -146,20 +145,20 @@ gedsint <- function(val, knts, coefs, n){
 #################################### Derive ####################################
 ################################################################################
 ################################################################################
-#' @title Derivative of GeDS objects
+#' @title Derivative of GeDS Objects
 #' @name Derive
 #' @description
 #' This function computes derivatives of a fitted GeDS regression model.
-#' @param object the \code{\link{GeDS-Class}} object containing the GeDS fit
+#' @param object An object of class \code{"GeDS"} containing the GeDS fit
 #' which should be differentiated. It should be the result of fitting a 
 #' univariate GeDS regression via \code{\link{NGeDS}} or \code{\link{GGeDS}}.
-#' @param order integer value indicating the order of differentiation required
+#' @param order Integer value indicating the order of differentiation required
 #' (e.g. first, second or higher derivatives). Note that \code{order} should be
 #' lower than \code{n} and that non-integer values will be passed to the
 #' function \code{\link{as.integer}}.
-#' @param x numeric vector containing values of the independent variable at
+#' @param x Numeric vector containing values of the independent variable at
 #' which the derivatives of order \code{order} should be computed.
-#' @param n integer value (2, 3 or 4) specifying the order (\eqn{=} degree
+#' @param n Integer value (2, 3 or 4) specifying the order (\eqn{=} degree
 #' \eqn{ + 1}) of the GeDS fit to be differentiated. By default equal to
 #' \code{3L}.
 #' @details The function is based on \code{\link[splines]{splineDesign}} and it
@@ -192,7 +191,7 @@ gedsint <- function(val, knts, coefs, n){
 #' # Compute the second derivative of the cubic GeDS fit
 #' # at the points 0, -1 and 1
 #' Derive(Gmod, x = c(0, -1, 1), order = 2, n = 4)
-#'
+#' @importFrom splines splineDesign
 #' @export
 #'
 #' @references De Boor, C. (2001). \emph{A Practical Guide to Splines (Revised Edition)}.
@@ -211,7 +210,7 @@ Derive <- function(object, order = 1L, x, n = 3L)
   order <- as.integer(order)
   kn <- knots(object , options = "all", n = n)
   thetas <- coef(object, n = n)
-  basis <- splines::splineDesign(knots = kn, x = x, ord = n, derivs = rep(order,l), outer.ok = TRUE)
+  basis <- splineDesign(knots = kn, x = x, ord = n, derivs = rep(order,l), outer.ok = TRUE)
   der <- as.numeric(basis%*%thetas)
   der
 }

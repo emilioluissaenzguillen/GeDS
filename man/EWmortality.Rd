@@ -3,7 +3,7 @@
 \docType{data}
 \name{EWmortality}
 \alias{EWmortality}
-\title{Death counts in England and Wales}
+\title{Death Counts in England and Wales}
 \format{
 A \code{data.frame} with 109 entries and 3 variables: \code{Age},
 \code{Deaths} and \code{Exposure}. \code{Exposure} is a mid-year estimate of

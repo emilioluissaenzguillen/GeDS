@@ -3,66 +3,75 @@
 ##################################### GGeDS ####################################
 ################################################################################
 ################################################################################
-#' @title Generalized Geometrically Designed Spline regression estimation
+#' @title Generalized Geometrically Designed Spline Regression Estimation
 #' @name GGeDS
 #' @description
 #' \code{GGeDS} constructs a Geometrically Designed (univariate or bivariate)
 #' variable knots spline regression model for the predictor in the context of
 #' Generalized (Non-)Linear Models. This is referred to as a GeDS model for a
 #' response with a distribution from the Exponential Family.
-#' @param formula a description of the structure of the predictor model to be
+#' @param formula A description of the structure of the predictor model to be
 #' fitted, including the dependent and independent variables. See
 #' \code{\link[=formula.GeDS]{formula}} for details.
-#' @param family a description of the error distribution and link function to be
+#' @param family A description of the error distribution and link function to be
 #' used in the model. This can be a character string naming a family function
 #' (e.g. \code{"gaussian"}), the family function itself (e.g.
 #' \code{\link[stats]{gaussian}}) or the result of a call to a family function
 #' (e.g. \code{gaussian()}). See \link[stats]{family} for details on family
 #' functions.
-#' @param data an optional data frame, list or environment containing the
+#' @param data An optional data frame, list or environment containing the
 #' variables of the predictor model. If the formula variables are not found in
 #' \code{data}, they are taken from \code{environment(formula)}, typically the
 #' environment from which \code{GGeDS} is called.
-#' @param weights an optional vector of `prior weights' to be put on the
+#' @param weights An optional vector of `prior weights' to be put on the
 #' observations during the fitting process in case the user requires weighted GeDS
 #' fitting. It is \code{NULL} by default.
-#' @param beta numeric parameter in the interval \eqn{[0,1]} tuning the knot
+#' @param beta Numeric parameter in the interval \eqn{[0,1]} tuning the knot
 #' placement in stage A of GeDS. See details below.
-#' @param phi numeric parameter in the interval \eqn{[0,1]} specifying the
+#' @param phi Numeric parameter in the interval \eqn{[0,1]} specifying the
 #' threshold for the stopping rule  (model selector) in stage A of GeDS. See
 #' also \code{stoptype} and details below.
-#' @param min.intknots optional parameter allowing the user to set a minimum
+#' @param min.intknots Optional parameter allowing the user to set a minimum
 #' number of internal knots to be fit in stage A. By default equal to zero.
-#' @param max.intknots optional parameter allowing the user to set a maximum
+#' @param max.intknots Optional parameter allowing the user to set a maximum
 #' number of internal knots to be added by the stage A's GeDS estimation
 #' algorithm. By default equal to the number of knots for the saturated GeDS
 #' model (i.e. \eqn{N-2}, where \eqn{N} is the number of observations).
-#' @param q numeric parameter which allows to fine-tune the stopping rule of
+#' @param q Numeric parameter which allows to fine-tune the stopping rule of
 #' stage A of GeDS, by default equal to 2. See details below.
-#' @param Xextr numeric vector of 2 elements representing the left-most and
+#' @param Xextr Numeric vector of 2 elements representing the left-most and
 #' right-most limits of the interval embedding the observations of the
 #' independent variable. See details.
-#' @param Yextr numeric vector of 2 elements representing the left-most and
+#' @param Yextr Numeric vector of 2 elements representing the left-most and
 #' right-most limits of the interval embedding the observations of the second
 #' independent variable (if bivariate GeDS is run). See details.
-#' @param show.iters logical variable indicating whether or not to print
+#' @param show.iters Logical variable indicating whether or not to print
 #' information of the fit at each GeDS iteration. By default equal to \code{FALSE}.
-#' @param stoptype a character string indicating the type of GeDS stopping rule
+#' @param stoptype A character string indicating the type of GeDS stopping rule
 #' to be used. It should be either one of \code{"SR"}, \code{"RD"} or 
 #' \code{"LR"}, partial match allowed. See details below.
-#' @param higher_order a logical that defines whether to compute the higher
+#' @param higher_order A logical that defines whether to compute the higher
 #' order fits (quadratic and cubic) after stage A is run. Default is
 #' \code{TRUE}.
 #' 
-#' @return A \code{\link{GeDS-Class}} object, i.e. a list of items that
-#' summarizes  the main details of the fitted GeDS regression. See
-#' \code{\link{GeDS-Class}} for details. Some S3 methods are available in order
-#' to make these objects tractable, such as \code{\link[=coef.GeDS]{coef}},
-#' \code{\link[=deviance.GeDS]{deviance}}, \code{\link[=knots.GeDS]{knots}},
-#' \code{\link[=predict.GeDS]{predict}} and \code{\link[=print.GeDS]{print}}
-#' as well as S4 methods for \code{\link[=lines.GeDS]{lines}} and
-#' \code{\link[=plot.GeDS]{plot}}.
-#' 
+#' @return An object of class \code{"GeDS"} (a named list) with similar components
+#' described under \code{\link{NGeDS}}’s \code{@return} plus the following slots:
+#' \describe{
+#'   \item{Type}{Character string indicating the type of regression performed.
+#'   This can be \code{"GLM - Univ"}/\code{"GLM - Biv"}, respectively
+#'   corresponding to generalized (GNM-GLM) univariate/bivariate GeDS (implemented
+#'   by \code{\link{GGeDS}}).}  
+#'   \item{Guesses}{Initial values for the coefficients used at each iteration of
+#'   stage A in order to estimate the spline coefficients. Since the initial
+#'   values are used only in the IRLS procedure, this slot is empty if the object
+#'   is not created by \code{\link{GGeDS}} or \code{\link{GenUnivariateFitter}}
+#'   functions.}   
+#'   \item{iterIrls}{Vector containing the numbers of IRLS iterations for all
+#'   iterations of stage A cumulatively. Since the IRLS procedure is used only in
+#'   \code{\link{GGeDS}} or \code{\link{GenUnivariateFitter}}, this slot is empty
+#'   if the object is not created by one of these functions.}
+#'   \item{extcall}{\code{call} to the \code{\link{GGeDS}} function.}
+#' }
 #' @details
 #' The  \code{GGeDS} function extends the GeDS methodology, developed by
 #' Kaishev et al. (2016) and implemented in the \code{\link{NGeDS}} function
@@ -74,8 +83,8 @@
 #' variable-knot spline is fitted to the data applying iteratively re-weighted
 #' least squares (see \code{\link{IRLSfit}} function). In stage B, a Schoenberg
 #' variation diminishing spline approximation to the fit from stage A is
-#' constructed, thus simultaneously producing spline fits of order 2, 3 and 4,
-#' all of which are included in the output, a \code{\link{GeDS-Class}} object.
+#' constructed, thus simultaneously producing spline fits of order 2, 3, and 4,
+#' all of which are included in the output (an object of class \code{"GeDS"}).
 #' A detailed description of the underlying algorithm can be found in
 #' Dimitrova et al. (2023).
 #' 
@@ -310,12 +319,13 @@
 #' # Surface plot of the fitted model
 #' plot(BivGeDS)
 #' 
-#' @seealso \code{\link{NGeDS}}; \code{\link{GeDS-Class}}; S3 methods such as
-#' \code{\link{coef.GeDS}}, \code{\link{deviance.GeDS}}, 
-#' \code{\link{knots.GeDS}}, \code{\link{print.GeDS}} and
-#' \code{\link{predict.GeDS}}; \code{\link{Integrate}} and \code{\link{Derive}};
-#' \code{\link{PPolyRep}}.
-#' 
+#' @seealso \code{\link{NGeDS}}; S3 methods such as \code{\link{coef.GeDS}},
+#' \code{\link{confint.GeDS}}, \code{\link{deviance.GeDS}}, \code{\link{family}},
+#' \code{\link{formula}}, \code{\link{knots.GeDS}}, \code{\link{lines.GeDS}},
+#' \code{\link{logLik}}, \code{\link{plot.GeDS}}, \code{\link{predict.GeDS}},
+#' \code{\link{print.GeDS}}, \code{\link{summary.GeDS}}; \code{\link{Integrate}}
+#' and \code{\link{Derive}}; \code{\link{PPolyRep}}.
+#' @importFrom stats gaussian Gamma binomial poisson quasibinomial quasipoisson
 #' @export
 #'
 #' @references

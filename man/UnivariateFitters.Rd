@@ -5,8 +5,7 @@
 \alias{UnivariateFitter}
 \alias{Fitters}
 \alias{GenUnivariateFitter}
-\title{Functions used to fit GeDS objects with an univariate spline regression
-component}
+\title{Functions Used to Fit GeDS Objects with a Univariate Spline Regression}
 \usage{
 UnivariateFitter(
   X,
@@ -49,18 +48,18 @@ GenUnivariateFitter(
 )
 }
 \arguments{
-\item{X}{a numeric vector containing \eqn{N} sample values of the covariate
+\item{X}{A numeric vector containing \eqn{N} sample values of the covariate
 chosen to enter the spline regression component of the predictor model.}
 
-\item{Y}{a vector of size \eqn{N} containing the observed values of the
+\item{Y}{A vector of size \eqn{N} containing the observed values of the
 response variable \eqn{y}.}
 
-\item{Z}{a design matrix with \eqn{N} rows containing other covariates
+\item{Z}{A design matrix with \eqn{N} rows containing other covariates
 selected to enter the parametric component of the predictor model (see
 \code{\link[=formula.GeDS]{formula}}). If no such covariates are selected, it
 is set to \code{NULL} by default.}
 
-\item{offset}{a vector of size \eqn{N} that can be used to specify a fixed
+\item{offset}{A vector of size \eqn{N} that can be used to specify a fixed
 covariate to be included in the predictor model avoiding the estimation of
 its corresponding regression coefficient. In case more than one covariate is
 fixed, the user should sum the corresponding coordinates of the fixed
@@ -68,60 +67,60 @@ covariates to produce one common \eqn{N}-vector of coordinates. The
 \code{offset} argument is particularly useful when using 
 \code{GenUnivariateFitter} if the link function used is not the identity.}
 
-\item{weights}{an optional vector of size \eqn{N} of `prior weights' to be
+\item{weights}{An optional vector of size \eqn{N} of `prior weights' to be
 put on the observations in the fitting process in case the user requires
 weighted GeDS fitting. It is \code{NULL} by default.}
 
-\item{beta}{numeric parameter in the interval \eqn{[0,1]} tuning the knot
+\item{beta}{Numeric parameter in the interval \eqn{[0,1]} tuning the knot
 placement in stage A of GeDS. See the description of \code{\link{NGeDS}} or
 \code{\link{GGeDS}}.}
 
-\item{phi}{numeric parameter in the interval \eqn{[0,1]} specifying the
+\item{phi}{Numeric parameter in the interval \eqn{[0,1]} specifying the
 threshold for the stopping rule  (model selector) in stage A of GeDS. See
 also \code{stoptype} and details in the description of \code{\link{NGeDS}} or
 \code{\link{GGeDS}}.}
 
-\item{min.intknots}{optional parameter allowing the user to set a minimum
+\item{min.intknots}{Optional parameter allowing the user to set a minimum
 number of internal knots required. By default equal to zero.}
 
-\item{max.intknots}{optional parameter allowing the user to set a maximum
+\item{max.intknots}{Optional parameter allowing the user to set a maximum
 number of internal knots to be added by the GeDS estimation algorithm. By
 default equal to the number of internal knots \eqn{\kappa} for the saturated
 GeDS model (i.e. \eqn{\kappa=N-2}).}
 
-\item{q}{numeric parameter which allows to fine-tune the stopping rule of
+\item{q}{Numeric parameter which allows to fine-tune the stopping rule of
 stage A of GeDS, by default equal to 2. See details in the description of
 \code{\link{NGeDS}} or \code{\link{GGeDS}}.}
 
-\item{extr}{numeric vector of 2 elements representing the left-most and
+\item{extr}{Numeric vector of 2 elements representing the left-most and
 right-most limits of the interval embedding the sample values of \code{X}. By
 default equal correspondingly to the smallest and largest values of \code{X}.}
 
-\item{show.iters}{logical variable indicating whether or not to print 
+\item{show.iters}{Logical variable indicating whether or not to print 
 information at each step. By default equal to \code{FALSE}.}
 
-\item{tol}{numeric value indicating the tolerance to be used in the knot
+\item{tol}{Numeric value indicating the tolerance to be used in the knot
 placement steps in stage A. By default equal to 1E-12. See details below.}
 
-\item{stoptype}{a character string indicating the type of GeDS stopping rule
+\item{stoptype}{A character string indicating the type of GeDS stopping rule
 to be used. It should be either \code{"SR"}, \code{"RD"} or \code{"LR"},
 partial match allowed. See details of \code{\link{NGeDS}} or
 \code{\link{GGeDS}}.}
 
-\item{higher_order}{a logical that defines whether to compute the higher
+\item{higher_order}{A logical that defines whether to compute the higher
 order fits (quadratic and cubic) after stage A is run. Default is
 \code{TRUE}.}
 
-\item{intknots_init}{vector of initial internal knots from which to start the GeDS
+\item{intknots_init}{Vector of initial internal knots from which to start the GeDS
 Stage A iterations. See Section 3 of Kaishev et al. (2016). Default is \code{NULL}.}
 
 \item{fit_init}{A list containing fitted values \code{pred}, along with
 corresponding \code{intknots} and \code{coef}, representing the initial fit from
 which to begin Stage A GeDS iteration (i.e. departing from step 2).}
 
-\item{only_pred}{logical, if \code{TRUE} only predictions are computed.}
+\item{only_pred}{Logical, if \code{TRUE} only predictions are computed.}
 
-\item{family}{a description of the error distribution and link function to be
+\item{family}{A description of the error distribution and link function to be
 used in the model. This can be a character string naming a family function
 (e.g. \code{"gaussian"}), the family function itself (e.g.
 \code{\link[stats]{gaussian}}) or the result of a call to a family function
@@ -129,7 +128,7 @@ used in the model. This can be a character string naming a family function
 functions.}
 }
 \value{
-A \code{\link{GeDS-Class}} object, but without the \code{Formula},
+A \code{"GeDS"} class object, but without the \code{Formula},
 \code{extcall}, \code{terms} and \code{znames} slots.
 }
 \description{
