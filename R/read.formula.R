@@ -83,7 +83,7 @@ read.formula.gam <- read.formula.boost <- function(formula, data,
   formula <- as.formula(formula)
   
   # Check for offset
-  offset_index <- attr(terms(formula), "offset")
+  offset_index <- attr(terms(formula, data = data), "offset")
   
   if (!is.null(offset_index)) {
     # Extract offset variable name
