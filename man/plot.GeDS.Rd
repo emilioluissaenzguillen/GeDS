@@ -8,7 +8,7 @@
   x,
   f = NULL,
   which,
-  DEV = FALSE,
+  dev = FALSE,
   ask = FALSE,
   main,
   legend.pos = "topright",
@@ -16,55 +16,55 @@
   new.window = FALSE,
   wait = 0.5,
   n = 3L,
-  type = c("none", "Polygon", "NCI", "ACI"),
+  type = c("none", "polygon", "nci", "aci"),
   ...
 )
 }
 \arguments{
-\item{x}{an object of class \code{"GeDS"}, as returned by \code{NGeDS()} or
+\item{x}{An object of class \code{"GeDS"}, as returned by \code{NGeDS()} or
 \code{GGeDS()}.}
 
-\item{f}{(optional) specifies the underlying function or generating process
+\item{f}{(Optional) specifies the underlying function or generating process
 to which the model was fit. This parameter is useful if the user wishes to
 plot the specified function/process alongside the model fit and the data}
 
-\item{which}{a numeric vector specifying the iterations of stage A for which
+\item{which}{A numeric vector specifying the iterations of stage A for which
 the corresponding GeDS fits should be plotted.
-It has to be a subset of  \code{1:nrow(x$stored)}. See details.}
+It has to be a subset of  \code{1:nrow(x$stored)}. See Details.}
 
-\item{DEV}{logical variable specifying whether a plot representing the
+\item{dev}{Logical variable specifying whether a plot representing the
 deviance at each iteration of stage A should be produced or not.}
 
-\item{ask}{logical variable specifying whether the user should be prompted
+\item{ask}{Logical variable specifying whether the user should be prompted
 before changing the plot page.}
 
-\item{main}{an optional character string used as the plot title. If set to
-`"detail"`, the knots vector will be displayed on the plot.}
+\item{main}{An optional character string used as the plot title. If set to
+\code{"detail"}, the knots vector will be displayed on the plot.}
 
-\item{legend.pos}{the position of the legend within the panel. See
+\item{legend.pos}{The position of the legend within the panel. See
 \link[graphics]{legend} for details.}
 
-\item{legend.text}{a character vector specifying the legend text.}
+\item{legend.text}{A character vector specifying the legend text.}
 
-\item{new.window}{logical variable specifying whether the plot should be
+\item{new.window}{Logical variable specifying whether the plot should be
 shown in a new window or in the active one.}
 
-\item{wait}{time, in seconds, the system should wait before plotting a new
+\item{wait}{Time, in seconds, the system should wait before plotting a new
 page. Ignored if \code{ask = TRUE}.}
 
-\item{n}{integer value (2, 3 or 4) specifying the order (\eqn{=} degree
+\item{n}{Integer value (2, 3 or 4) specifying the order (\eqn{=} degree
 \eqn{+ 1}) of the GeDS fit that should be plotted. By default equal to
 \code{3L}. Non-integer values will be passed to the function
 \code{\link{as.integer}}.}
 
-\item{type}{character string specifying the type of plot required. Should be
-set either to \code{"Polygon"} if the user wants to get also the control
-polygon of the GeDS fit,  \code{"NCI"} or  \code{"ACI"} if 95\% confidence
-bands for the predictions should be plotted (see details) or \code{"none"} if
+\item{type}{Character string specifying the type of plot required. Should be
+set either to \code{"polygon"} if the user wants to get also the control
+polygon of the GeDS fit,  \code{"nci"} or  \code{"aci"} if 95\% confidence
+bands for the predictions should be plotted (see Details) or \code{"none"} if
 only the fitted GeDS curve should be plotted. Applies only when plotting a
 univariate spline regression.}
 
-\item{...}{further arguments to be passed to the
+\item{...}{Further arguments to be passed to the
 \code{\link[graphics]{plot.default}} function.}
 }
 \description{
@@ -91,13 +91,13 @@ allowed  only if \code{n = 2}, in contrast to objects produced by
 \code{\link{NGeDS}} for which plotting intermediate results is allowed also
 for \code{n = }2 or 3 results.
 
-The confidence intervals obtained by setting \code{type = "NCI"} are
+The confidence intervals obtained by setting \code{type = "nci"} are
 approximate local bands obtained considering the knots as fixed constants.
 Hence the columns of the design matrix are seen as covariates and standard
 methodology relying on the \code{se.fit} option of \code{predict.lm} or
 \code{predict.glm} is applied.
 
-Setting \code{type = "ACI"}, asymptotic confidence intervals are plotted.
+Setting \code{type = "aci"}, asymptotic confidence intervals are plotted.
 This option is applicable only if the canonical link function has been used
 in the fitting procedure.
 }
@@ -120,7 +120,9 @@ Y <- rnorm(N, means, sd = 0.1)
 
 # Plot the final quadratic GeDS fit (red solid line)
 # with its control polygon (blue dashed line)
-plot(Gmod)
+plot(Gmod, main = "detail")
+plot(Gmod, type = "nci")
+plot(Gmod, type = "aci")
 
 # Plot the quadratic fit obtained from the linear fit at the 10th
 # iteration of stage A i.e. after 9 internal knots have been inserted
@@ -130,7 +132,7 @@ plot(Gmod, which=10)
 # Generate plots of all the intermediate fits obtained
 # by running the GeDS procedure
 \dontrun{
-plot(Gmod, which=1:16)
+plot(Gmod, which=1:(Gmod$Nintknots + Gmod$args$q + 1))
 }
 
 ###################################################
@@ -155,8 +157,9 @@ Y <- rpois(N,means)
 plot(Gmod2, n = 2)
 plot(Gmod2, which = 10, n = 2)
 \dontrun{
-plot(Gmod2, which = 1:16, n = 2)
-plot(Gmod2, which = 1:16, n = 2, ask = T)
+iters <- (Gmod2$Nintknots + Gmod2$args$q + 1)
+plot(Gmod2, which = 1:iters, n = 2)
+plot(Gmod2, which = 1:iters, n = 2, ask = T)
 }
 
 }

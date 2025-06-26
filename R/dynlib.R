@@ -35,22 +35,22 @@ NULL
 #' at various \eqn{Q} values, which are used to analyze the scattering properties 
 #' of an unknown crystalline material. The dataset is available in two versions 
 #' based on the precision of the measurements:
-#'
-#' - **`CrystalData10k`** (lower precision);
-#' - **`CrystalData300k`** (higher precision).
-#'
+#' \itemize{
+#'   \item \code{CrystalData10k} (lower precision);
+#'   \item \code{CrystalData300k} (higher precision);
+#' }
 #' The goal of the experiment is to estimate \eqn{F(Q)} from noisy data using 
-#' a GeDS model and compute its Fourier transform, which provides valuable insights 
-#' into the structure of the material.
+#' a GeDS model, and subsequently compute its Fourier transform to gain some valuable
+#' insights into the structure of the material.
 #'
 #' @format A \code{data.frame} with 1721 observations and 2 variables:
 #' \itemize{
-#'   \item{\code{Q} (\eqn{\text{Å}^{-1}})}: The scattering vector, measured in inverse angstroms (\eqn{\text{Å}^{-1}}).
-#'   \item{\code{FQ} (a.u.)}: The measured function \eqn{F(Q)}, given in arbitrary units (a.u.).
+#'   \item{\code{Q}}: The scattering vector, measured in inverse angstroms, \eqn{\text{Å}^{-1}};
+#'   \item{\code{FQ}}: The measured function \eqn{F(Q)}, given in arbitrary units (a.u.).
 #' }
 #' @usage data(CrystalData10k) 
 #' @usage data(CrystalData300k)
-#' @source Data collected from a particle accelerator experiment.
+#' @source Unpublished data from a controlled particle accelerator experiment.
 #' @examples \dontrun{
 #' # Load the dataset (choose 10k or 300k version)
 #' data('CrystalData10k')
@@ -85,8 +85,8 @@ NULL
 #' 
 #' @format A \code{data.frame} with 1151 cases and 2 variables:
 #' \itemize{
-#'   \item{angle}: the dispersion angle, viewed as the independent variable.
-#'   \item{intensity}: the neutron diffraction intensity, viewed as the response
+#'   \item \code{angle}: the dispersion angle, viewed as the independent variable.
+#'   \item \code{intensity}: the neutron diffraction intensity, viewed as the response
 #'   variable.
 #' }
 #' @usage data(BaFe2As2)
@@ -133,8 +133,8 @@ NULL
 #' @format A \code{data.frame} with 112 entries, corresponding to the
 #' years from 1850 to 1962. Each entry has:
 #' \itemize{
-#'   \item{accidents}: number of severe accidents that have occurred each year.
-#'   \item{years}: year during which the accidents occurred.
+#'   \item \code{accidents}: number of severe accidents that have occurred each year.
+#'   \item \code{years}: year during which the accidents occurred.
 #' }
 #' @usage data(coalMining)
 #' @source \url{https://people.reed.edu/~jones/141/Coal.html}

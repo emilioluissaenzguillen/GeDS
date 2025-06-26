@@ -4,45 +4,46 @@
 \alias{print.GeDS}
 \alias{print.GeDSboost}
 \alias{print.GeDSgam}
-\title{Print Method for GeDS, GeDSboost, GeDSgam}
+\title{Print Method for GeDS, GeDSgam, GeDSboost}
 \usage{
 \method{print}{GeDS}(x, digits = max(3L, getOption("digits") - 3L), ...)
 
-\method{print}{GeDSboost}(x, digits = max(3L, getOption("digits") - 3L), ...)
-
 \method{print}{GeDSgam}(x, digits = max(3L, getOption("digits") - 3L), ...)
+
+\method{print}{GeDSboost}(x, digits = max(3L, getOption("digits") - 3L), ...)
 }
 \arguments{
-\item{x}{the \code{"GeDS"} class, \code{\link{NGeDSboost}} or
-\code{\link{NGeDSgam}} object for which the main information should be
-printed on screen.}
+\item{x}{The \code{"GeDS"}, \code{"GeDSgam"} or \code{"GeDSboost"} class 
+object for which the main information should be printed on screen.}
 
-\item{digits}{number of digits to be printed.}
+\item{digits}{Number of digits to be printed.}
 
-\item{...}{potentially further arguments (required by the definition of the
+\item{...}{Potentially further arguments (required by the definition of the
 generic function).}
 }
 \value{
 This function returns (invisibly) the same input object, but adding
-the slot \code{Print} that contains the three sub-slots:
-\item{Nknots}{ the number of internal knots of the linear
+the slot \code{print} that contains the three sub-slots:
+\describe{
+\item{Nintknots}{ the number of internal knots of the linear
 GeDS/FGB-GeDS/GAM-GeDS fit}
-\item{Deviances}{ the deviances of the three (linear, quadratic and cubic)
+\item{deviances}{ the deviances of the three (linear, quadratic and cubic)
 GeDS/FGB-GeDS/GAM-GeDS fits}
-\item{Call}{ the \code{call} to the function that produced the \code{x}
+\item{call}{ the \code{call} to the function that produced the \code{x}
 object}
+}
 }
 \description{
 Method for the generic function \code{\link[base]{print}} that allows to
-print on screen the main information related to a fitted \code{"GeDS"} class,
-\code{\link{NGeDSboost}} or \code{\link{NGeDSgam}} model.
+print on screen the main information related to a fitted \code{"GeDS"},
+\code{"GeDSgam"}, \code{"GeDSboost"} class model.
 }
 \details{
 This method allows to print on screen basic information related to the fitted
 predictor model such as the function \code{call}, the number of internal
 knots for the linear GeDS/FGB-GeDS/GAM-GeDS fit and the deviances for the
 three (linear, quadratic and cubic) fitted predictor models embedded in the
-\code{\link{NGeDSboost}} or \code{\link{NGeDSgam}} object.
+\code{"GeDS"}, \code{"GeDSgam"} or \code{"GeDSboost"} object.
 }
 \seealso{
 \code{\link[base]{print}} for the standard definition.

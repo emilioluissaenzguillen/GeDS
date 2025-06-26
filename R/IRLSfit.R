@@ -24,58 +24,60 @@
 #' fixed covariates to produce one common \eqn{N}-vector of coordinates.
 #' @param family A description of the error distribution and link function to be
 #' used in the model. This can be a character string naming a family function
-#' (e.g. \code{"gaussian"}), the family function itself (e.g.
+#' (e.g., \code{"gaussian"}), the family function itself (e.g.
 #' \code{\link[stats]{gaussian}}) or the result of a call to a family function
-#' (e.g. \code{gaussian()}). See \link[stats]{family} for details on family
+#' (e.g., \code{gaussian()}). See \link[stats]{family} for details on family
 #' functions.
 #' @param control A list of parameters for controlling the IRLS fitting process
 #' to be passed on to \code{\link[stats]{glm.control}}. See
 #' \code{\link[stats]{glm.fit}} for further details.
 #' 
 #' @return A list containing:
+#' \describe{
 #' \item{coefficients}{A named vector containing the estimated regression
-#' coefficients;}
+#' coefficients.}
 #' \item{residuals}{The working residuals, which are the residuals from the 
 #' final iteration of the IRLS fit. Cases with zero weights are omitted, and
-#' their working residuals are \code{NA};}
+#' their working residuals are \code{NA}.}
 #' \item{res2}{The working residuals after the final IRLS iteration. They are
-#' used within the knot placement steps of stage A of GeDS;}
+#' used within the knot placement steps of stage A of GeDS.}
 #' \item{fitted.values}{The fitted mean values, obtained by transforming the
-#' predictor by the inverse of the link function;}
-#' \item{rank}{The numeric rank of the fitted linear model;}
-#' \item{family}{The \code{\link[stats]{family}} object used;}
-#' \item{linear.predictors}{The fitted predictor;}
+#' predictor through the inverse of the link function.}
+#' \item{rank}{The numeric rank of the fitted linear model.}
+#' \item{family}{The \code{\link[stats]{family}} object used.}
+#' \item{linear.predictors}{The fitted predictor.}
 #' \item{deviance_iters}{A vector containing the deviances obtained at each IRLS
-#' iteration;}
-#' \item{deviance}{The deviance at the last IRLS iteration;}
+#' iteration.}
+#' \item{deviance}{The deviance at the last IRLS iteration.}
 #' \item{null.deviance}{The deviance for the null model (see
-#' \code{\link[stats]{glm}} documentation);}
-#' \item{iter}{The number of IRLS iterations performed;}
-#' \item{weights}{The working weights after the last IRLS iteration;}
-#' \item{prior.weights}{The ``prior weights" (see the \code{weights} argument);}
-#' \item{df.residual}{The residual degrees of freedom;}
-#' \item{df.null}{The residual degrees of freedom for the null model;}
-#' \item{y}{The vector of values of the response variable used in the fitting;}
-#' \item{z}{The transformed responses computed after the last IRLS iteration;}
+#' \code{\link[stats]{glm}} documentation).}
+#' \item{iter}{The number of IRLS iterations performed.}
+#' \item{weights}{The working weights after the last IRLS iteration.}
+#' \item{prior.weights}{The "prior weights" (see the \code{weights} argument).}
+#' \item{df.residual}{The residual degrees of freedom.}
+#' \item{df.null}{The residual degrees of freedom for the null model.}
+#' \item{y}{The vector of values of the response variable used in the fitting.}
+#' \item{z}{The transformed responses computed after the last IRLS iteration.}
 #' \item{converged}{Logical. Was the IRLS algorithm judged to have converged?}
 #' \item{boundary}{Logical. Is the fitted value on the boundary of the
 #' attainable values?}
 #' In addition, non-empty fits will have components \code{qr}, \code{R} and
 #' \code{effects} relating to the final weighted linear fit, see
-#' \code{\link{lm.fit}} documentation.
+#' \code{\link{glm.fit}} documentation.
+#' }
 #' 
 #' @details
-#' This function is a slightly modified version of the
-#' \code{\link[stats]{glm.fit}} from the package \pkg{stats} to which we refer
+#' This function is a slightly modified version of the \code{\link[stats]{glm.fit}}
+#' function from the package \pkg{stats} to which we refer
 #' for further details. The difference in the inputs of \code{IRLSfit} and
 #' \code{\link[stats]{glm.fit}} is that the former admits initial values only
 #' for the vector of means.
 #'
 #' The output from \code{IRLSfit} has some additional slots compared to
 #' \code{\link[stats]{glm.fit}}. We note that the slots \code{weights},
-#' \code{res2} and \code{z} contain values of the IRLS weights, ``working
+#' \code{res2} and \code{z} contain values of the IRLS weights, "working
 #' residuals" and transformed responses computed \emph{after} the last IRLS
-#' iteration, i.e. they are based on the estimated coefficients that are
+#' iteration, i.e., they are based on the estimated coefficients that are
 #' returned by \code{IRLSfit}.
 #'
 #' The source code of \code{IRLSfit} contains also some commented lines that

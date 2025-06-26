@@ -7,38 +7,38 @@
 #' @name plot.GeDS
 #' @description
 #' Plot method for GeDS objects. Plots GeDS fits.
-#' @param x an object of class \code{"GeDS"}, as returned by \code{NGeDS()} or
+#' @param x An object of class \code{"GeDS"}, as returned by \code{NGeDS()} or
 #' \code{GGeDS()}.
-#' @param f (optional) specifies the underlying function or generating process
+#' @param f (Optional) specifies the underlying function or generating process
 #' to which the model was fit. This parameter is useful if the user wishes to
 #' plot the specified function/process alongside the model fit and the data 
-#' @param which a numeric vector specifying the iterations of stage A for which
+#' @param which A numeric vector specifying the iterations of stage A for which
 #' the corresponding GeDS fits should be plotted.
-#' It has to be a subset of  \code{1:nrow(x$stored)}. See details.
-#' @param DEV logical variable specifying whether a plot representing the
+#' It has to be a subset of  \code{1:nrow(x$stored)}. See Details.
+#' @param dev Logical variable specifying whether a plot representing the
 #' deviance at each iteration of stage A should be produced or not.
-#' @param ask logical variable specifying whether the user should be prompted
+#' @param ask Logical variable specifying whether the user should be prompted
 #' before changing the plot page.
-#' @param main an optional character string used as the plot title. If set to
-#' `"detail"`, the knots vector will be displayed on the plot.
-#' @param legend.pos the position of the legend within the panel. See
+#' @param main An optional character string used as the plot title. If set to
+#' \code{"detail"}, the knots vector will be displayed on the plot.
+#' @param legend.pos The position of the legend within the panel. See
 #' \link[graphics]{legend} for details.
-#' @param legend.text a character vector specifying the legend text.
-#' @param new.window logical variable specifying whether the plot should be
+#' @param legend.text A character vector specifying the legend text.
+#' @param new.window Logical variable specifying whether the plot should be
 #' shown in a new window or in the active one.
-#' @param wait time, in seconds, the system should wait before plotting a new
+#' @param wait Time, in seconds, the system should wait before plotting a new
 #' page. Ignored if \code{ask = TRUE}.
-#' @param n integer value (2, 3 or 4) specifying the order (\eqn{=} degree
+#' @param n Integer value (2, 3 or 4) specifying the order (\eqn{=} degree
 #' \eqn{+ 1}) of the GeDS fit that should be plotted. By default equal to
 #' \code{3L}. Non-integer values will be passed to the function
 #' \code{\link{as.integer}}.
-#' @param type character string specifying the type of plot required. Should be
-#' set either to \code{"Polygon"} if the user wants to get also the control
-#' polygon of the GeDS fit,  \code{"NCI"} or  \code{"ACI"} if 95\% confidence
-#' bands for the predictions should be plotted (see details) or \code{"none"} if
+#' @param type Character string specifying the type of plot required. Should be
+#' set either to \code{"polygon"} if the user wants to get also the control
+#' polygon of the GeDS fit,  \code{"nci"} or  \code{"aci"} if 95\% confidence
+#' bands for the predictions should be plotted (see Details) or \code{"none"} if
 #' only the fitted GeDS curve should be plotted. Applies only when plotting a
 #' univariate spline regression.
-#' @param ... further arguments to be passed to the
+#' @param ... Further arguments to be passed to the
 #' \code{\link[graphics]{plot.default}} function.
 #'
 #' @details
@@ -62,13 +62,13 @@
 #' \code{\link{NGeDS}} for which plotting intermediate results is allowed also
 #' for \code{n = }2 or 3 results.
 #'
-#' The confidence intervals obtained by setting \code{type = "NCI"} are
+#' The confidence intervals obtained by setting \code{type = "nci"} are
 #' approximate local bands obtained considering the knots as fixed constants.
 #' Hence the columns of the design matrix are seen as covariates and standard
 #' methodology relying on the \code{se.fit} option of \code{predict.lm} or
 #' \code{predict.glm} is applied.
 #'
-#' Setting \code{type = "ACI"}, asymptotic confidence intervals are plotted.
+#' Setting \code{type = "aci"}, asymptotic confidence intervals are plotted.
 #' This option is applicable only if the canonical link function has been used
 #' in the fitting procedure.
 #'
@@ -91,7 +91,9 @@
 #'
 #' # Plot the final quadratic GeDS fit (red solid line)
 #' # with its control polygon (blue dashed line)
-#' plot(Gmod)
+#' plot(Gmod, main = "detail")
+#' plot(Gmod, type = "nci")
+#' plot(Gmod, type = "aci")
 #'
 #' # Plot the quadratic fit obtained from the linear fit at the 10th
 #' # iteration of stage A i.e. after 9 internal knots have been inserted
@@ -101,7 +103,7 @@
 #' # Generate plots of all the intermediate fits obtained
 #' # by running the GeDS procedure
 #' \dontrun{
-#' plot(Gmod, which=1:16)
+#' plot(Gmod, which=1:(Gmod$Nintknots + Gmod$args$q + 1))
 #' }
 #'
 #' ###################################################
@@ -126,25 +128,25 @@
 #' plot(Gmod2, n = 2)
 #' plot(Gmod2, which = 10, n = 2)
 #' \dontrun{
-#' plot(Gmod2, which = 1:16, n = 2)
-#' plot(Gmod2, which = 1:16, n = 2, ask = T)
+#' iters <- (Gmod2$Nintknots + Gmod2$args$q + 1)
+#' plot(Gmod2, which = 1:iters, n = 2)
+#' plot(Gmod2, which = 1:iters, n = 2, ask = T)
 #' }
 #'
 #' @seealso \code{\link{NGeDS}} and \code{\link{GGeDS}};
 #' \code{\link[graphics]{plot}}.
 #' 
-#' @export 
+#' @method plot GeDS
 #' @importFrom plot3D persp3D points3D
 #' @importFrom grDevices dev.new devAskNewPage
 #' @importFrom graphics plot lines legend rug points abline mtext
 #' @importFrom stats predict.glm
-#' @export
-#' @method plot GeDS
+#' @export 
 
-plot.GeDS <- function(x, f = NULL, which, DEV = FALSE, ask = FALSE,
+plot.GeDS <- function(x, f = NULL, which, dev = FALSE, ask = FALSE,
                       main, legend.pos = "topright", legend.text = NULL,
                       new.window = FALSE, wait = 0.5,
-                      n = 3L, type = c("none", "Polygon", "NCI", "ACI"), ...)
+                      n = 3L, type = c("none", "polygon", "nci", "aci"), ...)
 {
   results <- list()
   results$terms <- x$terms
@@ -152,11 +154,11 @@ plot.GeDS <- function(x, f = NULL, which, DEV = FALSE, ask = FALSE,
   # Position of the legend within the panel
   draw.legend <- !(is.na(legend.pos))
   
-  # Check length of DEV/ask/new.window/wait
-  if(length(DEV)!= 1 || length(ask)!= 1 || length(new.window)!= 1 || length(wait)!= 1 )
+  # Check length of dev/ask/new.window/wait
+  if(length(dev)!= 1 || length(ask)!= 1 || length(new.window)!= 1 || length(wait)!= 1 )
     stop("Please, check the length of the parameters")
   # Logical variable specifying whether a plot representing the deviance at each iteration of stage A should be produced or not
-  DEV <- as.logical(DEV)
+  dev <- as.logical(dev)
   # Logical variable specifying whether the user should be prompted before changing the plot page
   ask <- as.logical(ask)
   # Logical variable specifying whether the plot should be shown in a new window or in the active one
@@ -176,8 +178,8 @@ plot.GeDS <- function(x, f = NULL, which, DEV = FALSE, ask = FALSE,
   }
   
   # Extract arguments
-  X <- x$Args$X; Y <- x$Args$Y; Z <- x$Args$Z
-  weights <- x$Args$weights; q <- x$Args$q; offset <- x$Args$offset 
+  X <- x$args$X; Y <- x$args$Y; Z <- x$args$Z
+  weights <- x$args$weights; q <- x$args$q; offset <- x$args$offset 
   
   # Check if order is correctly set
   n <- as.integer(n)
@@ -189,13 +191,13 @@ plot.GeDS <- function(x, f = NULL, which, DEV = FALSE, ask = FALSE,
   # Set toprint
   if (n == 2L) {
     toprint = "Linear"
-  } else if (n==3L) {
+  } else if (n == 3L) {
     toprint = "Quadratic"
-  } else if (n==4L) {
+  } else if (n == 4L) {
     toprint = "Cubic"
   }
   
-  maxim <- nrow(x$Stored) # number of iterations in stage A
+  maxim <- nrow(x$stored) # number of iterations in stage A
   others <- list(...) # other arguments passed to the function
   
   # Data arguments
@@ -205,7 +207,7 @@ plot.GeDS <- function(x, f = NULL, which, DEV = FALSE, ask = FALSE,
   ########################
   ## 1. Univariate GeDS ##
   ########################
-  if (x$Type == "LM - Univ" || x$Type == "GLM - Univ") {
+  if (x$type == "LM - Univ" || x$type == "GLM - Univ") {
     
     # Set plot color, default to "red" if not specified in additional arguments
     col_lines <- if ("col_lines" %in% names(others)) others$col_lines else "red"
@@ -216,14 +218,14 @@ plot.GeDS <- function(x, f = NULL, which, DEV = FALSE, ask = FALSE,
     # If which == "all", plot all stage A iterations
     if (length(which) == 1 && which == "all") which <- 1:(maxim)
     # Independent variable extremes
-    extr <- x$Args$extr
+    extr <- x$args$extr
     
-    # Validate ("Polygon", "NCI" or "ACI") and set plot type
+    # Validate ("polygon", "nci" or "aci") and set plot type
     type <- match.arg(type)
     
     # Format independent variable name for plotting
     var_labels <- attr(x$terms, "variables")  # Full list of variables
-    xname <- as.character(var_labels)[3]  # Exclude response variable
+    xname <- as.character(var_labels[[3]])[2] # Exclude response variable
     # Extract dependent variable name for plotting
     yname <- rownames(attr(x$terms,"factors"))[1]
     # Use provided labels or defaults
@@ -231,10 +233,10 @@ plot.GeDS <- function(x, f = NULL, which, DEV = FALSE, ask = FALSE,
     ylab <- if (!is.null(others$ylab)) others$ylab else yname
     
     # Set y-axis limits
-    yylim <- range(c(Y, x$Linear.Fit$Predicted)) + 0.05 * c(-1, 1) *  range(c(Y, x$Linear.Fit$Predicted))
+    yylim <- range(c(Y, x$linear.fit$predicted)) + 0.05 * c(-1, 1) *  range(c(Y, x$linear.fit$predicted))
 
     # Determine the maximum number of iterations
-    maxim <- nrow(x$Stored)
+    maxim <- nrow(x$stored)
     
     # Validate 'which' parameter
     if ((!is.numeric(which) && !is.null(which)) || any(which < 1) || any(which > maxim)) {
@@ -272,9 +274,9 @@ plot.GeDS <- function(x, f = NULL, which, DEV = FALSE, ask = FALSE,
     ###############################
     ## 1. Univariate NGeDS/GGeDS ##
     ###############################
-    if (x$Type == "GLM - Univ") {
+    if (x$type == "GLM - Univ") {
       # Extract GLM family from model arguments
-      family <- x$Args$family
+      family <- x$args$family
       # Restrict plotting to linear spline in case which does not correspond to the final model's iteration
       if (n != 2L && which != maxim - q) {
         which <- maxim - q
@@ -299,22 +301,30 @@ plot.GeDS <- function(x, f = NULL, which, DEV = FALSE, ask = FALSE,
         main
       }
       # Plot
-      if (!is.null(others$ylim)) {
-        plot(X, Y, main = main0, ...)  
-      } else {
-        plot(X, Y, main = main0, ylim = yylim, ...)
-      }
+      # if (!is.null(others$ylim)) {
+      #   plot(X, Y, main = main0, ...)  
+      # } else {
+      #   plot(X, Y, main = main0, ylim = yylim, ...)
+      # }
+      plot_args <- list(x = X, y = Y, main = main0)
+      if (!is.null(xlab)) plot_args$xlab <- xlab
+      if (is.null(others$ylim)) plot_args$ylim <- yylim
+      # Protect against weird y-axis titles
+      if (is.null(others$ylab) && is.null(list(...)$ylab)) plot_args$ylab <- "Y"
+      plot_args <- c(plot_args, list(...))
+      do.call(plot, plot_args)
+      
       if (!is.null(f)) lines(X, f(X), col = "black", lwd = 2)
       
       # Obtain stage A knots and perform spline regression
-      ik <- na.omit(x$Stored[i,-c(1,2,(i+2),(i+3))])
+      ik <- na.omit(x$stored[i,-c(1,2,(i+2),(i+3))])
       # Stage B.1 (averaging knot location)
       int.knt <- if (i > 1) makenewknots(ik, n) else NULL
       
       ###########################
       ## 1.1. Univariate NGeDS ##
       ###########################
-      if (x$Type == "LM - Univ") {
+      if (x$type == "LM - Univ") {
         # Stage B.2
         temp <- SplineReg_LM(X = X, Y = Y, Z = Z, offset = offset, weights = weights, extr = extr,
                              InterKnots = int.knt, n = n)
@@ -322,18 +332,18 @@ plot.GeDS <- function(x, f = NULL, which, DEV = FALSE, ask = FALSE,
         ###########################
         ## 1.2. Univariate GGeDS ##
         ###########################
-      } else if (x$Type == "GLM - Univ") {
+      } else if (x$type == "GLM - Univ") {
         # Stage B.2
         temp <- SplineReg_GLM(X = X, Y = Y, Z = Z, offset = offset, weights = weights, extr = extr,
-                              InterKnots = int.knt, n = n, family = family, mustart = x$Linear.Fit$Predicted)
+                              InterKnots = int.knt, n = n, family = family, mustart = x$linear.fit$predicted)
       }
       
       # Update results with predicted values
       results$X <- X
-      results$predicted <- temp$Predicted
+      results$predicted <- temp$predicted
       
       # Plot the spline
-      lines(X, temp$Predicted, col = col_lines, lwd = 2)
+      lines(X, temp$predicted, col = col_lines, lwd = 2)
       
       # Add vertical lines for knots
       if (length(int.knt) < 20) {
@@ -378,34 +388,34 @@ plot.GeDS <- function(x, f = NULL, which, DEV = FALSE, ask = FALSE,
       }
       
       ## Each branch now adds specific elements to the plot based on the selected type
-      # 1) Polygon
-      if (type == "Polygon") {
+      # 1) polygon
+      if (type == "polygon") {
         results$Polykn <- temp$Poly$Kn
-        results$Polyth <- if (x$Type == "LM - Univ") temp$Poly$Thetas else if (x$Type == "GLM - Univ") family$linkinv(temp$Poly$Thetas)
+        results$Polyth <- if (x$type == "LM - Univ") temp$Poly$thetas else if (x$type == "GLM - Univ") family$linkinv(temp$Poly$thetas)
         
         lines(results$Polykn, results$Polyth, col = "blue", lty = 2)
         points(results$Polykn, results$Polyth, col = "blue")
         
-        if (missing(legend.text)) legend.text <- c("Data", toprint, "Polygon", f_legend)
+        if (missing(legend.text)) legend.text <- c("Data", toprint, "polygon", f_legend)
         
         if(draw.legend) legend(legend.pos, legend.text, lty = c(NA, 1, 2, f_lty),
                                col = c(col_data, col_lines, "blue", f_col),
                                pch = c(pch_data, NA, 1, f_pch),
                                lwd = c(NA, 1, 1, f_lwd), bty = "n")
         
-        ## NCI/ACI
-      } else if(type == "NCI" || type == "ACI") {
+        ## nci/aci
+      } else if(type == "nci" || type == "aci") {
         if (missing(legend.text)) legend.text <- c("Data", toprint, "CI", f_legend)
         
-        if (x$Type == "LM - Univ") {
+        if (x$type == "LM - Univ") {
           
           # 2) Normal Confidence Intervals
-          if (type == "NCI") {
-            lines(X,temp$NCI$Upp, col = col_lines, lwd = 2, lty = 2)
-            lines(X,temp$NCI$Low, col = col_lines, lwd = 2, lty = 2)
+          if (type == "nci") {
+            lines(X,temp$nci$Upp, col = col_lines, lwd = 2, lty = 2)
+            lines(X,temp$nci$Low, col = col_lines, lwd = 2, lty = 2)
             
-            results$CIupp <- temp$NCI$Upp
-            results$CIlow <- temp$NCI$Low
+            results$CIupp <- temp$nci$Upp
+            results$CIlow <- temp$nci$Low
             
             if(draw.legend) legend(legend.pos, legend.text, lty = c(NA, 1, 2, f_lty),
                                    col = c(col_data, col_lines, col_lines, f_col),
@@ -413,11 +423,11 @@ plot.GeDS <- function(x, f = NULL, which, DEV = FALSE, ask = FALSE,
                                    lwd = c(NA, 1, 1, f_lwd), bty = "n")
             
             # 3) Asymptotic Confidence Intervals
-          } else if (type == "ACI") {
-            lines(X,temp$ACI$Upp, col = col_lines, lwd = 2, lty = 2)
-            lines(X,temp$ACI$Low, col = col_lines, lwd = 2, lty = 2)
-            results$CIupp <- temp$ACI$Upp
-            results$CIlow <- temp$ACI$Low
+          } else if (type == "aci") {
+            lines(X,temp$aci$Upp, col = col_lines, lwd = 2, lty = 2)
+            lines(X,temp$aci$Low, col = col_lines, lwd = 2, lty = 2)
+            results$CIupp <- temp$aci$Upp
+            results$CIlow <- temp$aci$Low
             
             if(draw.legend) legend(legend.pos, legend.text, lty = c(NA, 1, 2, f_lty),
                                    col = c(col_data, col_lines, col_lines, f_col),
@@ -425,21 +435,21 @@ plot.GeDS <- function(x, f = NULL, which, DEV = FALSE, ask = FALSE,
                                    lwd = c(NA, 1, 1, f_lwd), bty = "n")
           }
           
-        } else if (x$Type == "GLM - Univ") {
+        } else if (x$type == "GLM - Univ") {
           
           # 2) Normal Confidence Intervals
-          if (type == "NCI") {
+          if (type == "nci") {
             yy <- Y
             xx <- if (n != 2L) {
-              temp$Basis
+              temp$basis
             } else {
-              x$Linear.Fit$Basis
+              x$linear.fit$basis
             }
             
             matrice <- splineDesign(knots = sort(c(int.knt,rep(extr,2))), derivs = rep(0,length(X)),
                                     x = X, ord = n, outer.ok = TRUE)
             
-            temp_nci <- glm(yy ~ -1+xx, offset = offset, weights = weights, family = family, start = temp$Thetas)
+            temp_nci <- glm(yy ~ -1+xx, offset = offset, weights = weights, family = family, start = temp$thetas)
             pred <- predict.glm(temp_nci, newdata = data.frame(xx = matrice, offset = 0), se.fit = T, type = "response")
             CIupp <- pred$fit + qnorm(.975)*pred$se.fit
             CIlow <- pred$fit - qnorm(.975)*pred$se.fit
@@ -455,7 +465,7 @@ plot.GeDS <- function(x, f = NULL, which, DEV = FALSE, ask = FALSE,
                                    lwd = c(NA, 1, 1, f_lwd), bty = "n")
             
             # 3) Asymptotic Confidence Intervals
-          } else if (type == "ACI") {
+          } else if (type == "aci") {
             CI <- confint.GeDS(object = x, n = n)
             CIupp <- CI[,2]
             CIlow <- CI[,1]
@@ -479,38 +489,39 @@ plot.GeDS <- function(x, f = NULL, which, DEV = FALSE, ask = FALSE,
       }
     }
     
-    ## If DEV = TRUE, produce plot representing the deviance at each iteration of stage A
-    if (x$Type == "LM - Univ") {
-      print <- "RSS"
-    } else if (x$Type == "GLM - Univ") {
-      print <- "DEV"
+    ## If dev = TRUE, produce plot representing the deviance at each iteration of stage A
+    if (x$type == "LM - Univ") {
+      print <- "rss"
+    } else if (x$type == "GLM - Univ") {
+      print <- "dev"
     }
     
-    if (DEV) {
-      # i. RSS/DEV
+    if (dev) {
+      # i. rss/dev
       main0 <- if(missing(main)) print else main
-      plot(seq(0, x$iters-1), x$RSS/length(X), main = main0, xlab = "Internal knots", ylab = "", ...)
+      plot(seq(0, x$iters-1), x$rss/length(X), main = main0, xlab = "Internal knots", ylab = "", ...)
       rug(seq(1, x$iters-1 - q))
       if (slp > 0) {
         Sys.sleep(slp)
       }
-      # ii. \sqrt{RSS} / \sqrt{DEV}
+      # ii. \sqrt{rss} / \sqrt{dev}
       main0 <- if(missing(main)) bquote(sqrt(.(print))) else main
-      plot(seq(0, x$iters-1), (x$RSS/length(X))^.5, main = main0, xlab = "Knots", ylab = "", ...)
+      plot(seq(0, x$iters-1), (x$rss/length(X))^.5, main = main0, xlab = "Knots", ylab = "", ...)
       rug(seq(1, x$iters-1 - q))
       if(slp > 0) {
         Sys.sleep(slp)
       }
       # iii. \phi
       main0 <- if(missing(main)) expression(phi) else main
-      plot(seq(q, x$iters-1), (x$RSS[(1+q):x$iters]/x$RSS[(1):(x$iters-q)]), main = main0, xlab="Knots", ylab = "", ...)
+      plot(seq(q, x$iters-1), (x$rss[(1+q):x$iters]/x$rss[(1):(x$iters-q)]), main = main0,
+           xlab = "Knots", ylab = "", ...)
       rug(seq(2, x$iters-1 - q))
       if(slp > 0) {
         Sys.sleep(slp)
       }
       # iv. \sqrt{\phi}
       main0 <- if(missing(main)) expression(sqrt(phi)) else main
-      plot(seq(q, x$iters-1), (x$RSS[(1+q):x$iters]/x$RSS[(1):(x$iters-q)])^.5, main = main0, xlab="Knots", ylab = "", ...)
+      plot(seq(q, x$iters-1), (x$rss[(1+q):x$iters]/x$rss[(1):(x$iters-q)])^.5, main = main0, xlab="Knots", ylab = "", ...)
       rug(seq(2, x$iters-1 - q))
       if(slp > 0) {
         Sys.sleep(slp)
@@ -520,18 +531,18 @@ plot.GeDS <- function(x, f = NULL, which, DEV = FALSE, ask = FALSE,
     ##############################
     ## 2. Bivariate NGeDS/GGeDS ##
     ##############################
-  } else if (x$Type == "LM - Biv" || x$Type == "GLM - Biv") {
+  } else if (x$type == "LM - Biv" || x$type == "GLM - Biv") {
     
     if(n == 2L) {
-      obj <- x$Linear.Fit
+      obj <- x$linear.fit
     } else if (n == 3L) {
-      obj <- x$Quadratic.Fit
+      obj <- x$quadratic.fit
     } else if (n == 4L) {
-      obj <- x$Cubic.Fit
+      obj <- x$cubic.fit
     }
     
     # Extract parametric component of the predictor model + X, Y extremes
-    W <- x$Args$W; Xextr <- x$Args$Xextr; Yextr <- x$Args$Yextr
+    W <- x$args$W; Xextr <- x$args$Xextr; Yextr <- x$args$Yextr
     
     # Default labels
     var_labels <- as.character(attr(x$terms, "variables"))[3]
@@ -580,7 +591,7 @@ plot.GeDS <- function(x, f = NULL, which, DEV = FALSE, ask = FALSE,
               xlab = xlab, ylab = ylab, zlab = zlab)
       # Add the data and predicted points to the plot
       points3D(x = X, y = Y, z = Z, col = "black", pch = 19, add = TRUE)
-      points3D(x = X, y = Y, z = obj$Predicted, col = "red", pch = 19, add = TRUE)
+      points3D(x = X, y = Y, z = obj$predicted, col = "red", pch = 19, add = TRUE)
       legend("topright",
              legend = c("Data", "Quadratic Fit"),
              col = c("black", "red"),
@@ -607,10 +618,10 @@ plot.GeDS <- function(x, f = NULL, which, DEV = FALSE, ask = FALSE,
       # Calculate the tensor product of X and Y spline matrices to create a bivariate spline basis
       basisMatrixBiv <- tensorProd(basisMatrixX, basisMatrixY)
       # Multiply the bivariate spline basis by model coefficients to get fitted values
-      f_XY_hat_val <- basisMatrixBiv %*% obj$Theta[1:dim(basisMatrixBiv)[2]]
+      f_XY_hat_val <- basisMatrixBiv %*% obj$theta[1:dim(basisMatrixBiv)[2]]
       # Reshape the fitted values to a square matrix for plotting
       f_XY_hat_val <- matrix(f_XY_hat_val, nrow = length(newX) )
-      if (x$Type == "GLM - Biv") f_XY_hat_val <- x$Args$family$linkinv(f_XY_hat_val)
+      if (x$type == "GLM - Biv") f_XY_hat_val <- x$args$family$linkinv(f_XY_hat_val)
       # Title based on the number of internal knots in X and Y
       if(missing(main)) {
         main <- paste0(x$Nintknots$X, " internal knots in X and ",
@@ -684,10 +695,10 @@ plot.GeDS <- function(x, f = NULL, which, DEV = FALSE, ask = FALSE,
       
       # Adjust Z by subtracting the parametric component of the predictor model if it exists
       if (!is.null(W)) {
-        Z <- Z - W %*% x$Linear.Fit$Theta[-(1:dim(basisMatrixBiv)[2])]
+        Z <- Z - W %*% x$linear.fit$theta[-(1:dim(basisMatrixBiv)[2])]
       }
       # Identify points where Z is greater/smaller than the model predicted value
-      tmp <- (obj$Predicted - Z > 0)
+      tmp <- (obj$predicted - Z > 0)
       points3D(x = X[!tmp], y = Y[!tmp], z = Z[!tmp], col = "red", pch = 19, add = TRUE)
       points3D(x = X[tmp], y = Y[tmp], z = Z[tmp], col = "blue", pch = 19, add = TRUE)
       
@@ -702,7 +713,7 @@ plot.GeDS <- function(x, f = NULL, which, DEV = FALSE, ask = FALSE,
     }
     
   } else {
-    stop("Type not recognized")
+    stop("type not recognized")
   }
   
   x$Plotinfo <- results
@@ -722,28 +733,44 @@ plot.GeDS <- function(x, f = NULL, which, DEV = FALSE, ask = FALSE,
 #' \code{\link{NGeDSboost}}. If the model has a single base-learner, the plot
 #' will be returned on the response scale. Otherwise, plots are produced on the
 #' linear predictor scale. Note that only univariate base-learner plots are
-#' returned, as representation of the boosted model as a single spline model is
-#' available only for univariate base-learners (see Dimitrova et al. (2025)). In
-#' addition since component-wise gradient boosting inherently performs base-learner
-#' selection, you should only expect plots for the base-learners that where selected
-#' across the boosting iterations.
-#' @param x a GeDSboost object, as returned by \code{NGeDSboost()}.
-#' @param n integer value (2, 3 or 4) specifying the order (\eqn{=} degree
+#' returned, as the representation of the boosted model as a single spline model
+#' is available only for univariate base-learners (see Dimitrova et al. (2025)).
+#' Additionally, since component-wise gradient boosting inherently performs
+#' base-learner selection, plots will only be generated for the base-learners
+#' selected during the boosting iterations.
+#' @param x A GeDSboost object, as returned by \code{NGeDSboost()}.
+#' @param n Integer value (2, 3 or 4) specifying the order (\eqn{=} degree
 #' \eqn{+ 1}) of the FGB-GeDS fit to be extracted.
-#' @param ... further arguments to be passed to the
+#' @param ... Further arguments to be passed to the
 #' \code{\link[graphics]{plot.default}} function.
-#' 
-#' @seealso \code{\link{NGeDSboost}}
-#' @importFrom graphics plot lines legend abline rug barplot par
-#' @importFrom splines splineDesign 
-#' @export
-#' @method plot GeDSboost
 #' 
 #' @references
 #' Dimitrova, D. S., Kaishev, V. K. and Saenz Guillen, E. L. (2025).
 #' \pkg{GeDS}: An \proglang{R} Package for Regression, Generalized Additive
 #' Models and Functional Gradient Boosting, based on Geometrically Designed
 #' (GeD) Splines. \emph{Manuscript submitted for publication.}
+#' @examples
+#' data(mtcars)
+#' # Convert specified variables to factors
+#' categorical_vars <- c("cyl", "vs", "am", "gear", "carb")
+#' mtcars[categorical_vars] <- lapply(mtcars[categorical_vars], factor)
+#' N <- nrow(mtcars); ratio <- 0.8
+#' set.seed(123)
+#' trainIndex <- sample(1:N, size = floor(ratio * N))
+#' # Subset the data into training and test sets
+#' train <- mtcars[trainIndex, ]
+#' test <- mtcars[-trainIndex, ]
+#' Gmodboost <- NGeDSboost(mpg ~ cyl + f(drat) + f(wt) + f(hp) + vs + am,
+#'                         data = train, phi = 0.7, shrinkage = 0.9, initial_learner = FALSE)
+#' 
+#' par(mfrow = c(2,3))
+#' plot(Gmodboost, n = 2)
+#' 
+#' @seealso \code{\link{NGeDSboost}}
+#' @method plot GeDSboost
+#' @importFrom graphics plot lines legend abline rug barplot par
+#' @importFrom splines splineDesign 
+#' @export
 
 plot.GeDSboost <- function(x, n = 3L,...)
 {
@@ -836,13 +863,13 @@ plot.GeDSboost <- function(x, n = 3L,...)
     pred_vars <- x$args$predictors
     
     if (n == 2) {
-      Theta <- x$final_model$Linear.Fit$Theta
+      theta <- x$final_model$linear.fit$theta
       int.knots <- x$internal_knots$linear.int.knots
     } else if (n == 3) {
-      Theta <- x$final_model$Quadratic.Fit$Theta
+      theta <- x$final_model$quadratic.fit$theta
       int.knots <- x$internal_knots$quadratic.int.knots
     } else if (n == 4) {
-      Theta <- x$final_model$Cubic.Fit$Theta
+      theta <- x$final_model$cubic.fit$theta
       int.knots <- x$internal_knots$cubic.int.knots
     }
     
@@ -854,9 +881,9 @@ plot.GeDSboost <- function(x, n = 3L,...)
       int.knt <- int.knots[[bl_name]]
       
       pattern <- paste0("^", gsub("([()])", "\\\\\\1", bl_name))
-      theta <- Theta[grep(pattern, names(Theta))]
+      theta_bl <- theta[grep(pattern, names(theta))]
       # Replace NA values with 0
-      theta[is.na(theta)] <- 0
+      theta_bl[is.na(theta_bl)] <- 0
       
       if (bl$type == "GeDS") {
         # Including int.knt and giving more values enhances visualization
@@ -866,27 +893,27 @@ plot.GeDSboost <- function(x, n = 3L,...)
         basisMatrix <- splineDesign(knots = sort(c(int.knt,rep(range(X_mat),n))),
                                     x = X_mat, ord = n, derivs = rep(0,length(X_mat)),
                                     outer.ok = T)
-        Predicted <- basisMatrix %*% theta
+        predicted <- basisMatrix %*% theta_bl
         ylab <-  bl_name
       } else if (bl$type == "linear") {
         # Linear
         if (!is.factor(X_mat)) {
-          Predicted <- theta * X_mat
+          predicted <- theta_bl * X_mat
           # Factor
         } else {
-          names(theta) <- levels(X_mat)[-1]
-          theta[levels(X_mat)[1]] <- 0 # set baseline coef to 0
+          names(theta_bl) <- levels(X_mat)[-1]
+          theta_bl[levels(X_mat)[1]] <- 0 # set baseline coef to 0
         }
         ylab <- bquote(beta[1] %*% .(bl_name))
       }
       
       if (!is.factor(X_mat)) {
-        plot_data <- data.frame(X_mat, Predicted)
+        plot_data <- data.frame(X_mat, predicted)
         plot_data <- plot_data[order(plot_data$X_mat),]
         
         plot(plot_data, type = "l", col = "steelblue",
              xlab = bl$variables, ylab = ylab,
-             xlim = range(X_mat), ylim = range(Predicted), ...)
+             xlim = range(X_mat), ylim = range(predicted), ...)
         
         if (length(int.knt) < 20) {
           knt <- c(int.knt, range(X_mat))
@@ -899,7 +926,7 @@ plot.GeDSboost <- function(x, n = 3L,...)
         
       } else {
         par(mar = c(7.1, 4.1, 4.1, 2.1))
-        barplot(theta,
+        barplot(theta_bl,
                 las = 2,
                 col = "steelblue",
                 main = bl_name,
@@ -922,24 +949,87 @@ plot.GeDSboost <- function(x, n = 3L,...)
 #' Plots on the linear predictor scale the component functions of a GeDSgam
 #' object fitted using \code{\link{NGeDSgam}}.
 #' 
-#' @param x a GeDSgam object, as returned by \code{NGeDSgam()}.
-#' @param n integer value (2, 3 or 4) specifying the order (\eqn{=} degree
+#' @param x A GeDSgam object, as returned by \code{NGeDSgam()}.
+#' @param n Integer value (2, 3 or 4) specifying the order (\eqn{=} degree
 #' \eqn{+ 1}) of the GAM-GeDS fit.
-#' @param base_learners either NULL or a vector of character string specifying
+#' @param base_learners Either NULL or a vector of character string specifying
 #' the base-learners of the model for which predictions should be plotted. Note
 #' that single base-learner predictions are provided on the linear predictor scale.
-#' @param f (optional) specifies the underlying component function or generating
+#' @param f (Optional) specifies the underlying component function or generating
 #' process to which the model was fit. This parameter is useful if the user wishes
 #' to plot the specified function/process alongside the model fit and the data.
-#' @param ... further arguments to be passed to the
+#' @param ... Further arguments to be passed to the
 #' \code{\link[graphics]{plot.default}} function.
+#' @examples
+#' ## Gu and Wahba 4 univariate term example ##
+#' # Generate a data sample for the response variable
+#' # y and the covariates x0, x1 and x2; include a noise predictor x3
+#' set.seed(123)
+#' N <- 400
+#' f_x0x1x2 <- function(x0,x1,x2) {
+#'   f0 <- function(x0) 2 * sin(pi * x0)
+#'   f1 <- function(x1) exp(2 * x1)
+#'   f2 <- function(x2) 0.2 * x2^11 * (10 * (1 - x2))^6 + 10 * (10 * x2)^3 * (1 - x2)^10
+#'   f <- f0(x0) + f1(x1) + f2(x2)
+#'   return(f)
+#'}
+#' x0 <- runif(N, 0, 1)
+#' x1 <- runif(N, 0, 1)
+#' x2 <- runif(N, 0, 1)
+#' x3 <- runif(N, 0, 1)
+#' # Specify a model for the mean of y
+#' f <- f_x0x1x2(x0 = x0, x1 = x1, x2 = x2)
+#' # Add (Normal) noise to the mean of y
+#' y <- rnorm(N, mean = f, sd = 0.2)
+#' data <- data.frame(y = y, x0 = x0, x1 = x1, x2 = x2, x3 = x3)
+#' 
+#' # Fit GAM-GeDS model
+#' Gmodgam <- NGeDSgam(y ~ f(x0) + f(x1) + f(x2) + f(x3), data = data)
+#' 
+#' f0 <- function(x0) 2 * sin(pi * x0)
+#' f1 <- function(x1) exp(2 * x1)
+#' f2 <- function(x2) 0.2 * x2^11 * (10 * (1 - x2))^6 + 10 * (10 * x2)^3 * (1 - x2)^10
+#' fs <- list(f0, f1, f2)
+#' main_f0 <- expression(
+#'   f[0](x[0]) == 2 * sin(pi * x[0])
+#'   )
+#' main_f1 <- expression(
+#'   f[1](x[1]) == e^(2 * x[1])
+#'   )
+#' main_f2 <- expression(
+#'   f[2](x[2]) == 0.2 * x[2]^11 * (10 * (1 - x[2]))^6 +
+#'     10 * (10 * x[2])^3 * (1 - x[2])^10
+#'   )
+#' mains <- list(main_f0, main_f1, main_f2)
+#' 
+#' # Create and display the plot
+#' par(mfrow = c(1,3), mar = c(5.1, 5.1, 4.1, 2.1))
+#' for (i in 1:3) {
+#'   # Plot the base learner
+#'   plot(Gmodgam, n = 3, base_learners = paste0("f(x", i-1, ")"), f = fs[[i]],
+#'   main = mains[[i]], col = "seagreen",
+#'   cex.lab = 2, cex.axis = 2, cex.main = 1.5)
+#' # Add legend
+#' if (i == 2) {
+#'   position <- "topleft"
+#' } else if (i == 3) {
+#'   position <- "topright" 
+#' } else {
+#'   position <- "bottom"
+#' }  
+#'   legend(position, legend = c("NGeDSgam quad.", paste0("f(x", i-1, ")")),
+#'          col = c("seagreen", "darkgray"),
+#'          lwd = c(2, 2),
+#'          bty = "n",
+#'          cex = 1.5)
+#' }
 #' 
 #' @seealso \code{\link{NGeDSgam}}
+#' @method plot GeDSgam
 #' @importFrom plot3D persp3D segments3D
 #' @importFrom graphics plot lines abline rug barplot par
 #' @importFrom splines splineDesign
 #' @export
-#' @method plot GeDSgam
 
 plot.GeDSgam <- function(x, base_learners = NULL,
                          f = NULL, n = 3L,...)
@@ -963,13 +1053,13 @@ plot.GeDSgam <- function(x, base_learners = NULL,
   Y <- x$args$response[[1]]; pred_vars <- x$args$predictors
   
   if (n == 2) {
-    Theta <- x$final_model$Linear.Fit$Theta
+    theta <- x$final_model$linear.fit$theta
     int.knots <- x$internal_knots$linear.int.knots
   } else if (n == 3) {
-    Theta <- x$final_model$Quadratic.Fit$Theta
+    theta <- x$final_model$quadratic.fit$theta
     int.knots <- x$internal_knots$quadratic.int.knots
   } else if (n == 4) {
-    Theta <- x$final_model$Cubic.Fit$Theta
+    theta <- x$final_model$cubic.fit$theta
     int.knots <- x$internal_knots$cubic.int.knots
   }
   
@@ -990,7 +1080,7 @@ plot.GeDSgam <- function(x, base_learners = NULL,
     int.knt <- int.knots[[bl_name]]
     
     pattern <- paste0("^", gsub("([()])", "\\\\\\1", bl_name))
-    theta <- Theta[grep(pattern, names(Theta))]
+    theta <- theta[grep(pattern, names(theta))]
     # Replace NA values with 0
     theta[is.na(theta)] <- 0
     
@@ -1009,14 +1099,14 @@ plot.GeDSgam <- function(x, base_learners = NULL,
                                     x = X_mat, ord = n, derivs = rep(0,length(X_mat)),
                                     outer.ok = T)
         # To recover backfitting predictions need de_mean
-        Predicted <- if (n == 2) basisMatrix %*% theta - mean(basisMatrix %*% theta) else basisMatrix %*% theta 
+        predicted <- if (n == 2) basisMatrix %*% theta - mean(basisMatrix %*% theta) else basisMatrix %*% theta 
         ylab <-  bl_name
         
         # 1.2. Univariate Linear
       } else if (bl$type == "linear") {
         # Linear
         if (!is.factor(X_mat)) {
-          Predicted <- theta * X_mat
+          predicted <- theta * X_mat
           # Factor
         } else {
           names(theta) <- levels(X_mat)[-1]
@@ -1028,12 +1118,12 @@ plot.GeDSgam <- function(x, base_learners = NULL,
       # Non-factor
       if  (!is.factor(X_mat)) {
         
-        if (!is.null(f)) Predicted <- Predicted + mean(f(X_mat)-Predicted)
+        if (!is.null(f)) predicted <- predicted + mean(f(X_mat)-predicted)
         
-        plot_data <- data.frame(X_mat, Predicted)
+        plot_data <- data.frame(X_mat, predicted)
         plot_data <- plot_data[order(plot_data$X_mat),]
         
-        ylim <- if (is.null(others$ylim)) range(Predicted) else others$ylim
+        ylim <- if (is.null(others$ylim)) range(predicted) else others$ylim
         col_fit <- if (is.null(others$col)) "red" else others$col
         
         plot(plot_data, type = "l",

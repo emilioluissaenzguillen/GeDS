@@ -2,19 +2,19 @@
 % Please edit documentation in R/S3methods.R, R/S3methods_GeDSboost-GeDSgam.R
 \name{confint.GeDS}
 \alias{confint.GeDS}
-\alias{confint.GeDSboost}
 \alias{confint.GeDSgam}
-\title{Confidence Intervals for GeDS Model Coefficients}
+\alias{confint.GeDSboost}
+\title{Confidence Intervals for GeDS Models Coefficients}
 \usage{
 \method{confint}{GeDS}(object, parm, level = 0.95, n = 3L, ...)
 
-\method{confint}{GeDSboost}(object, parm, level = 0.95, n = 3L, ...)
-
 \method{confint}{GeDSgam}(object, parm, level = 0.95, n = 3L, ...)
+
+\method{confint}{GeDSboost}(object, parm, level = 0.95, n = 3L, ...)
 }
 \arguments{
-\item{object}{The \code{"GeDS"} class object from which the confidence intervals 
-for the selected GeDS regression should be extracted.}
+\item{object}{The \code{"GeDS"}/\code{"GeDSgam"}/\code{"GeDSboost"} class object
+from which the confidence intervals for the selected order \code{n} should be extracted.}
 
 \item{parm}{A specification of which parameters are to be given confidence intervals, 
 either a vector of numbers or names; defaults to all parameters.}
@@ -22,20 +22,22 @@ either a vector of numbers or names; defaults to all parameters.}
 \item{level}{The confidence level required (default is 0.95).}
 
 \item{n}{Integer value (2, 3 or 4) specifying the order (\eqn{=} degree
-\eqn{+ 1}) of the GeDS/GeDSboost/GeDSgam fit for which to compute confidence
-intervals. By default equal to \code{3L}; non-integer values will be passed
-to the function \code{\link{as.integer}}.}
+\eqn{+ 1}) of the \code{"GeDS"}, \code{"GeDSgam"} or \code{"GeDSboost"} fit
+for which to compute confidence intervals. By default equal to \code{3L};
+non-integer values will be passed to the function \code{\link{as.integer}}.}
 
-\item{...}{Additional arguments passed to \code{\link[stats]{confint}}.}
+\item{...}{Additional arguments passed to \code{\link[stats]{confint.default}}.}
 }
 \value{
 A matrix with columns giving lower and upper confidence limits for
-each spline coefficient of the selected GeDS model (by default 2.5% and 97.5%).
+each spline coefficient of the selected GeDS model (by default 2.5\% and 97.5\%).
 }
 \description{
 Method for \code{\link[stats]{confint.default}} to compute confidence intervals for
-the coefficients of a fitted GeDS model stored in a \code{"GeDS"} class object.
+the coefficients of a fitted GeDS model stored in a \code{"GeDS"}, \code{"GeDSgam"}
+or \code{"GeDSboost"} class object.
 }
 \seealso{
-\code{\link[stats]{confint.default}}, \code{"GeDS"} class
+\code{\link[stats]{confint.default}}, \code{\link{NGeDS}}, \code{\link{GGeDS}},
+\code{\link{NGeDSgam}}, \code{\link{NGeDSboost}}
 }

@@ -8,8 +8,8 @@
 A \code{data.frame} with 112 entries, corresponding to the
 years from 1850 to 1962. Each entry has:
 \itemize{
-  \item{accidents}: number of severe accidents that have occurred each year.
-  \item{years}: year during which the accidents occurred.
+  \item \code{accidents}: number of severe accidents that have occurred each year.
+  \item \code{years}: year during which the accidents occurred.
 }
 }
 \source{

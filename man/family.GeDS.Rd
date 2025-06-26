@@ -2,20 +2,20 @@
 % Please edit documentation in R/S3methods.R, R/S3methods_GeDSboost-GeDSgam.R
 \name{family.GeDS}
 \alias{family.GeDS}
-\alias{family.GeDSboost}
 \alias{family.GeDSgam}
-\title{Extract Family from a GeDS Object}
+\alias{family.GeDSboost}
+\title{Extract Family from a GeDS, GeDSgam, GeDSboost Object}
 \usage{
 \method{family}{GeDS}(object, ...)
 
-\method{family}{GeDSboost}(object, ...)
-
 \method{family}{GeDSgam}(object, ...)
+
+\method{family}{GeDSboost}(object, ...)
 }
 \arguments{
-\item{object}{A \code{"GeDS"} class object.}
+\item{object}{A \code{"GeDS"}, \code{"GeDSgam"} or \code{"GeDSboost"} class object.}
 
-\item{...}{further arguments (ignored).}
+\item{...}{Further arguments (ignored).}
 }
 \value{
 An object of class \code{\link[stats]{family}} describing the 
@@ -26,5 +26,5 @@ Method for \code{\link[stats]{family}} that returns the error distribution
 family used in the fitted GeDS model.
 }
 \seealso{
-\code{\link[stats]{family}}, \code{"GeDS"} class
+\code{\link[stats]{family}}
 }

@@ -80,7 +80,7 @@ NumericVector Knotnew(NumericVector weights, NumericVector residuals, NumericVec
             ((inf <= oldintknots[j]) && (sup >= oldintknots[j]));
         }
       } else { 
-        // If inf == sup (single point), check if the knot is close to the boundary
+        // If inf == sup (single point), check if the singleton is close to previous knots
         for (j = 0; j < n_oldintknots; ++j) {
           has_old_knots_between = has_old_knots_between || 
             (std::abs(inf - oldintknots[j]) < tol);
@@ -120,7 +120,7 @@ NumericVector Knotnew(NumericVector weights, NumericVector residuals, NumericVec
       
       for (j = 0; j < data_size; ++j) {
         valid_interval = valid_interval || 
-          ((sortedknots[i] < x[j]) && (sortedknots[i + 3] > x[j])); 
+          ((sortedknots[i] + tol < x[j]) && (sortedknots[i + 3] - tol > x[j])); 
         
         if (valid_interval) break;
       }     

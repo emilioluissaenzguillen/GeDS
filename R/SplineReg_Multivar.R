@@ -261,14 +261,15 @@ SplineReg_LM_Multivar <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)), base
   
   resid <- Y - predicted
   # Confidence intervals
-  CI <- CI(tmp, resid, prob = 0.95, basisMatrix, basisMatrix2, predicted,
+  ci <- ci(tmp, resid, prob = 0.95, basisMatrix, basisMatrix2, predicted,
            n_obs = length(Y), type = "lm", huang = TRUE)
 
   
-  out <- list(Theta = theta, Predicted = predicted, Residuals = resid, 
-              RSS = as.numeric(crossprod(resid)), NCI = CI$NCI, Basis = basisMatrix, 
-              Polygon = list(Kn = polyknots_list, Thetas = theta[1:NCOL(basisMatrix)]), 
-              temporary = tmp, ACI = CI$ACI)
+  out <- list(theta = theta, predicted = predicted, residuals = resid, 
+              rss = as.numeric(crossprod(resid)), basis = basisMatrix,
+              nci = ci$nci, aci = ci$aci, 
+              polygon = list(Kn = polyknots_list, thetas = theta[1:NCOL(basisMatrix)]), 
+              temporary = tmp)
   return(out)
   
 }
@@ -525,14 +526,14 @@ SplineReg_GLM_Multivar <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)), bas
   deviance <- tmp$deviance
   
   # Confidence intervals
-  CI <- CI(tmp, resid, prob = 0.95, basisMatrix, basisMatrix2, predicted,
+  ci <- ci(tmp, resid, prob = 0.95, basisMatrix, basisMatrix2, predicted,
            n_obs = length(Y), type = "glm", huang = FALSE)
   
-  out <- list(Theta = theta, Predicted = predicted,
-              Residuals = resid, RSS = deviance,
-              Basis = basisMatrix,
-              NCI = CI$NCI,
-              Polygon = list(Kn = polyknots_list, Thetas = theta[1:NCOL(basisMatrix)]),
+  out <- list(theta = theta, predicted = predicted,
+              residuals = resid, rss = deviance,
+              basis = basisMatrix,
+              nci = ci$nci,
+              polygon = list(kn = polyknots_list, thetas = theta[1:NCOL(basisMatrix)]),
               temporary = tmp, deviance = deviance)
   return(out)
 }

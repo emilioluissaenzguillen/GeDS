@@ -13,7 +13,7 @@
 \item{...}{Further arguments (ignored).}
 }
 \value{
-An integer indicating the number of boosting iterations used.
+An integer indicating the total number of boosting iterations.
 }
 \description{
 Method for \code{n.boost.iter} that returns the number of boosting iterations 

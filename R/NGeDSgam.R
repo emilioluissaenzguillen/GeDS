@@ -15,16 +15,11 @@
 #' linear model would be used.
 #' @param family A character string indicating the response variable distribution
 #' and link function to be used. Default is \code{"gaussian"}. This should be a
-#' character or a family object.
-#' @param data A data frame containing the variables referenced in the formula.
-#' @param weights An optional vector of `prior weights' to be put on the
+#' character or a \code{\link[stats]{family}} object.
+#' @param data A \code{data.frame} containing the variables referenced in the formula.
+#' @param weights An optional vector of "prior weights" to be put on the
 #' observations during the fitting process. It should be \code{NULL} or a numeric
 #' vector of the same length as the response variable defined in the formula.
-#' @param offset A vector of size \eqn{N} that can be used to specify a fixed
-#' component to be included in the linear predictor during fitting. In case
-#' more than one covariate is fixed, the user should sum the corresponding
-#' coordinates of the fixed covariates to produce one common \eqn{N}-vector of
-#' coordinates.
 #' @param normalize_data A logical that defines whether the data should be
 #' normalized (standardized) before fitting the baseline linear model, i.e.,
 #' before running the local-scoring algorithm. Normalizing the data involves
@@ -32,13 +27,13 @@
 #' of 1. This process alters the scale and interpretation of the knots and
 #' coefficients estimated. Default is equal to \code{FALSE}.
 #' @param min_iterations Optional parameter to manually set a minimum number of
-#' boosting iterations to be run. If not specified, it defaults to 0L.
+#' local-scoring iterations to be run. If not specified, it defaults to 0L.
 #' @param max_iterations Optional parameter to manually set the maximum number
-#' of boosting iterations to be run. If not specified, it defaults to \code{100L}.
+#' of local-scoring iterations to be run. If not specified, it defaults to \code{100L}.
 #' This setting serves as a fallback when the stopping rule, based on
 #' consecutive deviances and tuned by \code{phi_gam_exit} and \code{q_gam},
 #' does not trigger an earlier termination (see Dimitrova et al. (2025)).
-#' Therefore, users can increase/decrease the number of boosting iterations,
+#' Therefore, users can increase/decrease the number of local-scoring iterations,
 #' by increasing/decreasing the value \code{phi_gam_exit} and/or \code{q_gam},
 #' or directly specify \code{max_iterations}.
 #' @param phi_gam_exit Convergence threshold for local-scoring and backfitting.
@@ -49,18 +44,18 @@
 #' @param beta Numeric parameter in the interval \eqn{[0,1]}
 #' tuning the knot placement in stage A of GeDS, for each of the GeD spline
 #' components of the model. Default is equal to \code{0.5}.
-#' See details in \code{\link{NGeDS}}.
-#' @param phi Numeric parameter in the interval \eqn{[0,1]} specifying the
+#' See Details in \code{\link{NGeDS}}.
+#' @param phi Numeric parameter in the interval \eqn{(0,1)} specifying the
 #' threshold for the stopping rule  (model selector) in stage A of GeDS, for each
 #' of the GeD spline components of the model. Default is equal to \code{0.99}.
-#' See details in \code{\link{NGeDS}}.
+#' See Details in \code{\link{NGeDS}}.
 #' @param internal_knots The maximum number of internal knots that can be added
-#' by the GeDS base-learners in each boosting iteration, effectively setting the
+#' by the GeDS smoothers at each backfitting iteration, effectively setting the
 #' value of \code{max.intknots} in \code{\link{NGeDS}} at each backfitting
 #' iteration. Default is \code{500L}.
 #' @param q Numeric parameter which allows to fine-tune the stopping rule of
 #' stage A of GeDS, for each of the GeD spline components of the model. By
-#' default equal to \code{2L}. See details in \code{\link{NGeDS}}.
+#' default equal to \code{2L}. See Details in \code{\link{NGeDS}}.
 #' @param higher_order a logical that defines whether to compute the higher order
 #' fits (quadratic and cubic) after the local-scoring algorithm is run. Default
 #' is \code{TRUE}.
@@ -79,39 +74,40 @@
 #'       \item{\code{base_learners}}{Description of the model's base learners
 #'       ("smooth functions").}
 #'       \item{\code{family}}{The statistical family. The possible options are:
-#'               \code{binomial(link = "logit", "probit", "cauchit", "log", "cloglog")},
-#'               \code{gaussian(link = "identity", "log", "inverse")},
-#'               \code{Gamma(link = "inverse", "identity", "log")},
-#'               \code{inverse.gaussian(link = "1/mu^2", "inverse", "identity", "log")},
-#'               \code{poisson(link = "log", "identity", "sqrt")},
-#'               \code{quasi(link = "identity", variance = "constant")},
-#'               \code{quasibinomial(link = "logit", "probit", "cloglog", "identity", "inverse", "log", "1/mu^2", "sqrt")}
-#'               and \code{quasipoisson(link = "log", "identity", "sqrt")}.
-#'         
+#'       \itemize{
+#'       \item{\code{binomial(link = "logit", "probit", "cauchit", "log", "cloglog")},}
+#'       \item{\code{gaussian(link = "identity", "log", "inverse")},}
+#'       \item{\code{Gamma(link = "inverse", "identity", "log")},}
+#'       \item{\code{inverse.gaussian(link = "1/mu^2", "inverse", "identity", "log")},}
+#'       \item{\code{poisson(link = "log", "identity", "sqrt")},}
+#'       \item{\code{quasi(link = "identity", variance = "constant")},}
+#'       \item{\code{quasibinomial(link = "logit", "probit", "cloglog", "identity", "inverse", "log", "1/mu^2", "sqrt")} and}
+#'       \item{\code{quasipoisson(link = "log", "identity", "sqrt")}.}
+#'       }         
 #'       }
 #'       \item{\code{normalize_data}}{If \code{TRUE}, then response and predictors
 #'       were standardized before running the local-scoring algorithm.}
 #'       \item{\code{X_mean}}{Mean of the predictor variables (only if
 #'       \code{normalize_data = TRUE}).}
 #'       \item{\code{X_sd}}{Standard deviation of the predictors (only if
-#'       \code{normalize_data = TRUE}, else is \code{NULL}).}
+#'       \code{normalize_data = TRUE}, otherwise this is \code{NULL}).}
 #'       \item{\code{Y_mean}}{Mean of the response variable (only if
-#'       \code{normalize_data = TRUE}, else is \code{NULL}).}
+#'       \code{normalize_data = TRUE}, otherwise this is \code{NULL}).}
 #'       \item{\code{Y_sd}}{Standard deviation of the response variable (only if
-#'       \code{normalize_data = TRUE}, else is \code{NULL}).}
+#'       \code{normalize_data = TRUE}, otherwise this is \code{NULL}).}
 #'     }
 #'   }
 #'
-#'   \item{final_model}{A list detailing the final GeDSgam model selected after
+#'   \item{final_model}{A list detailing the final \code{"GeDSgam"} model selected after
 #'   running the local scoring algorithm. The chosen model minimizes deviance
 #'   across all models generated by each local-scoring iteration. This list includes:
 #'     \describe{
 #'     \item{\code{model_name}}{Local-scoring iteration that yielded the "best"
 #'     model. Note that when \code{family = "gaussian"}, it will always correspond
 #'     to \code{iter1}, as only one local-scoring iteration is conducted in this
-#'     scenario. This occurs because, with \code{family = "gaussian"}, the
+#'     scenario. This occurs because, when \code{family = "gaussian"}, the
 #'     algorithm is tantamount to directly implementing backfitting.}
-#'     \item{\code{DEV}}{Deviance of the final model. For \code{family = "gaussian"}
+#'     \item{\code{dev}}{Deviance of the final model. For \code{family = "gaussian"}
 #'     this coincides with the Residual Sum of Squares.}
 #'     \item{\code{Y_hat}}{Fitted values, including:
 #'       - \code{eta}: the additive predictor,
@@ -122,10 +118,10 @@
 #'     knots for each order fit, resulting from computing the averaging knot
 #'     location. Although if the number of internal knots of the final linear fit
 #'     is less than \eqn{n-1}, the averaging knot location is not computed.}
-#'     \item{\code{Linear.Fit}}{Final linear fit in B-spline form (see \code{\link{SplineReg}}).}
-#'     \item{\code{Quadratic.Fit}}{Quadratic fit obtained via Schoenberg
+#'     \item{\code{linear.fit}}{Final linear fit in B-spline form (see \code{\link{SplineReg}}).}
+#'     \item{\code{quadratic.fit}}{Quadratic fit obtained via Schoenberg
 #'     variation diminishing approximation (see \code{\link{SplineReg}}).}
-#'     \item{\code{Cubic.Fit}}{Cubic fit obtained via via Schoenberg variation
+#'     \item{\code{cubic.fit}}{Cubic fit obtained via via Schoenberg variation
 #'     diminishing approximation (see \code{\link{SplineReg}}).}
 #'     }
 #'   }
@@ -139,7 +135,7 @@
 #'   
 #' @details
 #' The  \code{NGeDSgam} function employs the local scoring algorithm to fit a
-#' Generalized Additive Model (GAM). This algorithm iteratively fits weighted
+#' generalized additive model (GAM). This algorithm iteratively fits weighted
 #' additive models by backfitting. Normal linear GeD splines, as well as linear
 #' learners, are supported as function smoothers within the backfitting
 #' algorithm. The local-scoring algorithm ultimately produces a linear fit.
@@ -157,11 +153,39 @@
 #' variable and weights to be used in the local-scoring algorithm. The number of
 #' local-scoring and backfitting iterations is controlled by a
 #' \emph{Ratio of Deviances} stopping rule similar to the one presented for
-#' \code{\link{GGeDS}}. In the same way \code{phi} and \code{q} tune the stopping
-#' rule of \code{\link{GGeDS}}, \code{phi_boost_exit} and \code{q_boost} tune the
-#' stopping rule of \code{NGeDSgam}. The user can also manually control the number
-#' of local-scoring iterations through \code{min_iterations} and 
-#' \code{max_iterations}.
+#' \code{\link{NGeDS}}/\code{\link{GGeDS}}. In the same way \code{phi} and \code{q}
+#' tune the stopping rule of \code{\link{NGeDS}}/\code{\link{GGeDS}},
+#' \code{phi_gam_exit} and \code{q_gam} tune the stopping rule of \code{NGeDSgam}.
+#' The user can also manually control the number of local-scoring iterations
+#' through \code{min_iterations} and \code{max_iterations}.
+#' 
+#' A model term wrapped in \code{offset()} is treated as a known (fixed) component
+#' and added directly to the linear predictor when fitting the model. In case
+#' more than one covariate is fixed, the user should sum the corresponding
+#' coordinates of the fixed covariates to produce one common \eqn{N}-vector of
+#' coordinates. See \code{\link[=formula.GeDS]{formula}}. 
+#' 
+#' 
+#' @references 
+#' Hastie, T. and Tibshirani, R. (1986). Generalized Additive Models.
+#' \emph{Statistical Science} \strong{1 (3)} 297 - 310. \cr
+#' DOI: \doi{10.1214/ss/1177013604}
+#' 
+#' Kaishev, V.K., Dimitrova, D.S., Haberman, S. and Verrall, R.J. (2016).
+#' Geometrically designed, variable knot regression splines.
+#' \emph{Computational Statistics}, \strong{31}, 1079--1105. \cr
+#' DOI: \doi{10.1007/s00180-015-0621-7}
+#' 
+#' Dimitrova, D. S., Kaishev, V. K., Lattuada, A. and Verrall, R. J.  (2023).
+#' Geometrically designed variable knot splines in generalized (non-)linear
+#' models.
+#' \emph{Applied Mathematics and Computation}, \strong{436}. \cr
+#' DOI: \doi{10.1016/j.amc.2022.127493}
+#' 
+#' Dimitrova, D. S., Kaishev, V. K. and Saenz Guillen, E. L. (2025).
+#' \pkg{GeDS}: An \proglang{R} Package for Regression, Generalized Additive
+#' Models and Functional Gradient Boosting, based on Geometrically Designed
+#' (GeD) Splines. \emph{Manuscript submitted for publication.}
 #' 
 #' @examples
 #' 
@@ -184,52 +208,35 @@
 #' "Quadratic NGeDSgam:", MSE_Gmodgam_quadratic, "\n",
 #' "Cubic NGeDSgam:", MSE_Gmodgam_cubic, "\n")
 #' 
-#' ## S3 methods for class 'GeDSboost'
+#' ## S3 methods for class 'GeDSgam'
 #' # Print 
-#' print(Gmodgam)
+#' print(Gmodgam); summary(Gmodgam)
 #' # Knots
-#' knots(Gmodgam, n = 2L)
-#' knots(Gmodgam, n = 3L)
-#' knots(Gmodgam, n = 4L)
+#' knots(Gmodgam, n = 2)
+#' knots(Gmodgam, n = 3)
+#' knots(Gmodgam, n = 4)
 #' # Coefficients
-#' coef(Gmodgam, n = 2L)
-#' coef(Gmodgam, n = 3L)
-#' coef(Gmodgam, n = 4L)
+#' coef(Gmodgam, n = 2)
+#' coef(Gmodgam, n = 3)
+#' coef(Gmodgam, n = 4)
+#' # Wald-type confidence intervals
+#' confint(Gmodgam, n = 2)
+#' confint(Gmodgam, n = 3)
+#' confint(Gmodgam, n = 4)
 #' # Deviances
-#' deviance(Gmodgam, n = 2L)
-#' deviance(Gmodgam, n = 3L)
-#' deviance(Gmodgam, n = 4L)
+#' deviance(Gmodgam, n = 2)
+#' deviance(Gmodgam, n = 3)
+#' deviance(Gmodgam, n = 4)
 #'
-#' @seealso \code{\link{NGeDS}}; \code{\link{GGeDS}};S3 methods such as
+#' @seealso \code{\link{NGeDS}}; \code{\link{GGeDS}}; S3 methods such as
 #' \code{\link[=coef.GeDSgam]{coef}}, \code{\link[=confint.GeDSgam]{confint}},
 #' \code{\link{deviance.GeDSgam}}, \code{\link{family}}, \code{\link{formula}},
 #' \code{\link[=knots.GeDSgam]{knots}}, \code{\link{logLik}},
 #' \code{\link[=predict.GeDSgam]{predict}}, \code{\link[=print.GeDSgam]{print}},
 #' \code{\link[=summary.GeDSgam]{summary}}.
 #' 
-#' @export
 #' @importFrom stats setNames
-#' 
-#' @references 
-#' Hastie, T. and Tibshirani, R. (1986). Generalized Additive Models.
-#' \emph{Statistical Science} \strong{1 (3)} 297 - 310. \cr
-#' DOI: \doi{10.1214/ss/1177013604}
-#' 
-#' Kaishev, V.K., Dimitrova, D.S., Haberman, S. and Verrall, R.J. (2016).
-#' Geometrically designed, variable knot regression splines.
-#' \emph{Computational Statistics}, \strong{31}, 1079--1105. \cr
-#' DOI: \doi{10.1007/s00180-015-0621-7}
-#' 
-#' Dimitrova, D. S., Kaishev, V. K., Lattuada, A. and Verrall, R. J.  (2023).
-#' Geometrically designed variable knot splines in generalized (non-)linear
-#' models.
-#' \emph{Applied Mathematics and Computation}, \strong{436}. \cr
-#' DOI: \doi{10.1016/j.amc.2022.127493}
-#' 
-#' Dimitrova, D. S., Kaishev, V. K. and Saenz Guillen, E. L. (2025).
-#' \pkg{GeDS}: An \proglang{R} Package for Regression, Generalized Additive
-#' Models and Functional Gradient Boosting, based on Geometrically Designed
-#' (GeD) Splines. \emph{Manuscript submitted for publication.}
+#' @export
 
 ################################################################################
 ################################################################################
@@ -240,10 +247,10 @@
 #####################
 ### Local Scoring ###
 #####################
-NGeDSgam <- function(formula, family = "gaussian", data, weights = NULL, offset = NULL,
+NGeDSgam <- function(formula, family = "gaussian", data, weights = NULL,
                      normalize_data = FALSE, min_iterations, max_iterations,
-                     phi_gam_exit = 0.99, q_gam = 2,
-                     beta = 0.5, phi = 0.99, internal_knots = 500, q = 2,
+                     phi_gam_exit = 0.99, q_gam = 2L,
+                     beta = 0.5, phi = 0.99, internal_knots = 500L, q = 2L,
                      higher_order = TRUE)
 {
   
@@ -255,8 +262,8 @@ NGeDSgam <- function(formula, family = "gaussian", data, weights = NULL, offset 
   # Convert integer variables to numeric
   data <- data.frame(lapply(data, function(x) if(is.integer(x)) as.numeric(x) else x))
   
-  # Formula
-  read.formula <- read.formula.gam(formula, data)
+  # formula
+  read.formula <- read.formula.gam(formula, data, type = "gam")
   terms <-  read.formula$terms
   response <- read.formula$response
   predictors <- read.formula$predictors
@@ -266,8 +273,9 @@ NGeDSgam <- function(formula, family = "gaussian", data, weights = NULL, offset 
   nobs = length(data[[response]])
   if (is.null(weights)) weights <- rep.int(1, nobs)
   else weights <- rescale_weights(weights)
-  offset_index <- match("offset", names(extcall), 0L)
-  offset <- if (offset_index != 0) eval(extcall[[offset_index]], data) else NULL
+  # offset_index <- match("offset", names(extcall), 0L)
+  # offset <- if (offset_index != 0) eval(extcall[[offset_index]], data) else NULL
+  offset <- read.formula$offset
   if (is.null(offset))
     offset <- rep.int(0, nobs)
   
@@ -452,7 +460,7 @@ NGeDSgam <- function(formula, family = "gaussian", data, weights = NULL, offset 
     new.dev <- sum(dev.resids(Y, mu, weights))
     if (is.infinite(new.dev)) stop("Infinite deviance: please decrease shrinkage parameter")
     if (new.dev < 1e-9) {
-      cat("Deviance is almost zero: stopping boosting iterations\n\n")
+      cat("Deviance is almost zero: stopping local-scoring iterations\n\n")
       break
     }
     old.dev <- c(old.dev, new.dev)
@@ -490,7 +498,7 @@ NGeDSgam <- function(formula, family = "gaussian", data, weights = NULL, offset 
   model_min_deviance <- names(models)[which.min(deviances)]
   final_model <- list(
     model_name = model_min_deviance,
-    DEV = min(deviances),
+    dev = min(deviances),
     Y_hat = models[[model_min_deviance]]$Y_hat,      
     base_learners = models[[model_min_deviance]]$base_learners
   )
@@ -542,10 +550,10 @@ NGeDSgam <- function(formula, family = "gaussian", data, weights = NULL, offset 
   
   # De-normalize if necessary
   if (normalize_data == TRUE && family$family != "binomial") {
-    linear_fit$Predicted <- as.numeric(linear_fit$Predicted) * args$Y_sd + args$Y_mean
+    linear_fit$predicted <- as.numeric(linear_fit$predicted) * args$Y_sd + args$Y_mean
   }
   
-  final_model$Linear.Fit <- linear_fit
+  final_model$linear.fit <- linear_fit
   
   pred_linear <- as.numeric(final_model$Y_hat$mu)
   
@@ -568,8 +576,8 @@ NGeDSgam <- function(formula, family = "gaussian", data, weights = NULL, offset 
         cat(paste0("Error computing quadratic fit:", e))
         return(NULL)
         })
-    final_model$Quadratic.Fit <- quadratic_fit
-    pred_quadratic <- as.numeric(quadratic_fit$Predicted)
+    final_model$quadratic.fit <- quadratic_fit
+    pred_quadratic <- as.numeric(quadratic_fit$predicted)
     
     # Cubic fit
     cc_list <- compute_avg_int.knots(final_model, base_learners = base_learners,
@@ -585,8 +593,8 @@ NGeDSgam <- function(formula, family = "gaussian", data, weights = NULL, offset 
         cat(paste0("Error computing cubic fit:", e))
         return(NULL)
         })
-    final_model$Cubic.Fit <- cubic_fit
-    pred_cubic <- as.numeric(cubic_fit$Predicted)
+    final_model$cubic.fit <- cubic_fit
+    pred_cubic <- as.numeric(cubic_fit$predicted)
     
     # Save quadratic and cubic knots for each base-learner
     for (bl_name in names(base_learners)){
@@ -627,7 +635,7 @@ NGeDSgam <- function(formula, family = "gaussian", data, weights = NULL, offset 
   internal_knots <- list(linear.int.knots = linear.int.knots, quadratic.int.knots = quadratic.int.knots,
                          cubic.int.knots = cubic.int.knots)
   
-  output <- list(extcall = extcall, Formula = formula, args = args, final_model = final_model, predictions = preds,
+  output <- list(extcall = extcall, formula = formula, args = args, final_model = final_model, predictions = preds,
                  internal_knots = internal_knots, iters = list(local_scoring = iter, backfitting = n_iters))
   
   class(output) <- "GeDSgam"

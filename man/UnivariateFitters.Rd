@@ -86,10 +86,11 @@ number of internal knots required. By default equal to zero.}
 \item{max.intknots}{Optional parameter allowing the user to set a maximum
 number of internal knots to be added by the GeDS estimation algorithm. By
 default equal to the number of internal knots \eqn{\kappa} for the saturated
-GeDS model (i.e. \eqn{\kappa=N-2}).}
+GeDS model (i.e., \eqn{\kappa=N-2}, where \eqn{N} is the number
+of observations).}
 
 \item{q}{Numeric parameter which allows to fine-tune the stopping rule of
-stage A of GeDS, by default equal to 2. See details in the description of
+stage A of GeDS, by default equal to 2. See Details in the description of
 \code{\link{NGeDS}} or \code{\link{GGeDS}}.}
 
 \item{extr}{Numeric vector of 2 elements representing the left-most and
@@ -100,11 +101,11 @@ default equal correspondingly to the smallest and largest values of \code{X}.}
 information at each step. By default equal to \code{FALSE}.}
 
 \item{tol}{Numeric value indicating the tolerance to be used in the knot
-placement steps in stage A. By default equal to 1E-12. See details below.}
+placement steps in stage A. By default equal to 1E-12. See Details below.}
 
 \item{stoptype}{A character string indicating the type of GeDS stopping rule
 to be used. It should be either \code{"SR"}, \code{"RD"} or \code{"LR"},
-partial match allowed. See details of \code{\link{NGeDS}} or
+partial match allowed. See Details of \code{\link{NGeDS}} or
 \code{\link{GGeDS}}.}
 
 \item{higher_order}{A logical that defines whether to compute the higher

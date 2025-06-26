@@ -9,12 +9,12 @@
 \format{
 A \code{data.frame} with 1721 observations and 2 variables:
 \itemize{
-  \item{\code{Q} (\eqn{\text{Å}^{-1}})}: The scattering vector, measured in inverse angstroms (\eqn{\text{Å}^{-1}}).
-  \item{\code{FQ} (a.u.)}: The measured function \eqn{F(Q)}, given in arbitrary units (a.u.).
+  \item{\code{Q}}: The scattering vector, measured in inverse angstroms, \eqn{\text{Å}^{-1}};
+  \item{\code{FQ}}: The measured function \eqn{F(Q)}, given in arbitrary units (a.u.).
 }
 }
 \source{
-Data collected from a particle accelerator experiment.
+Unpublished data from a controlled particle accelerator experiment.
 }
 \usage{
 data(CrystalData10k)
@@ -27,13 +27,13 @@ accelerator experiment. The measurements correspond to the function \eqn{F(Q)}
 at various \eqn{Q} values, which are used to analyze the scattering properties 
 of an unknown crystalline material. The dataset is available in two versions 
 based on the precision of the measurements:
-
-- **`CrystalData10k`** (lower precision);
-- **`CrystalData300k`** (higher precision).
-
+\itemize{
+  \item \code{CrystalData10k} (lower precision);
+  \item \code{CrystalData300k} (higher precision);
+}
 The goal of the experiment is to estimate \eqn{F(Q)} from noisy data using 
-a GeDS model and compute its Fourier transform, which provides valuable insights 
-into the structure of the material.
+a GeDS model, and subsequently compute its Fourier transform to gain some valuable
+insights into the structure of the material.
 }
 \examples{
 \dontrun{

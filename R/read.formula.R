@@ -76,10 +76,33 @@ read.formula <- function(formula, data, weights, offset)
 ###############################################################
 # Function for reading the formula of NGeDSboost and NGeDSgam #
 ###############################################################
-#' @importFrom stats setNames
-read.formula.boost <- read.formula.gam <- function(formula, data){
+#' @importFrom stats reformulate setNames
+read.formula.gam <- read.formula.boost <- function(formula, data,
+                                                   type = c("gam", "boost")){
   
   formula <- as.formula(formula)
+  
+  # Check for offset
+  offset_index <- attr(terms(formula), "offset")
+  
+  if (!is.null(offset_index)) {
+    # Extract offset variable name
+    offset_var <- as.character(attr(terms(formula), "variables")[[offset_index + 1]])[2]
+    offset <- data[[offset_var]]
+    
+    # Inform the user
+    if (type == "boost") {
+      message("Note: An offset term ('", offset_var, "') was detected in the formula and will be ignored. ",
+              "If needed, consider adjusting the response variable manually.")
+    } 
+    
+    # Remove offset from formula
+    formula <- reformulate(attr(terms(formula), "term.labels"),
+                           response = as.character(formula[[2]]))
+  } else {
+    offset <- NULL
+  }
+  
   # Parse formula
   terms <- all.vars(formula)
   response <- terms[1]
@@ -139,7 +162,8 @@ read.formula.boost <- read.formula.gam <- function(formula, data){
     if (response %in% learner$variables) stop("The response variable cannot be used as part of the predictors in the base learners.")
     }
   
-  return(list(terms = terms, response = response, predictors = predictors, base_learners = base_learners))
+  return(list(terms = terms, response = response, predictors = predictors,
+              base_learners = base_learners, offset = offset))
 }
 
 #' @title Defining the Covariates for the Spline Component in a GeDS Formula
@@ -148,20 +172,22 @@ read.formula.boost <- read.formula.gam <- function(formula, data){
 #' In general the GeDS predictor model may include a GeD spline regression
 #' component with respect to one or two independent variables and a parametric
 #' component in which the remaining covariates may enter as additive terms.
+#' GAM-GeDS and FGB-GeDS models may include more than one GeD spline regression
+#' component.
 #'
 #' The function \code{f} is to be used in the
-#' \code{\link[=formula.GeDS]{formula}} argument of \code{\link{NGeDS}} or
-#' \code{\link{GGeDS}} in order to specify which independent variables
-#' (covariates) should be included in the GeD spline regression component of the
-#' predictor model.
-#' @param x numeric vector containing \eqn{N} sample values of the covariate
+#' \code{\link[=formula.GeDS]{formula}} argument of \code{\link{NGeDS}},
+#' \code{\link{GGeDS}}, \code{\link{NGeDSgam}} or \code{\link{NGeDSboost}} in 
+#' order to specify which independent variables (covariates) should be included
+#' in the GeD spline regression component of the predictor model.
+#' @param x Numeric vector containing \eqn{N} sample values of the covariate
 #' chosen to enter the spline
 #' regression component of the predictor model.
-#' @param xx numeric vector containing \eqn{N} sample values for the second
-#' covariate (in case \code{\link{NGeDS}} is run for two dimensions). It has to
-#' be either \code{NULL} (the default) or a vector of size \eqn{N}, same as
-#' \code{x}.
-#' @param ... further arguments. As GeDS currently allows for up to two
+#' @param xx Numeric vector containing \eqn{N} sample values for the second
+#' covariate (in case \code{\link{NGeDS}}/\code{\link{GGeDS}} is run for two
+#' dimensions). It has to be either \code{NULL} (the default) or a vector of size
+#' \eqn{N}, same as \code{x}.
+#' @param ... Further arguments. As GeDS currently allows for up to two
 #' covariates, specification of further arguments will return an error.
 #'
 #' @examples
@@ -191,12 +217,13 @@ read.formula.boost <- read.formula.gam <- function(formula, data){
 #' (Gmod <- NGeDS(formula, beta = 0.6, phi = 0.995, Xextr = c(-2,2)))
 #'
 #'
-#' @seealso \link{NGeDS}; \link{GGeDS}.
+#' @seealso \code{\link[=formula.GeDS]{formula}}; \link{NGeDS}; \link{GGeDS};
+#' \link{NGeDSgam}; \link{NGeDSboost}
 #' 
 #' @note This function is intended to be used only as part of the
-#' \code{\link[=formula.GeDS]{formula}} in a GeDS regression via
-#' \code{\link{NGeDS}} or \code{\link{GGeDS}} and not to be called in other
-#' cases by the user.
+#' \code{\link[=formula.GeDS]{formula}} in a GeDS model via
+#' \code{\link{NGeDS}}, \code{\link{GGeDS}}, \code{\link{NGeDSgam}} or
+#' \code{\link{NGeDSboost}} and not to be called in other cases by the user.
 
 f <- function(x,xx=NULL,...) {
   if(!missing(...)) stop("Algorithm supports at most two variables in 'f'")

@@ -6,33 +6,34 @@
 #' @title Piecewise Polynomial Spline Representation
 #' @name PPolyRep
 #' @description
-#' The function converts a GeDS fit which has a  B-spline representation to a
+#' This function converts a univariate GeDS fit from its B-spline representation to a
 #' piecewise polynomial form.
-#' @param object  the \code{"GeDS"} class where the GeDS fit to be
-#' converted is found.
-#' @param n integer value (2, 3 or 4) specifying the order (\eqn{=} degree
+#' @param object The \code{"GeDS"} class object of type \code{"LM - Univ"} or
+#' \code{"GLM - Univ"} from which the GeDS fit to be converted should be extracted.
+#' @param n Integer value (2, 3 or 4) specifying the order (\eqn{=} degree
 #' \eqn{+ 1}) of the GeDS fit which should be converted to a piecewise
 #' polynomial form. By default equal to \code{3L}. Non-integer values will be
 #' passed to the function \code{\link{as.integer}}.
 #' 
+#' @details
+#' This function converts a selected GeDS fit—stored as an object of class
+#' \code{"GeDS"} and represented using B-splines—into an equivalent representation
+#' using piecewise polynomials.
+#'
+#' It wraps the function \code{\link[splines]{polySpline}}, enabling it to handle
+#' \code{"GeDS"} objects as input. This provides a convenient bridge between the
+#' \pkg{GeDS} and \pkg{splines} packages, allowing users to leverage the
+#' functionality available in \pkg{splines}.
+#' 
 #' @return An object that inherits from classes  \code{"spline"} and
 #' \code{"polySpline"}. It is a list whose arguments are:
+#' \describe{
 #' \item{knots}{ a vector of size  \eqn{k + 2} containing the complete set of 
 #' knots (internal knots plus the limits of the interval) of the GeDS fit.}
 #' \item{coefficients}{ a \eqn{(k + 2) \times n} matrix containing the
 #' coefficients of the  polynomials in the required piecewise polynomial
-#' representation. }
-#' 
-#' @details
-#' This function converts a selected GeDS fit from a \code{"GeDS"} class
-#' object represented in terms of B-splines into an object where the fit is
-#' represented in terms of piecewise polynomials.
-#'
-#' The function  wraps \code{\link[splines]{polySpline}} in order to let it 
-#' accept \code{"GeDS"} class objects as input. Hence the function provides
-#' a useful link between the package \pkg{GeDS} and the package \pkg{splines},
-#' allowing the user to take advantage of the functions provided in the
-#' \pkg{splines} package.
+#' representation.}
+#' }
 #'
 #' @examples
 #' # Generate a data sample for the response variable

@@ -26,7 +26,7 @@ in-bag risk reduction ascribable to each base-learner of an FGB-GeDS model.
 Essentially, it measures and aggregates the decrease in the empirical risk
 attributable to each base-learner for every time it is selected across the
 boosting iterations. This provides a measure on how much each base-learner
-contributes to the overall improvement in the model's accuracy, as reflectedp
+contributes to the overall improvement in the model's accuracy, as reflected
 by the decrease in the empiral risk (loss function). This function is adapted
 from \code{\link[mboost]{varimp}} and is compatible with the available
 \code{\link[mboost]{mboost-package}} methods for \code{\link[mboost]{varimp}},
@@ -38,17 +38,23 @@ See \code{\link[mboost]{varimp}} for details.
 \examples{
 library(GeDS)
 library(TH.data)
-set.seed(290875)
+
 data("bodyfat", package = "TH.data")
-data = bodyfat
+N <- nrow(bodyfat); ratio <- 0.8
+set.seed(123)
+trainIndex <- sample(1:N, size = floor(ratio * N))
+# Subset the data into training and test sets
+train <- bodyfat[trainIndex, ]
+test <- bodyfat[-trainIndex, ]
+
 Gmodboost <- NGeDSboost(formula = DEXfat ~ f(hipcirc) + f(kneebreadth) + f(anthro3a),
-                        data = data, initial_learner = FALSE)
-MSE_Gmodboost_linear <- mean((data$DEXfat - Gmodboost$predictions$pred_linear)^2)
-MSE_Gmodboost_quadratic <- mean((data$DEXfat - Gmodboost$predictions$pred_quadratic)^2)
-MSE_Gmodboost_cubic <- mean((data$DEXfat - Gmodboost$predictions$pred_cubic)^2)
+                        data = train, phi = 0.7, initial_learner = FALSE)
+MSE_Gmodboost_linear <- mean((test$DEXfat - predict(Gmodboost, newdata = test, n = 2))^2)
+MSE_Gmodboost_quadratic <- mean((test$DEXfat - predict(Gmodboost, newdata = test, n = 3))^2)
+MSE_Gmodboost_cubic <- mean((test$DEXfat - predict(Gmodboost, newdata = test, n = 4))^2)
 
 # Print MSE
-cat("\n", "MEAN SQUARED ERROR", "\n",
+cat("\n", "TEST MEAN SQUARED ERROR", "\n",
     "Linear NGeDSboost:", MSE_Gmodboost_linear, "\n",
     "Quadratic NGeDSboost:", MSE_Gmodboost_quadratic, "\n",
     "Cubic NGeDSboost:", MSE_Gmodboost_cubic, "\n")

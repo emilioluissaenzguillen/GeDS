@@ -7,34 +7,36 @@
 f(x, xx = NULL, ...)
 }
 \arguments{
-\item{x}{numeric vector containing \eqn{N} sample values of the covariate
+\item{x}{Numeric vector containing \eqn{N} sample values of the covariate
 chosen to enter the spline
 regression component of the predictor model.}
 
-\item{xx}{numeric vector containing \eqn{N} sample values for the second
-covariate (in case \code{\link{NGeDS}} is run for two dimensions). It has to
-be either \code{NULL} (the default) or a vector of size \eqn{N}, same as
-\code{x}.}
+\item{xx}{Numeric vector containing \eqn{N} sample values for the second
+covariate (in case \code{\link{NGeDS}}/\code{\link{GGeDS}} is run for two
+dimensions). It has to be either \code{NULL} (the default) or a vector of size
+\eqn{N}, same as \code{x}.}
 
-\item{...}{further arguments. As GeDS currently allows for up to two
+\item{...}{Further arguments. As GeDS currently allows for up to two
 covariates, specification of further arguments will return an error.}
 }
 \description{
 In general the GeDS predictor model may include a GeD spline regression
 component with respect to one or two independent variables and a parametric
 component in which the remaining covariates may enter as additive terms.
+GAM-GeDS and FGB-GeDS models may include more than one GeD spline regression
+component.
 
 The function \code{f} is to be used in the
-\code{\link[=formula.GeDS]{formula}} argument of \code{\link{NGeDS}} or
-\code{\link{GGeDS}} in order to specify which independent variables
-(covariates) should be included in the GeD spline regression component of the
-predictor model.
+\code{\link[=formula.GeDS]{formula}} argument of \code{\link{NGeDS}},
+\code{\link{GGeDS}}, \code{\link{NGeDSgam}} or \code{\link{NGeDSboost}} in 
+order to specify which independent variables (covariates) should be included
+in the GeD spline regression component of the predictor model.
 }
 \note{
 This function is intended to be used only as part of the
-\code{\link[=formula.GeDS]{formula}} in a GeDS regression via
-\code{\link{NGeDS}} or \code{\link{GGeDS}} and not to be called in other
-cases by the user.
+\code{\link[=formula.GeDS]{formula}} in a GeDS model via
+\code{\link{NGeDS}}, \code{\link{GGeDS}}, \code{\link{NGeDSgam}} or
+\code{\link{NGeDSboost}} and not to be called in other cases by the user.
 }
 \examples{
 # Generate a data sample for the response variable Y and
@@ -65,5 +67,6 @@ formula <- Y ~ f(X) + reg1 + reg2 + offset(off)
 
 }
 \seealso{
-\link{NGeDS}; \link{GGeDS}.
+\code{\link[=formula.GeDS]{formula}}; \link{NGeDS}; \link{GGeDS};
+\link{NGeDSgam}; \link{NGeDSboost}
 }

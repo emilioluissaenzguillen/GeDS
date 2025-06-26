@@ -7,12 +7,12 @@
 \method{plot}{GeDSboost}(x, n = 3L, ...)
 }
 \arguments{
-\item{x}{a GeDSboost object, as returned by \code{NGeDSboost()}.}
+\item{x}{A GeDSboost object, as returned by \code{NGeDSboost()}.}
 
-\item{n}{integer value (2, 3 or 4) specifying the order (\eqn{=} degree
+\item{n}{Integer value (2, 3 or 4) specifying the order (\eqn{=} degree
 \eqn{+ 1}) of the FGB-GeDS fit to be extracted.}
 
-\item{...}{further arguments to be passed to the
+\item{...}{Further arguments to be passed to the
 \code{\link[graphics]{plot.default}} function.}
 }
 \description{
@@ -20,11 +20,29 @@ Plots the component functions of a GeDSboost object fitted using
 \code{\link{NGeDSboost}}. If the model has a single base-learner, the plot
 will be returned on the response scale. Otherwise, plots are produced on the
 linear predictor scale. Note that only univariate base-learner plots are
-returned, as representation of the boosted model as a single spline model is
-available only for univariate base-learners (see Dimitrova et al. (2025)). In
-addition since component-wise gradient boosting inherently performs base-learner
-selection, you should only expect plots for the base-learners that where selected
-across the boosting iterations.
+returned, as the representation of the boosted model as a single spline model
+is available only for univariate base-learners (see Dimitrova et al. (2025)).
+Additionally, since component-wise gradient boosting inherently performs
+base-learner selection, plots will only be generated for the base-learners
+selected during the boosting iterations.
+}
+\examples{
+data(mtcars)
+# Convert specified variables to factors
+categorical_vars <- c("cyl", "vs", "am", "gear", "carb")
+mtcars[categorical_vars] <- lapply(mtcars[categorical_vars], factor)
+N <- nrow(mtcars); ratio <- 0.8
+set.seed(123)
+trainIndex <- sample(1:N, size = floor(ratio * N))
+# Subset the data into training and test sets
+train <- mtcars[trainIndex, ]
+test <- mtcars[-trainIndex, ]
+Gmodboost <- NGeDSboost(mpg ~ cyl + f(drat) + f(wt) + f(hp) + vs + am,
+                        data = train, phi = 0.7, shrinkage = 0.9, initial_learner = FALSE)
+
+par(mfrow = c(2,3))
+plot(Gmodboost, n = 2)
+
 }
 \references{
 Dimitrova, D. S., Kaishev, V. K. and Saenz Guillen, E. L. (2025).

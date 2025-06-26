@@ -38,9 +38,10 @@
 #' @param max.intknots Optional parameter allowing the user to set a maximum
 #' number of internal knots to be added by the GeDS estimation algorithm. By
 #' default equal to the number of internal knots \eqn{\kappa} for the saturated
-#' GeDS model (i.e. \eqn{\kappa=N-2}).
+#' GeDS model (i.e., \eqn{\kappa=N-2}, where \eqn{N} is the number
+#' of observations).
 #' @param q Numeric parameter which allows to fine-tune the stopping rule of
-#' stage A of GeDS, by default equal to 2. See details in the description of
+#' stage A of GeDS, by default equal to 2. See Details in the description of
 #' \code{\link{NGeDS}} or \code{\link{GGeDS}}.
 #' @param extr Numeric vector of 2 elements representing the left-most and
 #' right-most limits of the interval embedding the sample values of \code{X}. By
@@ -49,7 +50,7 @@
 #' information at each step. By default equal to \code{FALSE}.
 #' @param stoptype A character string indicating the type of GeDS stopping rule
 #' to be used. It should be either \code{"SR"}, \code{"RD"} or \code{"LR"},
-#' partial match allowed. See details of \code{\link{NGeDS}} or
+#' partial match allowed. See Details of \code{\link{NGeDS}} or
 #' \code{\link{GGeDS}}.
 #' @param offset A vector of size \eqn{N} that can be used to specify a fixed
 #' covariate to be included in the predictor model avoiding the estimation of
@@ -59,7 +60,7 @@
 #' \code{offset} argument is particularly useful when using 
 #' \code{GenUnivariateFitter} if the link function used is not the identity.
 #' @param tol Numeric value indicating the tolerance to be used in the knot
-#' placement steps in stage A. By default equal to 1E-12. See details below.
+#' placement steps in stage A. By default equal to 1E-12. See Details below.
 #' @param higher_order A logical that defines whether to compute the higher
 #' order fits (quadratic and cubic) after stage A is run. Default is
 #' \code{TRUE}.
@@ -90,6 +91,18 @@
 #'
 #' See \code{\link{NGeDS}} and \code{\link{GGeDS}}, Kaishev et al. (2016) and
 #' Dimitrova et al. (2023) for further details.
+#'
+#' @references
+#' Kaishev, V.K., Dimitrova, D.S., Haberman, S., & Verrall, R.J. (2016).
+#' Geometrically designed, variable knot regression splines.
+#' \emph{Computational Statistics}, \strong{31}, 1079--1105. \cr
+#' DOI: \doi{10.1007/s00180-015-0621-7}
+#'
+#' Dimitrova, D. S., Kaishev, V. K., Lattuada, A. and Verrall, R. J.  (2023).
+#' Geometrically designed variable knot splines in generalized (non-)linear
+#' models.
+#' \emph{Applied Mathematics and Computation}, \strong{436}. \cr
+#' DOI: \doi{10.1016/j.amc.2022.127493}
 #'
 #' @examples
 #' # Examples similar to the ones
@@ -133,18 +146,6 @@
 #' @importFrom stats .lm.fit qchisq pchisq
 #' @export
 #' @rdname UnivariateFitters
-#' 
-#' @references
-#' Kaishev, V.K., Dimitrova, D.S., Haberman, S., & Verrall, R.J. (2016).
-#' Geometrically designed, variable knot regression splines.
-#' \emph{Computational Statistics}, \strong{31}, 1079--1105. \cr
-#' DOI: \doi{10.1007/s00180-015-0621-7}
-#'
-#' Dimitrova, D. S., Kaishev, V. K., Lattuada, A. and Verrall, R. J.  (2023).
-#' Geometrically designed variable knot splines in generalized (non-)linear
-#' models.
-#' \emph{Applied Mathematics and Computation}, \strong{436}. \cr
-#' DOI: \doi{10.1016/j.amc.2022.127493}
 
 UnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0,NROW(Y)),
                              weights = rep(1,length(X)), beta=.5, phi = 0.5,
@@ -161,10 +162,10 @@ UnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0,NROW(Y)),
                "beta" = beta, "phi" = phi, "min.intknots" = min.intknots,
                "max.intknots" = max.intknots, "q" = q, "extr" = extr, "tol" = tol)
   
-  # Initialize intknots, RSS and phis
+  # Initialize intknots, rss and phis
   intknots <- if (!is.null(fit_init)) fit_init$intknots else intknots_init
   n_starting_intknots <- length(intknots)
-  RSSnew <- numeric(n_starting_intknots)
+  rssnew <- numeric(n_starting_intknots)
   phis <- NULL
   # Initialize \hat{\phi}_\kappa, \hat{\gamma}_0 and \hat{\gamma}_\1 (stoptype = "SR"; see eq. 9 in Dimitrova et al. (2023))
   phis_star <- NULL; oldintc <- NULL; oldslp <- NULL
@@ -199,21 +200,21 @@ UnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0,NROW(Y)),
                                                extr = extr, InterKnots = intknots, n = 2) #first regression
       # Store knots and coefficients
       previous[j, 1:(j+3)] <- sort(c(intknots, rep(extr, 2)))
-      oldcoef[j, 1:(j+1+nz)] <- first.deg$Theta
+      oldcoef[j, 1:(j+1+nz)] <- first.deg$theta
       
       #####################################
-      ## STEP 9: Store residuals and RSS ##
+      ## STEP 9: Store residuals and rss ##
       ####################################
-      res.tmp <- first.deg$Residuals
-      RSSnew <- c(RSSnew, first.deg$RSS)
+      res.tmp <- first.deg$residuals
+      rssnew <- c(rssnew, first.deg$rss)
       
     } else {
       # Store knots and coefficients
       previous[j, 1:(j+3)] <- sort(c(intknots, rep(extr, 2)))
-      # oldcoef[j, 1:(j+1+nz)] <- first.deg$Theta # we don't need the coef for anything
+      # oldcoef[j, 1:(j+1+nz)] <- first.deg$theta # we don't need the coef for anything
       
       res.tmp <- Y - fit_init$pred
-      RSSnew <- c(RSSnew, sum((res.tmp)^2))
+      rssnew <- c(rssnew, sum((res.tmp)^2))
     }
     
     
@@ -223,19 +224,19 @@ UnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0,NROW(Y)),
     ############################
     if (j > q + n_starting_intknots) {
       
-      if (RSSnew[j]/RSSnew[j-q] > 1) break
+      if (rssnew[j]/rssnew[j-q] > 1) break
       
       # Adding the current ratio of deviances to the 'phis' vector
       phis <- if (stoptype == "LR") {
-        c(phis, RSSnew[j-q]-RSSnew[j])
+        c(phis, rssnew[j-q]-rssnew[j])
       } else {
-        c(phis, RSSnew[j]/RSSnew[j-q])
+        c(phis, rssnew[j]/rssnew[j-q])
       }
       
       if (j - q > min.intknots) {
         # (I) Smoothed Ratio of deviances
         if(stoptype == "SR") {
-          # \hat{φ}_κ = 1 − exp{\hat{γ}_0 + \hat{γ}_1*κ}
+          # \hat{φ}_κ = 1 - exp{\hat{γ}_0 + \hat{γ}_1*κ}
           # 1-\hat{φ}_κ = exp{\hat{γ}_0 + \hat{γ}_1*κ}
           # ln(1-\hat{φ}_κ) = \hat{γ}_0 + \hat{γ}_1*κ
           # Fit a linear model ln(1-φ) ~ \hat{γ}_0 + \hat{γ}_1*κ to the sample {φ_h, h}^κ_{h=q}
@@ -253,13 +254,13 @@ UnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0,NROW(Y)),
           
           # (II) Ratio of Deviances
         } else if (stoptype == "RD") {
-          prnt <- paste0(", phi = ", round(RSSnew[j]/RSSnew[j-q],3))
-          if(RSSnew[j]/RSSnew[j-q] >= phi) break
+          prnt <- paste0(", phi = ", round(rssnew[j]/rssnew[j-q],3))
+          if(rssnew[j]/rssnew[j-q] >= phi) break
           
           # (III) Likelihood Ratio
         } else if (stoptype == "LR") {
-          prnt <- paste0(", p = ", round(pchisq(-(RSSnew[j]-RSSnew[j-q]), df=q), 3))
-          if(-(RSSnew[j]-RSSnew[j-q]) < qchisq(phi, df=q)) break
+          prnt <- paste0(", p = ", round(pchisq(-(rssnew[j]-rssnew[j-q]), df=q), 3))
+          if(-(rssnew[j]-rssnew[j-q]) < qchisq(phi, df=q)) break
         }
       }
     }
@@ -335,10 +336,10 @@ UnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0,NROW(Y)),
       indent <- paste(indent, collapse="")
       if (j > q + n_starting_intknots) {
         toprint <- paste0(indent, "Iteration ",j,": New Knot = ", round(newknot, 3),
-                          ", RSS = " , round(RSSnew[j],3), prnt,"\n")
+                          ", rss = " , round(rssnew[j],3), prnt,"\n")
       } else {
           toprint <- paste0(indent,"Iteration ",j,": New Knot = ", round(newknot, 3),
-                            ", RSS = " , round(RSSnew[j],3), "\n")
+                            ", rss = " , round(rssnew[j],3), "\n")
       }
       cat(toprint)
     }
@@ -405,11 +406,11 @@ UnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0,NROW(Y)),
       qq <- squ <- cc <- cub <- NULL
     }
   
-  out <- list("Type" = "LM - Univ", "Linear.IntKnots" = ll, "Quadratic.IntKnots" = qq, "Cubic.IntKnots" = cc,
-              "Dev.Linear" = lin$RSS, "Dev.Quadratic" = squ$RSS, "Dev.Cubic" = cub$RSS,
-              "RSS" = RSSnew, "Linear.Fit" = lin, "Quadratic.Fit" = squ, "Cubic.Fit" = cub, "Stored" = previous,
-              "Args"= args, "Call"= save, "Nintknots" = iter - 1, "iters" = j, "Guesses" = NULL,
-              "Coefficients" = oldcoef, stopinfo = list("phis" = phis, "phis_star" = phis_star, "oldintc" = oldintc, "oldslp" = oldslp))
+  out <- list("type" = "LM - Univ", "linear.intknots" = ll, "quadratic.intknots" = qq, "cubic.intknots" = cc,
+              "dev.linear" = lin$rss, "dev.quadratic" = squ$rss, "dev.cubic" = cub$rss,
+              "rss" = rssnew, "linear.fit" = lin, "quadratic.fit" = squ, "cubic.fit" = cub, "stored" = previous,
+              "args"= args, "call"= save, "Nintknots" = iter - 1, "iters" = j, "guesses" = NULL,
+              "coefficients" = oldcoef, stopinfo = list("phis" = phis, "phis_star" = phis_star, "oldintc" = oldintc, "oldslp" = oldslp))
 
   class(out) <- "GeDS"
   return(out)
@@ -437,8 +438,8 @@ GenUnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)),
                "beta" = beta, "phi" = phi, "family"=family, "min.intknots" = min.intknots,
                "max.intknots" = max.intknots, "q" = q, "extr" = extr)
   
-  # Initialize RSS and phis
-  RSSnew <- numeric()
+  # Initialize rss and phis
+  rssnew <- numeric()
   phis <- NULL
   # Initialize \hat{\phi}_\kappa, \hat{\gamma}_0 and \hat{\gamma}_\1 (stoptype = "SR"; see eq. 9 in Dimitrova et al. (2023))
   phis_star <- NULL; oldintc <- NULL; oldslp <- NULL
@@ -489,24 +490,24 @@ GenUnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)),
                                InterKnots = intknots, n = 2, extr = extr,
                                family = family, inits = guess)
     
-    # 1. Check for NA values in the Theta vector to handle potential singularities
-    if(anyNA(first.deg$Theta)) {
+    # 1. Check for NA values in the theta vector to handle potential singularities
+    if(anyNA(first.deg$theta)) {
       # Calculate the rank of the basis matrix and check for singularities
-      rank.basis <- rankMatrix(first.deg$Basis)
-      cols <- NCOL(first.deg$Basis)
+      rank.basis <- rankMatrix(first.deg$basis)
+      cols <- NCOL(first.deg$basis)
       
       # (i) Handle the case when the basis matrix is singular
       if(rank.basis < cols) {
-        # (a) If Basis was singular for second consecutive time, break loop
+        # (a) If basis was singular for second consecutive time, break loop
         if (flag) {
           warning("Matrix singular for the second time. Breaking the loop.")
           break
         }
         # (b) Identify and remove problematic knots and guesses based on NA positions
-        check <- which(is.na(first.deg$Theta))
+        check <- which(is.na(first.deg$theta))
         intknots <- intknots[-(check-1)]
-        guess <- guess[1:length(first.deg$Theta)][-check]
-        toprint <- paste0("Basis Matrix singular, deleting one knot")
+        guess <- guess[1:length(first.deg$theta)][-check]
+        toprint <- paste0("basis Matrix singular, deleting one knot")
         print(toprint)
         flag  <- TRUE 
         # (c) Check if the number of knots equals the number of unique X values and issue a warning if true
@@ -518,14 +519,14 @@ GenUnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)),
             next  
           }
         
-      # (ii) NA values in the Theta vector, but basis matrix is not singular (i.e. other issues)
+      # (ii) NA values in the theta vector, but basis matrix is not singular (i.e. other issues)
         } else {
           stop("NA(s) in the coefficients")
         }
       
     # 2. If no NAs, update guess (coefficients initial value in the next iteration)
     } else {
-      guess <- first.deg$Theta[1:(j+1)]
+      guess <- first.deg$theta[1:(j+1)]
     }
     
     # Accumulated number of IRLS iterations at each GeDS iteration
@@ -534,14 +535,14 @@ GenUnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)),
     
     # Store knots and coefficients
     previous[j,1:(j+3)] <- sort(c(intknots,rep(extr,2)))
-    oldcoef[j,1:(j+1+nz)] <- first.deg$Theta
-    guess_z <- if(nz > 0) first.deg$Theta[(j+2):(j+1+nz)] else NULL
+    oldcoef[j,1:(j+1+nz)] <- first.deg$theta
+    guess_z <- if(nz > 0) first.deg$theta[(j+2):(j+1+nz)] else NULL
     
     # Store residuals and deviance 
-    res.tmp <- first.deg$Residuals
-    RSS.tmp <- first.deg$temporary$deviance
-    if (flag) RSSnew <- RSSnew[1:(j-1)]
-    RSSnew <- c(RSSnew, RSS.tmp)
+    res.tmp <- first.deg$residuals
+    rss.tmp <- first.deg$temporary$deviance
+    if (flag) rssnew <- rssnew[1:(j-1)]
+    rssnew <- c(rssnew, rss.tmp)
     # Working weights (weights in the final iteration of the IRLS fit)
     working.weights <- first.deg$temporary$weights  
     
@@ -550,20 +551,20 @@ GenUnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)),
     ###########################
     if (j > q) {
       
-      if (RSSnew[j]/RSSnew[j-q] > 1) break
+      if (rssnew[j]/rssnew[j-q] > 1) break
       
       # Adding the current ratio of deviances to the 'phis' vector
       if (flag) phis <- phis[1:(j-q-1)]
       phis <- if (stoptype == "LR") {
-        c(phis, RSSnew[j-q]-RSSnew[j])
+        c(phis, rssnew[j-q]-rssnew[j])
       } else {
-        c(phis, RSSnew[j]/RSSnew[j-q])
+        c(phis, rssnew[j]/rssnew[j-q])
       }
       
       if (j - q > min.intknots) {
         # (I) Smoothed Ratio of deviances
         if(stoptype == "SR") {
-          # \hat{φ}_κ = 1 − exp{\hat{γ}_0 + \hat{γ}_1*κ}
+          # \hat{φ}_κ = 1 - exp{\hat{γ}_0 + \hat{γ}_1*κ}
           # 1-\hat{φ}_κ = exp{\hat{γ}_0 + \hat{γ}_1*κ}
           # ln(1-\hat{φ}_κ) = \hat{γ}_0 + \hat{γ}_1*κ
           # Fit a linear model ln(1-φ) ~ \hat{γ}_0 + \hat{γ}_1*κ to the sample {φ_h, h}^κ_{h=q}
@@ -581,13 +582,13 @@ GenUnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)),
           
         # (II) Ratio of Deviances
         } else if (stoptype == "RD") {
-          prnt <- paste0(", phi = ", round(RSSnew[j]/RSSnew[j-q],3))
-          if(RSSnew[j]/RSSnew[j-q] >= phi) break
+          prnt <- paste0(", phi = ", round(rssnew[j]/rssnew[j-q],3))
+          if(rssnew[j]/rssnew[j-q] >= phi) break
           
         # (III) Likelihood Ratio
         } else if (stoptype == "LR") {
-          prnt <- paste0(", p = ", round(pchisq(-(RSSnew[j]-RSSnew[j-q]), df=q), 3))
-          if(-(RSSnew[j]-RSSnew[j-q]) < qchisq(phi, df=q)) break
+          prnt <- paste0(", p = ", round(pchisq(-(rssnew[j]-rssnew[j-q]), df=q), 3))
+          if(-(rssnew[j]-rssnew[j-q]) < qchisq(phi, df=q)) break
         }
       }
     }
@@ -659,11 +660,11 @@ GenUnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)),
       indent <- rep(" ", nchar(options()$prompt))
       indent <- paste(indent, collapse="")
       if(j > q) {
-        toprint <- paste0(indent, "Iteration ",j,": New Knot = ", round(newknot,3),
-                          ", DEV = " , round(RSSnew[j],3), prnt,"\n")
+        toprint <- paste0(indent, "Iteration ",j,": New knot = ", round(newknot,3),
+                          ", dev =  " , round(rssnew[j],3), prnt,"\n")
       } else {
-        toprint <- paste0(indent, "Iteration ", j, ": New Knot = ", round(newknot,3),
-                          ", DEV = " , round(RSSnew[j],3), "\n")
+        toprint <- paste0(indent, "Iteration ", j, ": New knot = ", round(newknot,3),
+                          ", dev =  " , round(rssnew[j],3), "\n")
       }
       cat(toprint)
     }
@@ -719,14 +720,14 @@ GenUnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)),
       qq <- NULL
       squ <- SplineReg_GLM(X = X, Y = Y, Z = Z, offset = offset, weights = weights,
                            extr = extr, InterKnots = qq, n = 3, family = family,
-                           mustart = lin$Predicted)
+                           mustart = lin$predicted)
       } else {
         # Stage B.1 (averaging knot location)
         qq <- makenewknots(ik, 3)
         # Stage B.2
         squ <- SplineReg_GLM(X = X, Y = Y, Z = Z, offset = offset, weights = weights,
                              extr = extr, InterKnots = qq, n = 3, family = family,
-                             mustart = lin$Predicted)
+                             mustart = lin$predicted)
         }
     # 3. CUBIC
     if (iter < 4) {
@@ -734,25 +735,25 @@ GenUnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)),
       cc <- NULL
       cub <- SplineReg_GLM(X = X, Y = Y, Z = Z, offset = offset, weights = weights,
                            extr = extr, InterKnots = cc, n = 4, family = family,
-                           mustart = squ$Predicted)
+                           mustart = squ$predicted)
       } else {
         # Stage B.1 (averaging knot location)
         cc <- makenewknots(ik, 4)
         # Stage B.2
         cub <- SplineReg_GLM(X = X, Y = Y, Z = Z, offset = offset, weights = weights,
                              extr = extr, InterKnots = cc, n = 4, family = family,
-                             mustart = squ$Predicted)
+                             mustart = squ$predicted)
       }
     } else {
       qq <- squ <- cc <- cub <- NULL
     }
   
-  out <- list("Type" = "GLM - Univ", "Linear.IntKnots" = ll, "Quadratic.IntKnots" = qq, "Cubic.IntKnots" = cc,
-              "Dev.Linear" = lin$RSS, "Dev.Quadratic" = squ$RSS, "Dev.Cubic" = cub$RSS, "Knots" = intknots,
-              "RSS" = RSSnew, "Linear.Fit" = lin, "Quadratic.Fit" = squ, "Cubic.Fit" = cub, "Stored" = previous,
-              "Args" = args, "Call" = save, "Nintknots" = iter - 1, "iters" = j, "Guesses" = oldguess,
-              "Coefficients" = oldcoef, "iterIrls" = irlsAccumIterCount,
-              stopinfo = list("phis" = phis,"phis_star" = phis_star, "oldintc" = oldintc, "oldslp" = oldslp))
+  out <- list("type" = "GLM - Univ", "linear.intknots" = ll, "quadratic.intknots" = qq, "cubic.intknots" = cc,
+              "dev.linear" = lin$rss, "dev.quadratic" = squ$rss, "dev.cubic" = cub$rss,
+              "rss" = rssnew, "linear.fit" = lin, "quadratic.fit" = squ, "cubic.fit" = cub, "stored" = previous,
+              "args" = args, "call" = save, "Nintknots" = iter - 1, "iters" = j, "guesses" = oldguess,
+              "coefficients" = oldcoef, "iterIrls" = irlsAccumIterCount,
+              stopinfo = list("phis" = phis, "phis_star" = phis_star, "oldintc" = oldintc, "oldslp" = oldslp))
   
   class(out) <- "GeDS"
   return(out)

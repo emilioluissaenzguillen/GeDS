@@ -35,10 +35,10 @@ Non-integer values will be passed to the function \code{\link{as.integer}}.}
 This function computes defined integrals of a fitted GeDS regression model.
 }
 \details{
-The function is based on the well known property (c.f. De Boor, 2001, Chapter
+The function relies on the well known property (c.f. De Boor, 2001, Chapter
 X, formula (33)) that the integral of a linear combination of appropriately
-normalized B-splines is equal to the sum of its corresponding coefficients,
-noting that the GeDS regression is in fact such a linear combination.
+normalized B-splines (i.e., the standard representation of a
+GeDS regression model) is equal to the sum of its corresponding coefficients.
 
 Since the function is based on this property, it is designed to work only on
 the predictor scale in the GNM (GLM) framework.
@@ -46,7 +46,7 @@ the predictor scale in the GNM (GLM) framework.
 If the argument \code{from} is a single value, then it is taken as the lower
 limit of integration for all the defined integrals required, whereas the upper
 limits of integration are the values contained in the argument \code{to}. If
-the arguments \code{from} and \code{to} are of similar size, the integrals
+the arguments \code{from} and \code{to} are of same size, the integrals
 (as many as the size) are computed by sequentially taking the pairs of values
 in the \code{from} and \code{to} vectors as limits of integration.
 }
@@ -74,6 +74,8 @@ Integrate(Gmod, from = 1, to = c(-1,1), n = 3)
 # and $\int_{-1}^{1} f(x)dx$
 # $f$ being the quadratic fit
 Integrate(Gmod, from = c(1,-1), to = c(-1,1), n = 3)
+
+# Compute $\int_{-\infty}^{x} f(s)ds$
 Integrate(Gmod, from = rep(-Inf, N), to = X, n = 3)
 
 }

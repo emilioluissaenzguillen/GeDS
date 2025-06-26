@@ -2,34 +2,36 @@
 % Please edit documentation in R/S3methods.R, R/S3methods_GeDSboost-GeDSgam.R
 \name{formula.GeDS}
 \alias{formula.GeDS}
-\alias{formula.GeDSboost}
 \alias{formula.GeDSgam}
+\alias{formula.GeDSboost}
 \title{Formula for the Predictor Model}
 \usage{
 \method{formula}{GeDS}(x, ...)
 
-\method{formula}{GeDSboost}(x, ...)
-
 \method{formula}{GeDSgam}(x, ...)
+
+\method{formula}{GeDSboost}(x, ...)
 }
 \arguments{
-\item{x}{fitted \code{"GeDS"} class object, produced by 
-\code{\link{NGeDS}} or \code{\link{GGeDS}}, from which the predictor model
+\item{x}{Fitted \code{"GeDS"}, \code{"GeDSgam"} or \code{"GeDSboost"} class
+object, produced by \code{\link{NGeDS}}, \code{\link{GGeDS}},
+\code{\link{NGeDSgam}} or \code{\link{NGeDSboost}} from which the predictor model
 \code{\link[stats]{formula}} should be extracted.}
 
-\item{...}{unused in this case.}
+\item{...}{Unused in this case.}
 }
 \description{
 A description of the structure of the predictor model fitted using
-\code{\link{NGeDS}} or \code{\link{GGeDS}}.
+\code{\link{NGeDS}}, \code{\link{GGeDS}}, \code{\link{NGeDSgam}} or
+\code{\link{NGeDSboost}}.
 }
 \details{
-In GeDS GNM (GLM) regression, implemented with \code{\link{NGeDS}} and
-\code{\link{GGeDS}}, the mean of the response variable, correspondingly
+In GeDS GNM (GLM) regression (implemented through \code{\link{NGeDS}} and
+\code{\link{GGeDS}}) the mean of the response variable, correspondingly
 transformed through an appropriate link function, is modeled using a
 potentially multivariate predictor model. The latter comprises two components:
 a GeD variable-knot spline regression involving up to two of the independent
-variables, and a parametric component for the remaining independent variables.
+variables and a parametric component for the remaining independent variables.
 The formula defines the structure of this potentially multivariate predictor.
 
 The formulae that are input in \code{\link{NGeDS}} and \code{\link{GGeDS}}
@@ -41,14 +43,14 @@ is univariate and it links the transformed mean of \code{y} to \code{x1},
 the predictor has only a GeD spline component and the
 \code{\link[stats]{formula}} should be in the form \code{y ~ f(x1)}.
 
-As noted, there may be additional independent variables, \code{x2},
+As noted, there may be additional independent variables \code{x2},
 \code{x3}, ... which may enter linearly into the parametric component of the
 predictor model and not be part of the GeD spline regression component. For
 example one may use the formula \code{y ~ f(x1) + x2 + x3} which assumes a
 spline regression only between the transformed mean of \code{y} and \code{x1},
 while \code{x2} and \code{x3} enter the predictor model linearly.
 
-Both function \code{\link{NGeDS}} and function \code{\link{GGeDS}}, generate
+Both \code{\link{NGeDS}} and \code{\link{GGeDS}} functions, generate
 bivariate GeDS regression models. Therefore, if the functional dependence of
 the mean of the response variable \code{y} on \code{x1} and \code{x2} needs
 to be jointly modeled and there are no other covariates, the formula for the
@@ -56,12 +58,15 @@ corresponding two dimensional predictor model should be specified as
 \code{y ~ f(x1,x2)}.
 
 Within the argument \code{formula}, similarly as in other \R functions, it is
-possible to specify one or more offset variables, i.e. known terms with fixed
+possible to specify one or more offset variables, i.e., known terms with fixed
 regression coefficients equal to 1. These terms should be identified via the
 function \code{\link[stats]{offset}}.
 
-For \code{\link{NGeDSboost}} and \code{\link{NGeDSgam}}, a formula of the form 
-\code{y ~ f(x1) + f(x2, x3) + x4} should be provided, where \code{f()} denotes 
-GeD spline-based (univariate or bivariate) regression base-learners/smoothing 
-functions, and \code{x4} is included as a linear term in the predictor model.
+For \code{\link{NGeDSgam}} and \code{\link{NGeDSboost}}, more than one GeD spline
+component can be included in the formula, e.g., \code{y ~ f(x1) + f(x2,x3) + x4},
+where \code{f()} denotes GeD spline-based (univariate or bivariate) regression smoothing 
+functions/base-learners, and \code{x4} is included as a linear term in the
+predictor model. Offset terms are not supported by \code{\link{NGeDSboost}} and
+will be ignored if included in the formula. Known additive components can
+instead be manually incorporated into the response variable prior to fitting the model.
 }

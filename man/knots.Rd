@@ -2,50 +2,50 @@
 % Please edit documentation in R/S3methods.R, R/S3methods_GeDSboost-GeDSgam.R
 \name{knots.GeDS}
 \alias{knots.GeDS}
-\alias{knots.GeDSboost}
 \alias{knots.GeDSgam}
-\title{Knots Method for GeDS, GeDSboost, GeDSgam}
+\alias{knots.GeDSboost}
+\title{Knots Method for GeDS, GeDSgam, GeDSboost}
 \usage{
 \method{knots}{GeDS}(Fn, n = 3L, options = c("all", "internal"), ...)
 
-\method{knots}{GeDSboost}(Fn, n = 3L, options = c("all", "internal"), ...)
-
 \method{knots}{GeDSgam}(Fn, n = 3L, options = c("all", "internal"), ...)
+
+\method{knots}{GeDSboost}(Fn, n = 3L, options = c("all", "internal"), ...)
 }
 \arguments{
-\item{Fn}{the \code{"GeDS"} class, \code{\link{NGeDSboost}} or
-\code{\link{NGeDSgam}} object from which the vector of knots for the
-specified GeDS, FGB-GeDS or GAM-GeDS fit should be extracted.}
+\item{Fn}{The \code{"GeDS"}, \code{"GeDSgam"} or
+\code{"GeDSboost"} class object from which the vector of knots for the
+specified GeDS, GAM-GeDS or FGB-GeDS fit should be extracted.}
 
-\item{n}{integer value (2, 3 or 4) specifying the order (\eqn{=} degree
-\eqn{+ 1}) of the GeDS/GeDSboost/GeDSgam fit whose knots should be
-extracted. By default equal to \code{3L}; non-integer values will be passed
-to the function \code{\link{as.integer}}.}
+\item{n}{Integer value (2, 3 or 4) specifying the order (\eqn{=} degree
+\eqn{+ 1}) of the \code{"GeDS"}, \code{"GeDSgam"} or \code{"GeDSboost"} fit
+whose knots should be extracted. By default equal to \code{3L}; non-integer
+values will be passed to the function \code{\link{as.integer}}.}
 
-\item{options}{a character string specifying whether "\code{all}" knots,
+\item{options}{A character string specifying whether "\code{all}" knots,
 including the left-most and the right-most limits of the interval embedding
 the observations (the default) or only the "\code{internal}" knots should be
 extracted.}
 
-\item{...}{potentially further arguments (required for compatibility with the
+\item{...}{Potentially further arguments (required for compatibility with the
 definition of the generic function). Currently ignored, but with a warning.}
 }
 \value{
-A vector in which each element represents a knot of the GeDS/FGB-GeDS/GAM-GeDS fit of the required order.
+A vector in which each element represents a knot of the
+GeDS/GAM-GeDS/FGB-GeDS fit of the required order.
 }
 \description{
 Method for the generic function \code{\link[stats]{knots}} that allows the
-user to extract the vector of knots of a GeDS, GeDSboost or GeDSgam fit of a
-specified order contained in a \code{"GeDS"} class,
-\code{\link{NGeDSboost}} or \code{\link{NGeDSgam}} object,
-respectively.
+user to extract the vector of knots of a GeDS, GAM-GeDS or FGB-GeDS fit of a
+specified order contained in a \code{"GeDS"}, \code{"GeDSgam"} or
+\code{"GeDSboost"} class, respectively.
 }
 \details{
 This is a method for the function \code{\link[stats]{knots}} in the
 \pkg{stats} package.
 
-As \code{"GeDS"} class, \code{\link{NGeDSboost}} and
-\code{\link{NGeDSgam}} objects contain three different fits (linear,
+As \code{"GeDS"} class, \code{\link{NGeDSgam}} and
+\code{\link{NGeDSboost}} objects contain three different fits (linear,
 quadratic and cubic), it is possible to specify the order of the GeDS fit
 whose knots are required via the input argument \code{n}.
 }

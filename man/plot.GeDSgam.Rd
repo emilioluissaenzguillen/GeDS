@@ -7,25 +7,90 @@
 \method{plot}{GeDSgam}(x, base_learners = NULL, f = NULL, n = 3L, ...)
 }
 \arguments{
-\item{x}{a GeDSgam object, as returned by \code{NGeDSgam()}.}
+\item{x}{A GeDSgam object, as returned by \code{NGeDSgam()}.}
 
-\item{base_learners}{either NULL or a vector of character string specifying
+\item{base_learners}{Either NULL or a vector of character string specifying
 the base-learners of the model for which predictions should be plotted. Note
 that single base-learner predictions are provided on the linear predictor scale.}
 
-\item{f}{(optional) specifies the underlying component function or generating
+\item{f}{(Optional) specifies the underlying component function or generating
 process to which the model was fit. This parameter is useful if the user wishes
 to plot the specified function/process alongside the model fit and the data.}
 
-\item{n}{integer value (2, 3 or 4) specifying the order (\eqn{=} degree
+\item{n}{Integer value (2, 3 or 4) specifying the order (\eqn{=} degree
 \eqn{+ 1}) of the GAM-GeDS fit.}
 
-\item{...}{further arguments to be passed to the
+\item{...}{Further arguments to be passed to the
 \code{\link[graphics]{plot.default}} function.}
 }
 \description{
 Plots on the linear predictor scale the component functions of a GeDSgam
 object fitted using \code{\link{NGeDSgam}}.
+}
+\examples{
+## Gu and Wahba 4 univariate term example ##
+# Generate a data sample for the response variable
+# y and the covariates x0, x1 and x2; include a noise predictor x3
+set.seed(123)
+N <- 400
+f_x0x1x2 <- function(x0,x1,x2) {
+  f0 <- function(x0) 2 * sin(pi * x0)
+  f1 <- function(x1) exp(2 * x1)
+  f2 <- function(x2) 0.2 * x2^11 * (10 * (1 - x2))^6 + 10 * (10 * x2)^3 * (1 - x2)^10
+  f <- f0(x0) + f1(x1) + f2(x2)
+  return(f)
+}
+x0 <- runif(N, 0, 1)
+x1 <- runif(N, 0, 1)
+x2 <- runif(N, 0, 1)
+x3 <- runif(N, 0, 1)
+# Specify a model for the mean of y
+f <- f_x0x1x2(x0 = x0, x1 = x1, x2 = x2)
+# Add (Normal) noise to the mean of y
+y <- rnorm(N, mean = f, sd = 0.2)
+data <- data.frame(y = y, x0 = x0, x1 = x1, x2 = x2, x3 = x3)
+
+# Fit GAM-GeDS model
+Gmodgam <- NGeDSgam(y ~ f(x0) + f(x1) + f(x2) + f(x3), data = data)
+
+f0 <- function(x0) 2 * sin(pi * x0)
+f1 <- function(x1) exp(2 * x1)
+f2 <- function(x2) 0.2 * x2^11 * (10 * (1 - x2))^6 + 10 * (10 * x2)^3 * (1 - x2)^10
+fs <- list(f0, f1, f2)
+main_f0 <- expression(
+  f[0](x[0]) == 2 * sin(pi * x[0])
+  )
+main_f1 <- expression(
+  f[1](x[1]) == e^(2 * x[1])
+  )
+main_f2 <- expression(
+  f[2](x[2]) == 0.2 * x[2]^11 * (10 * (1 - x[2]))^6 +
+    10 * (10 * x[2])^3 * (1 - x[2])^10
+  )
+mains <- list(main_f0, main_f1, main_f2)
+
+# Create and display the plot
+par(mfrow = c(1,3), mar = c(5.1, 5.1, 4.1, 2.1))
+for (i in 1:3) {
+  # Plot the base learner
+  plot(Gmodgam, n = 3, base_learners = paste0("f(x", i-1, ")"), f = fs[[i]],
+  main = mains[[i]], col = "seagreen",
+  cex.lab = 2, cex.axis = 2, cex.main = 1.5)
+# Add legend
+if (i == 2) {
+  position <- "topleft"
+} else if (i == 3) {
+  position <- "topright" 
+} else {
+  position <- "bottom"
+}  
+  legend(position, legend = c("NGeDSgam quad.", paste0("f(x", i-1, ")")),
+         col = c("seagreen", "darkgray"),
+         lwd = c(2, 2),
+         bty = "n",
+         cex = 1.5)
+}
+
 }
 \seealso{
 \code{\link{NGeDSgam}}

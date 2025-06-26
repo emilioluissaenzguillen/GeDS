@@ -12,12 +12,12 @@ BivariateFitter(
   Z,
   W,
   weights = rep(1, length(X)),
-  Indicator,
+  indicator,
   beta = 0.5,
   phi = 0.99,
-  min.intknots = 0,
-  max.intknots = 300,
-  q = 2,
+  min.intknots = 0L,
+  max.intknots = 300L,
+  q = 2L,
   Xextr = range(X),
   Yextr = range(Y),
   show.iters = TRUE,
@@ -35,12 +35,12 @@ GenBivariateFitter(
   W,
   family = family,
   weights = rep(1, length(X)),
-  Indicator,
+  indicator,
   beta = 0.5,
   phi = 0.5,
-  min.intknots = 0,
-  max.intknots = 300,
-  q = 2,
+  min.intknots = 0L,
+  max.intknots = 300L,
+  q = 2L,
   Xextr = range(X),
   Yextr = range(Y),
   show.iters = TRUE,
@@ -70,28 +70,27 @@ is set to \code{NULL} by default.}
 put on the observations in the fitting process in case the user requires
 weighted GeDS fitting. It is \code{NULL} by default.}
 
-\item{Indicator}{A contingency table (i.e., frequency of observations) for the
+\item{indicator}{A contingency table (i.e., frequency of observations) for the
 independent variables \code{X} and \code{Y}.}
 
 \item{beta}{Numeric parameter in the interval \eqn{[0,1]} tuning the knot
 placement in stage A of GeDS. See the description of \code{\link{NGeDS}} or
 \code{\link{GGeDS}}.}
 
-\item{phi}{Numeric parameter in the interval \eqn{[0,1]} specifying the
+\item{phi}{Numeric parameter in the interval \eqn{(0,1)} specifying the
 threshold for the stopping rule  (model selector) in stage A of GeDS. See
-also \code{stoptype} and details in the description of \code{\link{NGeDS}} or
+also \code{stoptype} and Details in the description of \code{\link{NGeDS}} or
 \code{\link{GGeDS}}.}
 
 \item{min.intknots}{Optional parameter specifying the minimum number of
-internal knots required in Stage A's fit. Default is zero.}
+internal knots required in Stage A's fit. Default is \code{0L}.}
 
 \item{max.intknots}{Optional parameter allowing the user to set a maximum
 number of internal knots to be added in Stage A by the GeDS estimation
-algorithm. Default equals the number of internal knots \eqn{\kappa} for the
-saturated GeDS model (i.e. \eqn{\kappa=N-2}).}
+algorithm. Default equals \code{300L}.}
 
 \item{q}{Numeric parameter which allows to fine-tune the stopping rule of
-stage A of GeDS, by default equal to 2. See details in the description of
+stage A of GeDS, by default equal to 2. See Details in the description of
 \code{\link{NGeDS}} or \code{\link{GGeDS}}.}
 
 \item{Xextr}{Boundary knots in the \code{X} direction. By default equal to
@@ -117,24 +116,26 @@ order fits (quadratic and cubic) after stage A is run. Default is
 \code{TRUE}.}
 
 \item{Xintknots}{A vector of starting internal knots in the \code{X} direction. 
-Allows the user to begin Stage A's GeDS algorithm with a linear spline fit
-using a predefined vector of internal \code{X} knots, instead of starting with
-a straight line fit. Default is \code{NULL}.}
+Allows the user to begin Stage A's GeDS algorithm with a linear (least-squares)
+spline fit using a predefined vector of internal \code{X} knots, instead of
+starting with a straight line fit (i.e., with zero internal knots). Note that
+this is not available for \code{GenBivariateFitter}. Default is \code{NULL}.}
 
 \item{Yintknots}{A vector of starting internal knots in the \code{Y} direction. 
-Allows the user to begin Stage A's GeDS algorithm with a linear spline fit
-using a predefined vector of internal \code{X} knots, instead of starting with
-a straight line fit. Default is \code{NULL}.}
+Allows the user to begin Stage A's GeDS algorithm with a linear (least-squares)
+spline fit using a predefined vector of internal \code{Y} knots, instead of
+starting with a straight line fit (i.e., with zero internal knots). Note that
+this is not available for \code{GenBivariateFitter}. Default is \code{NULL}.}
 
 \item{family}{A description of the error distribution and link function to be
 used in the model. This can be a character string naming a family function
 (e.g. \code{"gaussian"}), the family function itself (e.g.
 \code{\link[stats]{gaussian}}) or the result of a call to a family function
 (e.g. \code{gaussian()}). See \link[stats]{family} for details on family
-functions.}
+functions. Note that this argument applies only to \code{GenBivariateFitter}.}
 }
 \value{
-A \code{"GeDS"} class object, but without the \code{Formula},
+A \code{"GeDS"} class object, but without the \code{formula},
 \code{extcall}, \code{terms} and \code{znames} slots.
 }
 \description{

@@ -7,8 +7,8 @@
 \format{
 A \code{data.frame} with 1151 cases and 2 variables:
 \itemize{
-  \item{angle}: the dispersion angle, viewed as the independent variable.
-  \item{intensity}: the neutron diffraction intensity, viewed as the response
+  \item \code{angle}: the dispersion angle, viewed as the independent variable.
+  \item \code{intensity}: the neutron diffraction intensity, viewed as the response
   variable.
 }
 }

@@ -14,16 +14,16 @@
 )
 }
 \arguments{
-\item{x}{A GeDS object, as returned by \code{NGeDS()} or \code{GGeDS()}.}
+\item{x}{A \code{"GeDS"} class object, as returned by \code{NGeDS()} or \code{GGeDS()}.}
 
 \item{n}{Integer value (2, 3 or 4) specifying the order (\eqn{=} degree
 \eqn{+ 1}) of the GeDS fit that should be plotted. By default equal to
 \code{3L}. Non-integer values will be passed to the function
 \code{\link{as.integer}}.}
 
-\item{transform}{A function that can be used to transform the scale of the Y
-axis. Typically it can be the inverse of the link function if the plot is on
-the scale of the response variable.}
+\item{transform}{A function that can be used to transform the scale of the
+\eqn{y}-axis. Typically it can be the inverse of the link function if the plot
+is on the scale of the response variable.}
 
 \item{onlySpline}{Logical variable specifying whether only the spline
 component of the fitted GeDS predictor model  should be plotted or

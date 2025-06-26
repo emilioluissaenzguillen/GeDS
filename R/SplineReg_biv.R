@@ -54,9 +54,9 @@ SplineReg_biv <- function(X ,Y , Z, W = NULL, offset = rep(0,length(X)), weights
   
   
   
-  out <- list("Theta"= theta,"Predicted"= predicted,
-              "Residuals"= resid,"RSS" = as.numeric(crossprod(resid)),
-              "XBasis"= basisMatrixX, "YBasis" = basisMatrixY,
+  out <- list("theta"= theta,"predicted"= predicted,
+              "residuals"= resid,"rss" = as.numeric(crossprod(resid)),
+              "Xbasis"= basisMatrixX, "Ybasis" = basisMatrixY,
               "Xknots" = sort(c(InterKnotsX,rep(Xextr,n))),
               "Yknots" = sort(c(InterKnotsY,rep(Yextr,n))),
               "temporary"=tmp)
@@ -141,9 +141,9 @@ SplineReg_biv_GLM <- function(X, Y, Z, W = NULL, offset = rep(0,nobs), weights =
   # Calculate residuals
   resid <- Z - predicted
   
-  out <- list("Theta" = theta, "Predicted" = predicted,
-              "Residuals" = resid, "RSS" = tmp$deviance,
-              "XBasis" = basisMatrixX, "YBasis" = basisMatrixY,
+  out <- list("theta" = theta, "predicted" = predicted,
+              "residuals" = resid, "rss" = tmp$deviance,
+              "Xbasis" = basisMatrixX, "Ybasis" = basisMatrixY,
               "Xknots" = sort(c(InterKnotsX,rep(Xextr,ord))),
               "Yknots" = sort(c(InterKnotsY,rep(Yextr,ord))),
               "temporary" = tmp )

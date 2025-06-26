@@ -20,7 +20,7 @@ NGeDSboost(
   q_boost = 2L,
   beta = 0.5,
   phi = 0.99,
-  int.knots_boost = 500L,
+  int.knots_boost,
   q = 2L,
   higher_order = TRUE,
   boosting_with_memory = FALSE
@@ -33,17 +33,17 @@ and \code{\link{GGeDS}}, the formula specified allows for multiple additive
 GeD spline regression components (as well as linear components) to be
 included (e.g., \code{Y ~ f(X1) + f(X2) + X3}).}
 
-\item{data}{A data frame containing the variables referenced in the formula.}
+\item{data}{A \code{data.frame} containing the variables referenced in the formula.}
 
-\item{weights}{An optional vector of `prior weights' to be put on the
+\item{weights}{An optional vector of "prior weights" to be put on the
 observations during the fitting process. It should be \code{NULL} or a
 numeric vector of the same length as the response variable defined in the
 formula.}
 
 \item{normalize_data}{A logical that defines whether the data should be
-normalized (standardized) before fitting the baseline linear model, i.e.,
-before running the FGB algorithm. Normalizing the data involves scaling the
-predictor variables to have a mean of 0 and a standard deviation of 1. Note
+normalized (standardized) before fitting the baseline FGB-GeDS linear model,
+i.e., before running the FGB algorithm. Normalizing the data involves scaling
+the predictor variables to have a mean of 0 and a standard deviation of 1. Note
 that this process alters the scale and interpretation of the knots and
 coefficients estimated. Default is equal to \code{FALSE}.}
 
@@ -51,10 +51,12 @@ coefficients estimated. Default is equal to \code{FALSE}.}
 algorithm. In case \code{initial_learner = FALSE} it also determines the
 corresponding empirical risk minimizer to be used as offset initial learner.
 By default, it is set to \code{mboost::Gaussian()}. Users can specify any of the
-\code{\link[mboost]{Family}} object from the \pkg{mboost} package listed below.}
+\code{\link[mboost]{Family}} objects from the \pkg{mboost} package that are
+listed below.}
 
 \item{link}{A character string specifying the link function to be used,
-in case the \code{\link[mboost]{Family}} object does not include the desired one.}
+in case the \code{\link[mboost]{Family}} object does not include the desired one.
+Must correspond to a valid link in \code{\link[stats]{family}}.}
 
 \item{initial_learner}{A logical value. If set to \code{TRUE}, the model's
 initial learner will be a GeD spline. If set to \code{FALSE}, then the
@@ -73,38 +75,39 @@ of boosting iterations to be run. If not specified, it defaults to \code{500L}.
 This setting serves as a fallback when the stopping rule, based on
 consecutive deviances and tuned by \code{phi_boost_exit} and \code{q_boost},
 does not trigger an earlier termination (see Dimitrova et al. (2025)).
-Therefore, users can increase/decrease the number of boosting iterations,
-by increasing/decreasing the value \code{phi_boost_exit} and/or
-\code{q_boost}, or directly specify \code{max_iterations}.}
+In general, adjusting the number of boosting iterations by increasing or decreasing
+\code{phi_boost_exit} and/or \code{q_boost} should suffice.}
 
-\item{shrinkage}{Numeric parameter in the interval \eqn{[0,1]} defining the
-step size or shrinkage parameter. This controls the size of the steps taken
+\item{shrinkage}{Numeric parameter in the interval \eqn{(0,1]} defining the
+step size or shrinkage parameter. This helps control the size of the steps taken
 in the direction of the gradient of the loss function. In other words, the
 magnitude of the update each new iteration contributes to the final model.
 Default is equal to \code{1}.}
 
-\item{phi_boost_exit}{Numeric parameter in the interval \eqn{[0,1]}
+\item{phi_boost_exit}{Numeric parameter in the interval \eqn{(0,1)}
 specifying the threshold for the boosting iterations stopping rule. Default
 is equal to \code{0.99}.}
 
 \item{q_boost}{Numeric parameter which allows to fine-tune the boosting
-iterations stopping rule, by default equal to \code{2L}.}
+iterations stopping rule. Default is equal to \code{2L}.}
 
 \item{beta}{Numeric parameter in the interval \eqn{[0,1]} tuning the knot
-placement in stage A of GeDS. Default is equal to \code{0.5}. See details in
-\code{\link{NGeDS}}.}
+placement within the GeDS base-learner at each boosting iteration. Default
+is equal to \code{0.5}. See Details in \code{\link{NGeDS}}.}
 
-\item{phi}{Numeric parameter in the interval \eqn{[0,1]} specifying the
-threshold for the stopping rule  (model selector) in stage A of GeDS.
-Default is equal to \code{0.99}. See details in \code{\link{NGeDS}}.}
+\item{phi}{Numeric parameter in the interval \eqn{(0,1)} specifying the
+threshold for the stopping rule (model selector) in stage A of the GeDS
+base-learner. Default is equal to \code{0.99}. See Details in \code{\link{NGeDS}}.}
 
-\item{int.knots_boost}{The maximum number of internal knots that can be added
-by the GeDS base-learners in each boosting iteration, effectively setting the
-value of \code{max.intknots} in \code{\link{NGeDS}} at each boosting
-iteration. Default is \code{500L}.}
+\item{int.knots_boost}{The maximum number of internal knots that each GeDS base-learner
+may have at each boosting iteration, effectively setting the value of
+\code{max.intknots} in \code{\link{NGeDS}}. By default equal to the
+number of knots for the saturated GeDS model (i.e., \eqn{\kappa = N - 2}). 
+Increasing or decreasing \code{phi} and/or \code{q} should suffice to regulate
+the base-learner strength (i.e., the number of internal knots).}
 
 \item{q}{Numeric parameter which allows to fine-tune the stopping rule of
-stage A of GeDS, by default equal to \code{2L}. See details in
+stage A of the GeDS base-learner. Default is equal to \code{2L}. See Details in
 \code{\link{NGeDS}}.}
 
 \item{higher_order}{A logical that defines whether to compute the higher
@@ -130,14 +133,16 @@ An object of class \code{"GeDSboost"} (a named list) with components:
       \item{\code{predictors}}{\code{data.frame} containing the observations
       corresponding to the predictor variables included in the model.}
       \item{\code{base_learners}}{Description of the model's base learners.}
-      \item{\code{family}}{The statistical family. Possible options are:
-      \code{mboost::Binomial(type = c("adaboost", "glm"), 
+      \item{\code{family}}{The statistical family. The possible options are:
+      \itemize{
+      \item{\code{mboost::Binomial(type = c("adaboost", "glm")},
       link = c("logit", "probit", "cloglog", "cauchit", "log"), ...)},
-      \code{mboost::Gaussian()},
-      \code{mboost::Poisson()} and
-      \code{mboost::GammaReg(nuirange = c(0, 100))}. Other \code{mboost}
-      families may be suitable; however, these have not yet been thoroughly
-      tested and are therefore not recommended for use.
+      \item{\code{mboost::Gaussian()}},
+      \item{\code{mboost::Poisson()} and}
+      \item{\code{mboost::GammaReg(nuirange = c(0, 100))}.}
+      }
+      Other \code{mboost} families may be suitable; however, these have not
+      yet been thoroughly tested and are therefore not recommended for use.
       }
       \item{\code{initial_learner}}{If \code{TRUE} a \code{\link{NGeDS}} or
       \code{\link{GGeDS}} fit was used as the initial learner; otherwise, the
@@ -145,7 +150,7 @@ An object of class \code{"GeDSboost"} (a named list) with components:
       employed.}
       \item{\code{int.knots_init}}{If \code{initial_learner = TRUE}, this
       corresponds to the maximum number of internal knots set in the
-      \code{\link{NGeDS}}/\code{\link{GGeDS}} function before the initial
+      \code{\link{NGeDS}}/\code{\link{GGeDS}} function for the initial
       learner fit.}
       \item{\code{shrinkage}}{Shrinkage/step-length/learning rate utilized
       throughout the boosting iterations.}
@@ -179,19 +184,18 @@ An object of class \code{"GeDSboost"} (a named list) with components:
     \describe{
       \item{\code{model_name}}{The boosting iteration corresponding to the final
        model.}
-      \item{\code{DEV}}{Deviance of the final model.}
+      \item{\code{dev}}{Deviance of the final model.}
       \item{\code{Y_hat}}{Fitted values.}
       \item{\code{base_learners}}{A list containing, for each base-learner, the
       intervals defined by the piecewise linear fit and its corresponding
       polynomial coefficients. It also includes the knots corresponding to each
       order fit, which result from computing the corresponding averaging knot
       location. See Kaishev et al. (2016) for details. If the number of internal
-      knots of the final linear fit is less than $n-1$, the averaging knot location
+      knots of the final linear fit is less than \eqn{n-1}, the averaging knot location
       is not computed.}
-      \item{\code{Linear.Fit}/\code{Quadratic.Fit}/\code{Cubic.Fit}}{Final
+      \item{\code{linear.fit}/\code{quadratic.fit}/\code{cubic.fit}}{Final
       linear, quadratic and cubic fits in B-spline form. These include the
-      same elements as \code{Linear}, \code{Quadratic} and \code{Cubic} in
-      a \code{\link{NGeDS}}/\code{\link{GGeDS}} object (see
+      same elements as in a \code{\link{NGeDS}}/\code{\link{GGeDS}} object (see
       \code{\link{SplineReg}} for details).}
     }
   }
@@ -206,14 +210,17 @@ An object of class \code{"GeDSboost"} (a named list) with components:
 \code{NGeDSboost} implements component-wise gradient boosting (Bühlmann and Yu
 (2003), Bühlmann and Hothorn (2007)) using normal GeD splines (i.e., fitted
 with \code{\link{NGeDS}} function) as base-learners (see Dimitrova et al. (2025)).
+Differing from standard component-wise boosting, this approach performs a
+piecewise polynomial update of the coefficients at each iteration, yielding a
+final fit in the form of a single spline model.
 }
 \details{
 The  \code{NGeDSboost} function implements functional gradient boosting
 algorithm for some pre-defined loss function, using linear GeD splines as
 base learners. At each boosting iteration, the negative gradient vector is
 fitted through the base procedure encapsulated within the \code{\link{NGeDS}}
-function. The latter constructs a Geometrically Designed variable knots
-spline regression model for a response having a Normal distribution. The FGB
+function. The latter constructs a geometrically designed variable knots
+spline regression model for a response having a normal distribution. The FGB
 algorithm yields a final linear fit. Higher order fits (quadratic and cubic)
 are then computed by calculating the Schoenberg’s variation diminishing
 spline (VDS) approximation of the linear fit.
@@ -240,8 +247,8 @@ slower/more gradual the learning process will be, and viceversa.
 
 The number of boosting iterations is controlled by a
 \emph{Ratio of Deviances} stopping rule similar to the one presented for
-\code{\link{GGeDS}}. In the same way \code{phi} and \code{q} tune the
-stopping rule of \code{\link{GGeDS}}, \code{phi_boost_exit} and
+\code{\link{NGeDS}}/\code{\link{GGeDS}}. In the same way \code{phi} and \code{q} tune the
+stopping rule of \code{\link{NGeDS}}\code{\link{GGeDS}}, \code{phi_boost_exit} and
 \code{q_boost} tune the stopping rule of \code{NGeDSboost}. The user can also
 manually control the number of boosting iterations through
 \code{min_iterations} and \code{max_iterations}.
@@ -277,9 +284,9 @@ cat("\n", "MEAN SQUARED ERROR", "\n",
 # Compute predictions on new randomly generated data
 X <- sort(runif(100, min = -2, max = 2))
 
-pred_linear <- predict(Gmodboost, newdata = data.frame(X), n = 2L)
-pred_quadratic <- predict(Gmodboost, newdata = data.frame(X), n = 3L)
-pred_cubic <- predict(Gmodboost, newdata = data.frame(X), n = 4L)
+pred_linear <- predict(Gmodboost, newdata = data.frame(X), n = 2)
+pred_quadratic <- predict(Gmodboost, newdata = data.frame(X), n = 3)
+pred_cubic <- predict(Gmodboost, newdata = data.frame(X), n = 4)
 
 MSE_Gmodboost_linear <- mean((sapply(X, f_1) - pred_linear)^2)
 MSE_Gmodboost_quadratic <- mean((sapply(X, f_1) - pred_quadratic)^2)
@@ -291,22 +298,26 @@ cat("\n", "MEAN SQUARED ERROR", "\n",
 
 ## S3 methods for class 'GeDSboost'
 # Print 
-print(Gmodboost)
+print(Gmodboost); summary(Gmodboost)
 # Knots
-knots(Gmodboost, n = 2L)
-knots(Gmodboost, n = 3L)
-knots(Gmodboost, n = 4L)
+knots(Gmodboost, n = 2)
+knots(Gmodboost, n = 3)
+knots(Gmodboost, n = 4)
 # Coefficients
-coef(Gmodboost, n = 2L)
-coef(Gmodboost, n = 3L)
-coef(Gmodboost, n = 4L)
+coef(Gmodboost, n = 2)
+coef(Gmodboost, n = 3)
+coef(Gmodboost, n = 4)
+# Wald-type confidence intervals
+confint(Gmodboost, n = 2)
+confint(Gmodboost, n = 3)
+confint(Gmodboost, n = 4)
 # Deviances
-deviance(Gmodboost, n = 2L)
-deviance(Gmodboost, n = 3L)
-deviance(Gmodboost, n = 4L)
+deviance(Gmodboost, n = 2)
+deviance(Gmodboost, n = 3)
+deviance(Gmodboost, n = 4)
 
 # Plot
-plot(Gmodboost, n = 3L)
+plot(Gmodboost, n = 3)
 
 ############################ Example 2 - Bodyfat ############################
 library(TH.data)
@@ -365,6 +376,6 @@ Models and Functional Gradient Boosting, based on Geometrically Designed
 \code{\link[=knots.GeDSboost]{knots}}, \code{\link{logLik}},
 \code{\link[=predict.GeDSboost]{predict}}, \code{\link[=print.GeDSboost]{print}},
 \code{\link[=summary.GeDSboost]{summary}}. Also variable importance measures
-(\code{\link[=bl_imp.GeDSboost]{bl_imp}}) and improved plotting facilities
+(\code{\link[=bl_imp.GeDSboost]{bl_imp}}) and sequential plotting facilities
 (\code{\link[=visualize_boosting.GeDSboost]{visualize_boosting}}).
 }

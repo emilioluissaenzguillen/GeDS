@@ -2,33 +2,33 @@
 % Please edit documentation in R/S3methods.R, R/S3methods_GeDSboost-GeDSgam.R
 \name{logLik.GeDS}
 \alias{logLik.GeDS}
-\alias{logLik.GeDSboost}
 \alias{logLik.GeDSgam}
+\alias{logLik.GeDSboost}
 \title{Extract Log-Likelihood from a GeDS Object}
 \usage{
 \method{logLik}{GeDS}(object, n = 3L, ...)
 
-\method{logLik}{GeDSboost}(object, n = 3L, ...)
-
 \method{logLik}{GeDSgam}(object, n = 3L, ...)
+
+\method{logLik}{GeDSboost}(object, n = 3L, ...)
 }
 \arguments{
-\item{object}{a \code{"GeDS"} class object.}
+\item{object}{A \code{"GeDS"}, \code{"GeDSgam"} or \code{"GeDSboost"} class object.}
 
-\item{n}{integer value (2, 3 or 4) specifying the order (\eqn{=} degree
-\eqn{+ 1}) of the GeDS/GeDSboost/GeDSgam fit whose loglikelihood should be
-extracted. By default equal to \code{3L}; non-integer values will be passed
-to the function \code{\link{as.integer}}.}
+\item{n}{Integer value (2, 3 or 4) specifying the order (\eqn{=} degree
+\eqn{+ 1}) of the \code{"GeDS"}, \code{"GeDSgam"} or \code{"GeDSboost"} fit
+whose loglikelihood should be extracted. By default equal to \code{3L};
+non-integer values will be passed to the function \code{\link{as.integer}}.}
 
-\item{...}{additional arguments passed to \code{\link[stats]{logLik}}.}
+\item{...}{Additional arguments passed to \code{\link[stats]{logLik}}.}
 }
 \value{
 An object of class \code{\link[stats]{logLik}}.
 }
 \description{
 Method for \code{\link[stats]{logLik}} that returns the log-likelihood of 
-the selected GeDS regression model.
+the selected GeDS, GeDS-GAM or FGB-GeDS model.
 }
 \seealso{
-\code{\link[stats]{logLik}}, \code{"GeDS"} class
+\code{\link[stats]{logLik}}
 }

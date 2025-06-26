@@ -39,7 +39,7 @@ Knotnew_R <- function(wht, restmp, x, dcm, oldknots, tol) {
           clusterFlag <- clusterFlag || (inf <= oldintknots[jj] && oldintknots[jj] <= sup )
           }
         } else {
-          # If inf == sup (single point), check if the knot is close to the boundary
+          # If inf == sup (single point), check if the singleton is close to previous knots
           for (jj in seq_len(noldint)) {
             clusterFlag <- clusterFlag || abs(inf - oldintknots[jj]) < tol
           }
@@ -62,7 +62,7 @@ Knotnew_R <- function(wht, restmp, x, dcm, oldknots, tol) {
         for (i in seq_len(length(sortedknots) - 3)) {
           temp <- FALSE
           for (jj in seq_len(xdim)) {
-            temp <- (sortedknots[i] < x[jj] && x[jj] < sortedknots[i + 3])
+            temp <- (sortedknots[i] + tol < x[jj] && x[jj] < sortedknots[i + 3] - tol)
             if (temp) break
             }
           supportFlag <- temp

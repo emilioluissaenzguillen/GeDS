@@ -7,20 +7,26 @@
 #' @name crossv_GeDS
 #' @description
 #' \code{crossv_GeDS} performs k-fold cross-validation for tuning the relevant
-#' parameters of the \code{NGeDS}, \code{GGeDS}, \code{NGeDSgam}, and
-#' \code{NGeDSboost} models.
+#' parameters of \code{NGeDS}, \code{GGeDS}, \code{NGeDSgam}, and
+#' \code{NGeDSboost} functions.
+#' 
 #' @param formula A description of the structure of the model structure,
 #' including the dependent and independent variables.
-#' @param data A data frame containing the variables referenced in the formula.
-#' @param model_fun The GeDS model to be fitted, that is, \code{NGeDS},
+#' @param data A \code{data.frame} containing the variables referenced in the formula.
+#' @param model_fun The GeDS model to cross-validate, that is, \code{NGeDS},
 #' \code{GGeDS}, \code{NGeDSgam} or \code{NGeDSboost}.
 #' @param parameters A set of parameters to be tuned via cross-validation.
 #' These are: \code{beta}, \code{phi} and \code{q} in the case of \code{NGeDS},
 #' \code{GGeDS} and \code{NGeDSgam}. In addition, for \code{NGeDSboost},
 #' \code{int.knots_init} and \code{shrinkage} can also be tuned. Default values
-#' are \code{int.knots_init_grid = c(0, 1, 2)}, \code{shrinkage_grid = c(0.1, 0.5, 1)},
-#' \code{beta_grid = c(0.3, 0.5, 0.7)}, \code{phi_grid = c(0.9, 0.95, 0.99)},
-#' \code{q_grid = c(2, 3))}.
+#' are:
+#' \itemize{
+#' \item \code{int.knots_init_grid = c(0, 1, 2)},
+#' \item \code{shrinkage_grid = c(0.1, 0.5, 1)},
+#' \item \code{beta_grid = c(0.3, 0.5, 0.7)},
+#' \item \code{phi_grid = c(0.9, 0.95, 0.99)} and
+#' \item \code{q_grid = c(2, 3))}.
+#' }
 #'
 #' @return Two data frames, \code{best_params} and \code{results}.
 #' \code{best_params} contains the best combination of parameters according to
@@ -52,7 +58,7 @@
 #'              phi_grid = c(0.9, 0.95),
 #'              q_grid = c(2))
 #' 
-#' cv_NGeDS <- crossv_GeDS(Y ~ f(X), data = data, NGeDS, n = 3L,
+#' cv_NGeDS <- crossv_GeDS(Y ~ f(X), data = data, NGeDS, n = 3,
 #'                         parameters = param)
 #' 
 #' print(cv_NGeDS$best_params)
@@ -72,12 +78,12 @@
 #' View(cv_NGeDSboost$results)
 #' }
 #' 
-#' @export
 #' @importFrom foreach foreach %dopar% %:%
 #' @importFrom doParallel registerDoParallel
 #' @importFrom parallel makeCluster stopCluster detectCores
 #' @importFrom stats predict
 #' @importFrom utils globalVariables
+#' @export
 
 # Declare loop variables
 globalVariables(c("i", "j", "k", "l", "m"))

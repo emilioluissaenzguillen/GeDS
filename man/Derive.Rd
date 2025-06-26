@@ -27,15 +27,17 @@ which the derivatives of order \code{order} should be computed.}
 This function computes derivatives of a fitted GeDS regression model.
 }
 \details{
-The function is based on \code{\link[splines]{splineDesign}} and it
-computes the exact derivative of the fitted GeDS regression.
+This function relies on the \code{\link[splines]{splineDesign}} function to compute 
+the exact derivatives of the GeDS fit. Specifically, it leverages the well-known 
+property that the \eqn{m}-th derivative of a spline (for \eqn{m = 1, 2, \ldots}) 
+can be obtained by differentiating its B-spline basis functions. This property is 
+detailed, e.g., in De Boor (2001, Chapter X, formula (15)).
 
-The function uses the property that the \eqn{m}-th derivative of a spline,
-\eqn{m= 1,2,...}, expressed in terms of B-splines can be computed by
-differentiating the corresponding B-spline coefficients (see e.g.
-De Boor, 2001, Chapter X, formula (15)). Since the GeDS fit is a B-spline
-representation of the predictor, it cannot work on the response scale in the
-GNM (GLM) framework.
+Note that the GeDS fit is a B-spline representation of the predictor. Consequently, 
+the derivative is computed with respect to the predictor scale and not the response 
+scale. This implies that, in the GNM(GLM) framework, the function 
+does not return derivatives of the conditional mean on the response scale, but rather 
+of the underlying linear predictor scale.
 }
 \examples{
 

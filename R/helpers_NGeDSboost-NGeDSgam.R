@@ -59,7 +59,7 @@ get_mboost_family <- function(family) {
 
 
 #######################################################################################################
-## 4. Function to get which is the last row with at least one non-NA in Coefficients/Stored matrices ##
+## 4. Function to get which is the last row with at least one non-NA in coefficients/stored matrices ##
 #######################################################################################################
 last_row_with_value <- function(matrix) {
   non_na_rows <- which(!apply(is.na(matrix), 1, all))
@@ -104,34 +104,34 @@ get_internal_knots <- function(knots, depth = 1) {
 #' @importFrom stats na.omit
 predict_GeDS_linear <- function(Gmod, X, Y, Z){
   
-  terms <- all.vars(Gmod$Formula)
+  terms <- all.vars(Gmod$formula)
   num_predictors <- length(terms[-1])
   
-  max.intknots <- Gmod$Args$max.intknots
-  q <- Gmod$Args$q
+  max.intknots <- Gmod$args$max.intknots
+  q <- Gmod$args$q
   
   ## Univariate GeDS
   if (num_predictors == 1) {
     
     X <- as.matrix(X)
-    j <- NROW(Gmod$Stored) # last_row_with_value(Gmod$Stored), last_row_with_value(Gmod$Coefficients)
+    j <- NROW(Gmod$stored) # last_row_with_value(Gmod$stored), last_row_with_value(Gmod$coefficients)
     
     # Knots
     if (j > q && j != max.intknots + 1) {
-      knt <- na.omit(Gmod$Stored[j - q,]) # an exit from stage A is performed with the spline fit l = k + 1 - q
+      knt <- na.omit(Gmod$stored[j - q,]) # an exit from stage A is performed with the spline fit l = k + 1 - q
       } else {
-        knt <- na.omit(Gmod$Stored[j,])
+        knt <- na.omit(Gmod$stored[j,])
       }
     
     knt <- knt[-c(1, length(knt))]
     int.knt <- knt[-c(1, length(knt))]
     if (length(knt) == 2) int.knt <- NULL
     
-    # Coefficients
+    # coefficients
     if (j > q && j != max.intknots + 1) {
-      coeff <- na.omit(Gmod$Coefficients[j - q,])
+      coeff <- na.omit(Gmod$coefficients[j - q,])
       } else {
-        coeff <- na.omit(Gmod$Coefficients[j,])
+        coeff <- na.omit(Gmod$coefficients[j,])
       }
     
     # Initialize output vector
@@ -160,10 +160,10 @@ predict_GeDS_linear <- function(Gmod, X, Y, Z){
       b1_list[int] <- b1
     }
     
-    if (is.null(Gmod$Args$family)){
+    if (is.null(Gmod$args$family)){
       Y_hat <- F_hat
     } else{
-      Y_hat <- Gmod$Args$family$linkinv(F_hat)
+      Y_hat <- Gmod$args$family$linkinv(F_hat)
     }
     
     return(list(Y_hat = Y_hat, knt = knt, int.knt = int.knt, b0 = b0_list, b1 = b1_list, theta = coeff))
@@ -173,17 +173,17 @@ predict_GeDS_linear <- function(Gmod, X, Y, Z){
     
     X <- as.matrix(X)
     Y <- as.matrix(Y)
-    j <- NROW(Gmod$Stored$previousX) #last_row_with_value(Gmod$Stored$previousX)
+    j <- NROW(Gmod$stored$previousX) #last_row_with_value(Gmod$stored$previousX)
     
-    # Knots and Coefficients
+    # Knots and coefficients
     if (j > q && j != max.intknots + 1) {
-      Xknt <- na.omit(Gmod$Stored$previousX[j - q,]) # an exit from stage A is performed with the spline fit l = k + 1 - q
-      Yknt <- na.omit(Gmod$Stored$previousY[j - q,])
-      theta <- as.numeric(na.omit(Gmod$Coefficients[j - q,]))
+      Xknt <- na.omit(Gmod$stored$previousX[j - q,]) # an exit from stage A is performed with the spline fit l = k + 1 - q
+      Yknt <- na.omit(Gmod$stored$previousY[j - q,])
+      theta <- as.numeric(na.omit(Gmod$coefficients[j - q,]))
       } else {
-        Xknt <- na.omit(Gmod$Stored$previousX[j,]) # an exit from stage A is performed with the spline fit l = k + 1 - q
-        Yknt <- na.omit(Gmod$Stored$previousY[j,])
-        theta <- as.numeric(na.omit(Gmod$Coefficients[j,]))
+        Xknt <- na.omit(Gmod$stored$previousX[j,]) # an exit from stage A is performed with the spline fit l = k + 1 - q
+        Yknt <- na.omit(Gmod$stored$previousY[j,])
+        theta <- as.numeric(na.omit(Gmod$coefficients[j,]))
       }
     
     Xknt <- Xknt[-c(1, length(Xknt))]
@@ -195,21 +195,21 @@ predict_GeDS_linear <- function(Gmod, X, Y, Z){
     if(length(Yknt) == 2) {Yint.knt <- NULL}
     
     # SplineReg_biv
-    if (Gmod$Type == "LM - Biv") {
+    if (Gmod$type == "LM - Biv") {
       lin <- SplineReg_biv(X, Y, Z, InterKnotsX = Xint.knt, InterKnotsY = Yint.knt,
-                           Xextr = Gmod$Args$Xextr, Yextr = Gmod$Args$Yextr, n = 2,
+                           Xextr = Gmod$args$Xextr, Yextr = Gmod$args$Yextr, n = 2,
                            coefficients = theta)
-      } else if (Gmod$Type == "GLM - Biv") {
+      } else if (Gmod$type == "GLM - Biv") {
         lin <- SplineReg_biv_GLM(X, Y, Z, InterKnotsX = Xint.knt, InterKnotsY = Yint.knt,
-                                 Xextr = Gmod$Args$Xextr, Yextr = Gmod$Args$Yextr, n = 2,
-                                 family = Gmod$Args$family, coefficients = theta)
+                                 Xextr = Gmod$args$Xextr, Yextr = Gmod$args$Yextr, n = 2,
+                                 family = Gmod$args$family, coefficients = theta)
         }
     
-    Y_hat <-lin$Predicted
+    Y_hat <-lin$predicted
     
     return(list(Y_hat = Y_hat, knt = list("Xknt" = Xknt, "Yknt" = Yknt),
                 int.knt = list("Xint.knt" = Xint.knt, "Yint.knt" = Yint.knt),
-                "theta" = lin$Theta))
+                "theta" = lin$theta))
     } else {
       print("Only 1 (i.e. Y ~ f(X)) or 2 (i.e. Z ~ f(X, Y)) predictors are allowed for NGeDS models.")
     }
@@ -315,10 +315,10 @@ univariate_bl_linear_model <- function(pred_vars, model, shrinkage, base_learner
     int.knt <- bl$linear.int.knots
     theta   <- bl$coefficients
     
-    lin <- SplineReg_LM(X, InterKnots=int.knt, extr=range(X), n=2,
+    lin <- SplineReg_LM(X, InterKnots = int.knt, extr = range(X), n = 2,
                         coefficients = theta)
     
-    Y_hat <- Y_hat + lin$Predicted
+    Y_hat <- Y_hat + lin$predicted
     
   }
   return(Y_hat)
@@ -367,9 +367,9 @@ bivariate_bl_linear_model <- function(pred_vars, model, shrinkage, base_learners
                              coefficients = theta)
         
         if (mod=="model0") {
-          Y_hat <- Y_hat + lin$Predicted # initial learner is added with no shrinking
+          Y_hat <- Y_hat + lin$predicted # initial learner is added with no shrinking
         } else {
-            Y_hat <- Y_hat + shrinkage*lin$Predicted
+            Y_hat <- Y_hat + shrinkage*lin$predicted
         }
         
       }
@@ -382,7 +382,7 @@ bivariate_bl_linear_model <- function(pred_vars, model, shrinkage, base_learners
       lin <- SplineReg_biv(X, Y, InterKnotsX = Xint.knt, InterKnotsY = Yint.knt,
                            Xextr = extrX, Yextr = extrY, n=2,
                            coefficients = theta)
-      Y_hat <- Y_hat + lin$Predicted
+      Y_hat <- Y_hat + lin$predicted
     }
   }
   return(as.numeric(Y_hat))

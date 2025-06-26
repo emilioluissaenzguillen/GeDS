@@ -8,7 +8,7 @@
 #' @description
 #' Functions that estimate the coefficients of a predictor model involving a
 #' spline component and possibly a parametric component applying (Iteratively
-#' Re-weighted) Least Squares (IR)LS iteration.
+#' Re-weighted) Least Squares, (IR)LS, estimation.
 #' @param X A numeric vector containing \eqn{N} sample values of the covariate
 #' chosen to enter the spline regression component of the predictor model.
 #' @param Y A vector of size \eqn{N} containing the observed values of the
@@ -29,14 +29,13 @@
 #' fitting. It is a vector of 1s by default.
 #' @param InterKnots A numeric vector containing the locations of the internal
 #' knots necessary to compute the B-splines. In GeDS these are the internal
-#' knots in a current iteration of stage A.
+#' knots fitted in stage A's iterations.
 #' @param n Integer value specifying  the order of the spline to be evaluated.
 #' It should be 2 (linear spline), 3 (quadratic spline) or 4 (cubic spline).
 #' Non-integer values will be passed to the function \code{\link{as.integer}}.
 #' @param extr Optional numeric vector of 2 elements representing the left-most
 #' and right-most limits of the interval embedding the sample values of
-#' \code{X}. By default equal correspondingly to the smallest and largest values
-#' of \code{X}.
+#' \code{X}. By default equal to the range of \code{X}.
 #' @param family A description of the error distribution and link function to be
 #' used in the model. This can be a character string naming a family function, a
 #' family function or the result of a call to a family function. See
@@ -51,65 +50,37 @@
 #' (alternative to providing either \code{inits} or \code{mustart}). Must be a
 #' vector of length \eqn{N}.
 #' @param prob The confidence level to be used for the confidence bands in the
-#' \code{SplineReg_LM} fit. See details below.
+#' \code{SplineReg_LM} fit. See Details below.
 #' @param coefficients Optional vector of spline coefficients. If provided,
 #' \code{SplineReg} computes only the corresponding predicted values.
-#' @param only_pred Logical, if \code{TRUE} only \code{Theta},
-#' \code{Predicted}, \code{Residuals} and \code{RSS} will be computed.
+#' @param only_pred Logical, if \code{TRUE} only \code{theta},
+#' \code{predicted}, \code{residuals} and \code{rss} will be computed.
 #' 
-#' @return A \code{list} containing:
-#' \item{Theta}{A vector containing the fitted coefficients of the spline
-#' regression component and the parametric component of the predictor model.}
-#' \item{Predicted}{A vector of \eqn{N} predicted mean values of the response
-#' variable computed at the sample values of the covariate(s).}
-#' \item{Residuals}{A vector containing the normal regression residuals if
-#' \code{SplineReg_LM} is called or the residuals described in Details if
-#' \code{SplineReg_GLM} is called.}
-#' \item{RSS}{The deviance for the fitted predictor model, defined as in
-#' Dimitrova et al. (2023), which for \code{SplineReg_LM} coincides with the
-#' Residual Sum of Squares.}
-#' \item{NCI}{A list containing the lower (\code{Low}) and upper (\code{Upp})
-#' limits of the approximate confidence intervals computed at the sample values
-#' of the covariate(s). See  details above.}
-#' \item{Basis}{The matrix of B-spline regression functions and the covariates
-#' of the parametric part evaluated at the sample values of the covariate(s).}
-#' \item{Polygon}{A list containing x-y coordinates ("\code{Kn}" and
-#' "\code{Thetas}") of the vertices of the Control Polygon, see
-#' Dimitrova et al. (2023).}
-#' \item{deviance}{The deviance at the last IRLS iteration
-#' (computed only with the \code{SplineReg_GLM}).}
-#' \item{temporary}{The result of the function \code{\link[stats]{lm}} if
-#' \code{SplineReg_LM} is used, or the output of the function
-#' \code{\link[stats]{glm}} if \code{SplineReg_GLM} is used.}
-#' \item{ACI}{A list containing the lower (\code{Low}) and upper (\code{Upp})
-#' limits of the asymptotic confidence intervals computed at the sample values
-#' of the covariate(s).}
-#'
 #' @details
 #' The functions estimate the coefficients of a predictor model with a spline
-#' component (and possibly a parametric component) for a given, fixed order and
-#' vector of knots of the spline and a specified distribution of the response
-#' variable (from the Exponential Family). The functions \code{SplineReg_LM} and
+#' component (and possibly a parametric component) for a given order,
+#' vector of knots of the spline and distribution of the response
+#' variable (from the exponential family). The functions \code{SplineReg_LM} and
 #' \code{SplineReg_GLM} are based correspondingly on LS and IRLS and used
 #' correspondingly in \code{\link{NGeDS}} and \code{\link{GGeDS}}, to estimate
-#' the coefficients of the final GeDS fits of stage B, after their knots have
-#' been positioned to coincide with the Greville abscissas of the knots of the
+#' the coefficients of the final GeDS fits in stage B, after their knots have
+#' been positioned to coincide with the Greville abscissae of the knots of the
 #' linear fit from stage A (see Dimitrova et al. 2023). Additional inference
 #' related quantities are also computed (see Value below). The function
 #' \code{SplineReg_GLM} is also used to estimate the coefficients of the linear
 #' GeDS fit of stage A within \code{\link{GGeDS}}, whereas in
 #' \code{\link{NGeDS}} this estimation is performed internally leading to faster
-#' R code.
+#' \R code.
 #'
 #' In addition \code{SplineReg_LM} computes some useful quantities among which
-#' confidence intervals and the Control Polygon (see Section 2 of
+#' confidence intervals and the control polygon (see Section 2 of
 #' Kaishev et al. 2016).
 #'
-#' The confidence intervals contained in the output slot \code{NCI} are
+#' The confidence intervals contained in the output slot \code{nci} are
 #' approximate local bands obtained considering the knots as fixed constants.
 #' Hence the columns of the design matrix are seen as covariates and standard
 #' methodology relying on the \code{se.fit} option of \code{predict.lm} or
-#' \code{predict.glm} is used. In the \code{ACI} slot, asymptotic confidence
+#' \code{predict.glm} is used. In the \code{aci} slot, asymptotic confidence
 #' intervals are provided, following Kaishev et al (2006). If the variance
 #' matrix is singular the Moore-Penrose pseudo-inverse is computed instead.
 #'
@@ -117,28 +88,49 @@
 #' algorithm implemented in \code{\link{GGeDS}} and in order to make it as fast
 #' as possible input data validation is mild. Hence it is expected that the user
 #' checks carefully the input parameters before using \code{SplineReg_GLM}. The
-#' "\code{Residuals}" in the output of this function are similar to the so
-#' called ``working residuals" in the \code{\link[stats]{glm}} function. 
-#' "\code{Residuals}"  are the residuals \eqn{r_i} used in the knot placement
+#' \code{"residuals"} in the output of this function are similar to the so
+#' called "working residuals" in the \code{\link[stats]{glm}} function. 
+#' \code{"residuals"}  are the residuals \eqn{r_i} used in the knot placement
 #' procedure, i.e. \deqn{r_i= (y_i - \hat{\mu}_i){d \mu_i \over d \eta_i },} but
-#' in contrast to \code{\link[stats]{glm}} ``working residuals", they are
-#' computed using the final IRLS fitted \eqn{\hat{\mu}_i}. "\code{Residuals}"
+#' in contrast to \code{\link[stats]{glm}} "working residuals", they are
+#' computed using the final IRLS fitted \eqn{\hat{\mu}_i}. \code{"residuals"}
 #' are then used in locating the knots of the linear spline fit of Stage A.
 #' 
 #' In \code{SplineReg_GLM} confidence intervals are not computed.
-#'
-#' @seealso \code{\link{NGeDS}}, \code{\link{GGeDS}}, \code{\link{Fitters}},
-#' \code{\link{IRLSfit}}, \code{\link[stats]{lm}} and
-#' \code{\link[stats]{glm.fit}}.
-#' @importFrom splines splineDesign
-#' @importFrom stats lm coef
-#' @export 
+#' 
+#' @return A \code{list} containing:
+#' \describe{
+#' \item{theta}{A vector containing the fitted coefficients of the spline
+#' regression component and the parametric component of the predictor model.}
+#' \item{predicted}{A vector of \eqn{N} predicted mean values of the response
+#' variable computed at the sample values of the covariate(s).}
+#' \item{residuals}{A vector containing the normal regression residuals if
+#' \code{SplineReg_LM} is called or the residuals described in Details if
+#' \code{SplineReg_GLM} is called.}
+#' \item{rss}{The deviance for the fitted predictor model, defined as in
+#' Dimitrova et al. (2023), which for \code{SplineReg_LM} coincides with the
+#' Residual Sum of Squares.}
+#' \item{basis}{The matrix of B-spline regression functions and the covariates
+#' of the parametric part evaluated at the sample values of the covariate(s).}
+#' \item{nci}{A list containing the lower (\code{Low}) and upper (\code{Upp})
+#' limits of the approximate confidence intervals computed at the sample values
+#' of the covariate(s). See Details above.}
+#' \item{aci}{A list containing the lower (\code{Low}) and upper (\code{Upp})
+#' limits of the asymptotic confidence intervals computed at the sample values
+#' of the covariate(s).}
+#' \item{polygon}{A list containing x-y coordinates ("\code{Kn}" and
+#' "\code{thetas}") of the vertices of the Control polygon, see
+#' Dimitrova et al. (2023).}
+#' \item{temporary}{The result of the function \code{\link[stats]{lm}} if
+#' \code{SplineReg_LM} is used, or the output of the function
+#' \code{\link[stats]{glm}} if \code{SplineReg_GLM} is used.}
+#' }
 #' 
 #' @references
 #' Kaishev, V. K., Dimitrova, D. S., Haberman, S. & Verrall, R. J. (2006).
 #' Geometrically designed, variable know regression splines: asymptotics and
 #' inference \emph{(Statistical Research Paper No. 28)}.
-#' London, UK: Faculty of Actuarial Science & Insurance, City University London. \cr
+#' London, UK: Faculty of Actuarial Science & Insurance, city University London. \cr
 #' URL: \href{https://openaccess.city.ac.uk/id/eprint/2372}{openaccess.city.ac.uk}
 #'
 #' Kaishev, V.K., Dimitrova, D.S., Haberman, S., & Verrall, R.J. (2016).
@@ -151,8 +143,15 @@
 #' models. \emph{Applied Mathematics and Computation}, \strong{436}. \cr
 #' DOI: \doi{10.1016/j.amc.2022.127493}
 #'
-#' @aliases SplineReg
+#' @seealso \code{\link{NGeDS}}, \code{\link{GGeDS}}, \code{\link{Fitters}},
+#' \code{\link{IRLSfit}}, \code{\link[stats]{lm}} and
+#' \code{\link[stats]{glm.fit}}.
+#' 
 #' @rdname SplineReg
+#' @aliases SplineReg
+#' @importFrom splines splineDesign
+#' @importFrom stats lm coef
+#' @export
 
 SplineReg_LM <- function(X, Y, Z = NULL, offset = rep(0,length(X)), weights = rep(1,length(X)),
                          InterKnots, n, extr = range(X), prob = 0.95,
@@ -193,19 +192,20 @@ SplineReg_LM <- function(X, Y, Z = NULL, offset = rep(0,length(X)), weights = re
     polyknots <- makenewknots(nodes, degree = n)
     
     # Confidence intervals
-    CI <- CI(tmp, resid, prob = 0.95, basisMatrix, basisMatrix2, predicted,
+    ci <- ci(tmp, resid, prob = 0.95, basisMatrix, basisMatrix2, predicted,
              n_obs = length(Y), type = "lm", huang = TRUE)
-    NCI <- CI$NCI; ACI <- CI$ACI
+    nci <- ci$nci; aci <- ci$aci
     
     } else {
-      polyknots <- NCI <- ACI <- NULL
+      polyknots <- nci <- aci <- NULL
     }
   
-  out <- list("Theta" = theta, "Predicted" = predicted, "Residuals" = resid, "RSS" = as.numeric(crossprod(resid)),
-              "NCI" = NCI, "Basis" = basisMatrix,
-              "Polygon" = list("Kn" = polyknots,
-                               "Thetas" = theta[1:NCOL(basisMatrix)]),
-              "temporary" = tmp, "ACI" = ACI)
+  out <- list("theta" = theta, "predicted" = predicted, "residuals" = resid,
+              "rss" = as.numeric(crossprod(resid)), "basis" = basisMatrix,
+              "nci" = nci, "aci" = aci, 
+              "polygon" = list("kn" = polyknots,
+                               "thetas" = theta[1:NCOL(basisMatrix)]),
+              "temporary" = tmp)
   return(out)
 }
 
@@ -272,14 +272,13 @@ SplineReg_GLM <- function(X, Y, Z, offset = rep(0,nobs), weights = rep(1,length(
   # Extract residuals
   resid <- tmp$residuals
   
-  CI <- CI(tmp, resid, prob = 0.95, basisMatrix, basisMatrix2, predicted,
+  ci <- ci(tmp, resid, prob = 0.95, basisMatrix, basisMatrix2, predicted,
            n_obs = length(Y), type = "glm", huang = FALSE)
   
-  out <- list("Theta" = theta, "Predicted" = predicted, "Residuals" = resid,
-              "RSS" = tmp$deviance, "Basis" = basisMatrix, 
-              "NCI" = CI$NCI,
-              "Polygon" = list("Kn" = polyknots,
-                               "Thetas" = theta[1:NCOL(basisMatrix)]),
+  out <- list("theta" = theta, "predicted" = predicted, "residuals" = resid,
+              "rss" = tmp$deviance, "basis" = basisMatrix, "nci" = ci$nci,
+              "polygon" = list("kn" = polyknots,
+                               "thetas" = theta[1:NCOL(basisMatrix)]),
               "temporary" = tmp)
   return(out)
 }
@@ -328,10 +327,11 @@ SplineReg_GLM2 <- function(X,Y,Z,offset=rep(0,nobs),
   polyknots <- makenewknots(nodes,degree=ord)
   predicted <- basisMatrix2 %*% theta + offset
   resid <- tmp$res2
-  out <- list("Theta"=theta,"Predicted"=predicted,
-              "Residuals"=resid,"RSS"=tmp$lastdeviance,
-              "Basis"= basisMatrix,"Polygon"=list("Kn"=polyknots,"Thetas"=theta[1:NCOL(basisMatrix)]),
-              "temporary"=tmp, "deviance"= tmp$deviance)
+  out <- list("theta" = theta,"predicted" = predicted,
+              "residuals" = resid, "rss" = tmp$lastdeviance,
+              "basis"= basisMatrix,
+              "polygon" = list("kn" = polyknots, "thetas" = theta[1:NCOL(basisMatrix)]),
+              "temporary" = tmp, "deviance" = tmp$deviance)
   return(out)
 }
 
