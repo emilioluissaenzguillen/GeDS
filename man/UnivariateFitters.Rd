@@ -75,9 +75,9 @@ weighted GeDS fitting. It is \code{NULL} by default.}
 placement in stage A of GeDS. See the description of \code{\link{NGeDS}} or
 \code{\link{GGeDS}}.}
 
-\item{phi}{Numeric parameter in the interval \eqn{[0,1]} specifying the
+\item{phi}{Numeric parameter in the interval \eqn{(0,1)} specifying the
 threshold for the stopping rule  (model selector) in stage A of GeDS. See
-also \code{stoptype} and details in the description of \code{\link{NGeDS}} or
+also \code{stoptype} and Details in the description of \code{\link{NGeDS}} or
 \code{\link{GGeDS}}.}
 
 \item{min.intknots}{Optional parameter allowing the user to set a minimum
@@ -101,7 +101,7 @@ default equal correspondingly to the smallest and largest values of \code{X}.}
 information at each step. By default equal to \code{FALSE}.}
 
 \item{tol}{Numeric value indicating the tolerance to be used in the knot
-placement steps in stage A. By default equal to 1E-12. See Details below.}
+placement steps in stage A. By default equal to \code{1e-12}. See Details below.}
 
 \item{stoptype}{A character string indicating the type of GeDS stopping rule
 to be used. It should be either \code{"SR"}, \code{"RD"} or \code{"LR"},
@@ -129,7 +129,7 @@ used in the model. This can be a character string naming a family function
 functions.}
 }
 \value{
-A \code{"GeDS"} class object, but without the \code{Formula},
+A \code{"GeDS"} class object, but without the \code{formula},
 \code{extcall}, \code{terms} and \code{znames} slots.
 }
 \description{

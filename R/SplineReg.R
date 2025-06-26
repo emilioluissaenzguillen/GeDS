@@ -24,7 +24,7 @@
 #' covariates to produce one common \eqn{N}-vector of coordinates. The argument
 #' \code{offset} is particularly useful in \code{Splinereg_GLM} if the link
 #' function used is not the identity.
-#' @param weights An optional vector of `prior weights' to be put on the
+#' @param weights An optional vector of "prior weights" to be put on the
 #' observations in the fitting process in case the user requires weighted
 #' fitting. It is a vector of 1s by default.
 #' @param InterKnots A numeric vector containing the locations of the internal
@@ -61,14 +61,13 @@
 #' component (and possibly a parametric component) for a given order,
 #' vector of knots of the spline and distribution of the response
 #' variable (from the exponential family). The functions \code{SplineReg_LM} and
-#' \code{SplineReg_GLM} are based correspondingly on LS and IRLS and used
-#' correspondingly in \code{\link{NGeDS}} and \code{\link{GGeDS}}, to estimate
-#' the coefficients of the final GeDS fits in stage B, after their knots have
-#' been positioned to coincide with the Greville abscissae of the knots of the
-#' linear fit from stage A (see Dimitrova et al. 2023). Additional inference
-#' related quantities are also computed (see Value below). The function
-#' \code{SplineReg_GLM} is also used to estimate the coefficients of the linear
-#' GeDS fit of stage A within \code{\link{GGeDS}}, whereas in
+#' \code{SplineReg_GLM} are based on LS and IRLS, respectively, and are used in
+#' \code{\link{NGeDS}} and \code{\link{GGeDS}} to estimate the coefficients of
+#' the final GeDS fits in stage B. These fits use knots positioned at the
+#' Greville abscissae of the linear fit from stage A (see Dimitrova et al. 2023).
+#' Additional inference related quantities are also computed (see Value below).
+#' The function \code{SplineReg_GLM} is also used to estimate the coefficients of
+#' the linear GeDS fit of stage A within \code{\link{GGeDS}}, whereas in
 #' \code{\link{NGeDS}} this estimation is performed internally leading to faster
 #' \R code.
 #'
@@ -109,7 +108,7 @@
 #' \code{SplineReg_GLM} is called.}
 #' \item{rss}{The deviance for the fitted predictor model, defined as in
 #' Dimitrova et al. (2023), which for \code{SplineReg_LM} coincides with the
-#' Residual Sum of Squares.}
+#' residual sum of squares.}
 #' \item{basis}{The matrix of B-spline regression functions and the covariates
 #' of the parametric part evaluated at the sample values of the covariate(s).}
 #' \item{nci}{A list containing the lower (\code{Low}) and upper (\code{Upp})
@@ -118,8 +117,8 @@
 #' \item{aci}{A list containing the lower (\code{Low}) and upper (\code{Upp})
 #' limits of the asymptotic confidence intervals computed at the sample values
 #' of the covariate(s).}
-#' \item{polygon}{A list containing x-y coordinates ("\code{Kn}" and
-#' "\code{thetas}") of the vertices of the Control polygon, see
+#' \item{polygon}{A list containing x-y coordinates (\code{"kn"} and
+#' \code{"thetas"}) of the vertices of the control polygon, see
 #' Dimitrova et al. (2023).}
 #' \item{temporary}{The result of the function \code{\link[stats]{lm}} if
 #' \code{SplineReg_LM} is used, or the output of the function

@@ -1145,8 +1145,8 @@ split_into_lines <- function(text, max_length)
 #' This function plots the \code{\link{NGeDSboost}} fit to the data at the
 #' beginning of a given boosting iteration and then plots the subsequent
 #' \code{\link{NGeDS}} fit on the corresponding negative gradient.
-#' Note: Applicable only for \code{\link{NGeDSboost}} models with a single
-#' univariate base-learner.
+#' Note that this is only applicable to \code{\link{NGeDSboost}} models with a
+#' single univariate base-learner.
 #' @param iters Numeric, specifies the iteration(s) number.
 #' @param object A \code{"GeDSboost"} class object.
 #' @param final_fits Logical indicating whether the final linear, quadratic and

@@ -23,7 +23,8 @@ NGeDSboost(
   int.knots_boost,
   q = 2L,
   higher_order = TRUE,
-  boosting_with_memory = FALSE
+  boosting_with_memory = FALSE,
+  N_cores = NULL
 )
 }
 \arguments{

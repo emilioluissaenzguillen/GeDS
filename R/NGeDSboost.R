@@ -352,7 +352,7 @@ NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE,
                        max_iterations, shrinkage = 1,
                        phi_boost_exit = 0.99, q_boost = 2L,
                        beta = 0.5, phi = 0.99, int.knots_boost, q = 2L,
-                       higher_order = TRUE, boosting_with_memory = FALSE)
+                       higher_order = TRUE, boosting_with_memory = FALSE, N_cores = NULL)
   {
   # Capture the function call
   extcall <- match.call()
@@ -648,17 +648,16 @@ NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE,
   }
   
   ## Initialize parallel processing if required (i.e. if # base-learners > 1000)
-  pprocessing_threshold <- 1000
+  pprocessing_threshold <- 10000
   if (length(base_learners) >= pprocessing_threshold) {
     
     # Save current plan and restore when function exits
     old_plan <- plan()             
     on.exit(plan(old_plan), add = TRUE)
-    
     # Number of cores
-    n_cores <- detectCores() - 3 # Leave 3 cores free
+    N_cores <- min(3, detectCores() - 1) # 3 seems to be the optimal
     # Set up parallel backend using multiple R sessions
-    plan(multisession, workers = n_cores)
+    plan(multisession, workers = N_cores)
     # Register the doFuture adapter so foreach() uses the future backend
     registerDoFuture()
     # Ensure parallel random number generation is reproducible across runs and machines
@@ -666,7 +665,7 @@ NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE,
     # Number of predictors
     n_bl <- length(base_learners)
     # Number of predictors per batch
-    bl_per_batch <- ceiling(n_bl / n_cores)
+    bl_per_batch <- ceiling(n_bl / N_cores)
     # Split predictors into batches
     bl_batches <- split(names(base_learners), ceiling(seq_along(names(base_learners)) / bl_per_batch))
     # Call necessary internal functions
@@ -725,21 +724,23 @@ NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE,
     ## PARALLEL PROCESSING ##
     #########################
       } else {
-       ## 3. Loop through base-learners and fit to negative gradient (NGeDS with # internal_knots)
-        results <- foreach(bl_name = names(base_learners), .combine = 'rbind', .packages = "GeDS",
-                           .export = c("predict_GeDS_linear", "last_row_with_value")) %dorng%
+      ## 3. Loop through base-learners and fit to negative gradient (NGeDS with # internal_knots)
+      results <- suppressPackageStartupMessages(
+        foreach(bl_name = names(base_learners), .combine = 'rbind', .packages = "GeDS",
+                .export = c("predict_GeDS_linear", "last_row_with_value")) %dorng%
           {
             if (boosting_with_memory) {
               starting_intknots <- get_internal_knots(previous_model$base_learners[[bl_name]]$knots)
             } else {
               starting_intknots <- NULL
             }
-            componentwise_fit(bl_name = bl_name, response = "U", data = data_loop, model_formula_template =  model_formula_template,
+            componentwise_fit(bl_name = bl_name, response = "U", data = data_loop,
+                              model_formula_template =  model_formula_template,
                               weights = weights, base_learners = base_learners, m = m,
                               internal_knots = int.knots_boost, beta = beta, phi = phi, q = q,
                               starting_intknots =  starting_intknots)
           }
-        
+      )
       ## 4. Calculate SSR and find model that fits best U according to SSR
         best_result_index <- which.min(sapply(1:nrow(results), function(i) results[i, "ssr"]))
         best_ssr <- unlist(results[best_result_index, "ssr"])

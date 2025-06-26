@@ -13,17 +13,16 @@
 \method{summary}{GeDSboost}(object, ...)
 }
 \arguments{
-\item{object}{The \code{"GeDS"} class, \code{\link{NGeDSboost}} or
-\code{\link{NGeDSgam}} object for which the main information should be
-printed on screen.}
+\item{object}{The \code{"GeDS"}, \code{"GeDSgam"} or \code{"GeDSboost"} object
+for which the main information should be printed on screen.}
 
 \item{...}{Potentially further arguments (required by the definition of the
 generic function).}
 }
 \description{
 Method for the generic function \code{\link[base]{summary}} that allows you to
-print on screen the main information related to a fitted \code{"GeDS"} class,
-\code{\link{NGeDSboost}} or \code{\link{NGeDSgam}} model.
+print on screen the main information related to a fitted \code{"GeDS"},
+\code{"GeDSgam"} or \code{"GeDSboost"} model.
 Similar to \code{\link{print.GeDS}} but with some extra detail.
 }
 \seealso{

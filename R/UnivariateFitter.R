@@ -17,21 +17,22 @@
 #' selected to enter the parametric component of the predictor model (see
 #' \code{\link[=formula.GeDS]{formula}}). If no such covariates are selected, it
 #' is set to \code{NULL} by default.
-#' @param family A description of the error distribution and link function to be
-#' used in the model. This can be a character string naming a family function
-#' (e.g. \code{"gaussian"}), the family function itself (e.g.
-#' \code{\link[stats]{gaussian}}) or the result of a call to a family function
-#' (e.g. \code{gaussian()}). See \link[stats]{family} for details on family
-#' functions.
+#' @param offset A vector of size \eqn{N} that can be used to specify a fixed
+#' covariate to be included in the predictor model avoiding the estimation of
+#' its corresponding regression coefficient. In case more than one covariate is
+#' fixed, the user should sum the corresponding coordinates of the fixed
+#' covariates to produce one common \eqn{N}-vector of coordinates. The
+#' \code{offset} argument is particularly useful when using 
+#' \code{GenUnivariateFitter} if the link function used is not the identity.
 #' @param weights An optional vector of size \eqn{N} of `prior weights' to be
 #' put on the observations in the fitting process in case the user requires
 #' weighted GeDS fitting. It is \code{NULL} by default.
 #' @param beta Numeric parameter in the interval \eqn{[0,1]} tuning the knot
 #' placement in stage A of GeDS. See the description of \code{\link{NGeDS}} or
 #' \code{\link{GGeDS}}.
-#' @param phi Numeric parameter in the interval \eqn{[0,1]} specifying the
+#' @param phi Numeric parameter in the interval \eqn{(0,1)} specifying the
 #' threshold for the stopping rule  (model selector) in stage A of GeDS. See
-#' also \code{stoptype} and details in the description of \code{\link{NGeDS}} or
+#' also \code{stoptype} and Details in the description of \code{\link{NGeDS}} or
 #' \code{\link{GGeDS}}.
 #' @param min.intknots Optional parameter allowing the user to set a minimum
 #' number of internal knots required. By default equal to zero.
@@ -48,19 +49,12 @@
 #' default equal correspondingly to the smallest and largest values of \code{X}.
 #' @param show.iters Logical variable indicating whether or not to print 
 #' information at each step. By default equal to \code{FALSE}.
+#' @param tol Numeric value indicating the tolerance to be used in the knot
+#' placement steps in stage A. By default equal to \code{1e-12}. See Details below.
 #' @param stoptype A character string indicating the type of GeDS stopping rule
 #' to be used. It should be either \code{"SR"}, \code{"RD"} or \code{"LR"},
 #' partial match allowed. See Details of \code{\link{NGeDS}} or
 #' \code{\link{GGeDS}}.
-#' @param offset A vector of size \eqn{N} that can be used to specify a fixed
-#' covariate to be included in the predictor model avoiding the estimation of
-#' its corresponding regression coefficient. In case more than one covariate is
-#' fixed, the user should sum the corresponding coordinates of the fixed
-#' covariates to produce one common \eqn{N}-vector of coordinates. The
-#' \code{offset} argument is particularly useful when using 
-#' \code{GenUnivariateFitter} if the link function used is not the identity.
-#' @param tol Numeric value indicating the tolerance to be used in the knot
-#' placement steps in stage A. By default equal to 1E-12. See Details below.
 #' @param higher_order A logical that defines whether to compute the higher
 #' order fits (quadratic and cubic) after stage A is run. Default is
 #' \code{TRUE}.
@@ -70,8 +64,14 @@
 #' corresponding \code{intknots} and \code{coef}, representing the initial fit from
 #' which to begin Stage A GeDS iteration (i.e. departing from step 2).
 #' @param only_pred Logical, if \code{TRUE} only predictions are computed.
+#' @param family A description of the error distribution and link function to be
+#' used in the model. This can be a character string naming a family function
+#' (e.g. \code{"gaussian"}), the family function itself (e.g.
+#' \code{\link[stats]{gaussian}}) or the result of a call to a family function
+#' (e.g. \code{gaussian()}). See \link[stats]{family} for details on family
+#' functions.
 #' 
-#' @return A \code{"GeDS"} class object, but without the \code{Formula},
+#' @return A \code{"GeDS"} class object, but without the \code{formula},
 #' \code{extcall}, \code{terms} and \code{znames} slots.
 #' 
 #' @details

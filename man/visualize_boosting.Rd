@@ -19,8 +19,8 @@ cubic fits should be plotted.}
 This function plots the \code{\link{NGeDSboost}} fit to the data at the
 beginning of a given boosting iteration and then plots the subsequent
 \code{\link{NGeDS}} fit on the corresponding negative gradient.
-Note: Applicable only for \code{\link{NGeDSboost}} models with a single
-univariate base-learner.
+Note that this is only applicable to \code{\link{NGeDSboost}} models with a
+single univariate base-learner.
 }
 \examples{
 # Load packages
