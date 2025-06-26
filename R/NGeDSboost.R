@@ -352,7 +352,7 @@ NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE,
                        max_iterations, shrinkage = 1,
                        phi_boost_exit = 0.99, q_boost = 2L,
                        beta = 0.5, phi = 0.99, int.knots_boost, q = 2L,
-                       higher_order = TRUE, boosting_with_memory = FALSE, N_cores = NULL)
+                       higher_order = TRUE, boosting_with_memory = FALSE)
   {
   # Capture the function call
   extcall <- match.call()
@@ -648,7 +648,7 @@ NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE,
   }
   
   ## Initialize parallel processing if required (i.e. if # base-learners > 1000)
-  pprocessing_threshold <- 10000
+  pprocessing_threshold <- 1000
   if (length(base_learners) >= pprocessing_threshold) {
     
     # Save current plan and restore when function exits
