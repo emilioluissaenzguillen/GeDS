@@ -288,12 +288,12 @@ logLik.GeDSgam <- logLik.GeDS
 logLik.GeDSboost <- logLik.GeDS
 
 ################################################################################
-################################# N.BOOST.ITER #################################
+################################# N.boost.iter #################################
 ################################################################################
 #' @title Extract Number of Boosting Iterations from a GeDSboost Object
-#' @name n.boost.iter
+#' @name N.boost.iter
 #' @description
-#' Method for \code{n.boost.iter} that returns the number of boosting iterations 
+#' Method for \code{N.boost.iter} that returns the number of boosting iterations 
 #' used in fitting a \code{"GeDSboost"} class object.
 #'
 #' @param object A \code{"GeDSboost"} class object.
@@ -301,18 +301,18 @@ logLik.GeDSboost <- logLik.GeDS
 #'
 #' @return An integer indicating the total number of boosting iterations.
 #' 
-#' @method n.boost.iter GeDSboost
+#' @method N.boost.iter GeDSboost
 #' 
-#' @rdname n.boost.iter
-#' @aliases n.boost.iter n.boost.iter.GeDSboost
+#' @rdname N.boost.iter
+#' @aliases N.boost.iter N.boost.iter.GeDSboost
 #' @importFrom graphics mtext abline
 #' @export
 
-n.boost.iter.GeDSboost <- function(object, ...) {
+N.boost.iter.GeDSboost <- function(object, ...) {
   object$iters
 }
 #' @export
-n.boost.iter <- n.boost.iter.GeDSboost
+N.boost.iter <- N.boost.iter.GeDSboost
 
 ################################################################################
 #################################### PREDICT ###################################
