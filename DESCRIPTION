@@ -2,7 +2,7 @@ Type: Package
 Package: GeDS
 Title: Geometrically Designed Spline Regression
 Version: 0.3.3
-Date: 2025-06-09
+Date: 2025-06-30
 Authors@R: c(
     person(c("Dimitrina", "S."), "Dimitrova", , "D.Dimitrova@citystgeorges.ac.uk", role = "aut"),
     person(c("Vladimir", "K."), "Kaishev", , "Vladimir.Kaishev.1@citystgeorges.ac.uk", role = "aut"),
