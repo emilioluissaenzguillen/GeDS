@@ -125,7 +125,7 @@
 #'                 Xextr = c(-2,2)))
 #'
 #' # similar plots as before, but for the linear fit
-#' plot(Gmod2, n = 2)
+#' plot(Gmod2, n = 2, ylab = "response", xlab = "X (Uniform on [-2, 2])")
 #' plot(Gmod2, which = 10, n = 2)
 #' \dontrun{
 #' iters <- (Gmod2$Nintknots + Gmod2$args$q + 1)
@@ -141,6 +141,7 @@
 #' @importFrom grDevices dev.new devAskNewPage
 #' @importFrom graphics plot lines legend rug points abline mtext
 #' @importFrom stats predict.glm
+#' @importFrom utils modifyList
 #' @export 
 
 plot.GeDS <- function(x, f = NULL, which, dev = FALSE, ask = FALSE,
@@ -301,17 +302,13 @@ plot.GeDS <- function(x, f = NULL, which, dev = FALSE, ask = FALSE,
         main
       }
       # Plot
-      # if (!is.null(others$ylim)) {
-      #   plot(X, Y, main = main0, ...)  
-      # } else {
-      #   plot(X, Y, main = main0, ylim = yylim, ...)
-      # }
       plot_args <- list(x = X, y = Y, main = main0)
       if (!is.null(xlab)) plot_args$xlab <- xlab
       if (is.null(others$ylim)) plot_args$ylim <- yylim
       # Protect against weird y-axis titles
-      if (is.null(others$ylab) && is.null(list(...)$ylab)) plot_args$ylab <- "Y"
-      plot_args <- c(plot_args, list(...))
+      if (is.null(others$ylab) && is.null(others$ylab)) plot_args$ylab <- "Y"
+      # Merge with dots (dots take precedence)
+      plot_args <- modifyList(plot_args, others)
       do.call(plot, plot_args)
       
       if (!is.null(f)) lines(X, f(X), col = "black", lwd = 2)

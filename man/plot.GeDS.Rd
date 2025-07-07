@@ -154,7 +154,7 @@ Y <- rpois(N,means)
                 Xextr = c(-2,2)))
 
 # similar plots as before, but for the linear fit
-plot(Gmod2, n = 2)
+plot(Gmod2, n = 2, ylab = "response", xlab = "X (Uniform on [-2, 2])")
 plot(Gmod2, which = 10, n = 2)
 \dontrun{
 iters <- (Gmod2$Nintknots + Gmod2$args$q + 1)
