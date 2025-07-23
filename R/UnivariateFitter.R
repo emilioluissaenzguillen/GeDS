@@ -326,8 +326,8 @@ UnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0,NROW(Y)),
 
     # newknot <- Knotnew_R(wht = w, restmp = res.weighted, x = distinctX, dcm = dcum,
     #                      oldknots = sort(c(intknots, rep(extr, 3))), tol = tol)[1]
-    # if (is.na(newknot[1]) && length(w) == 2) newknot <- newknot[2] else newknot <- newknot[1]
     if (isTRUE(all.equal(newknot, extr[1])) || isTRUE(all.equal(newknot, extr[2])) || is.na(newknot)) break
+    
     intknots <- c(intknots, newknot)
     
     # Print iteration
@@ -359,7 +359,8 @@ UnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0,NROW(Y)),
       # Eliminate NAs in oldcoef
       oldcoef  <- oldcoef[-((j+1):(max.intknots+1)), , drop = FALSE]  # eliminate all the NA rows
       oldcoef  <- oldcoef[ , 1:(j+1+nz), drop = FALSE]                # p = n + k = j + 1  B-splines
-      iter <- j - q
+      
+      if(!is.na(newknot)) iter <- j - q else iter <- j # if stage A breaks due to NA, w take the jth fit as the final fit
     }
   
   # 1. LINEAR
