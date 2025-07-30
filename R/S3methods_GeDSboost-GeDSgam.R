@@ -682,7 +682,7 @@ predict.GeDSgam_GeDSboost <- function(object, newdata, n = 3L,
       # Convert any factor columns in Z to dummy variables
       if (NCOL(Z) != 0) {
         Z <- model.matrix(~ ., data = Z)
-        Z <-  Z[, colnames(Z) != "(Intercept)"]
+        Z <-  Z[, colnames(Z) != "(Intercept)", drop = FALSE]
       }
       
       basisMatrix2 <- cbind(full_matrix, as.matrix(Z))
