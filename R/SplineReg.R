@@ -172,6 +172,18 @@ SplineReg_LM <- function(X, Y, Z = NULL, offset = rep(0,length(X)), weights = re
     tmp <- lm(Y0 ~ -1 + basisMatrix2, weights = as.numeric(weights))
     # Extract fitted coefficients
     theta <- coef(tmp)
+    # Check if any coefficient is NA, which indicates a rank deficiency and recover theta
+    if (any(is.na(theta))) {
+      # # Compute the minimal-norm solution for theta using the Moore-Penrose generalized inverse.
+      # theta <- as.numeric(ginv(basisMatrix2) %*% Y0)
+      # # Now theta contains the computed coefficients that reproduce lm()'s fitted values.
+      
+      # Compute t(basisMatrix2) %*% basisMatrix2 using crossprod (more efficient)
+      matcb <- crossprod(basisMatrix2)
+      matcbinv <- ginv(matcb)
+      theta <- as.numeric(matcbinv %*% crossprod(basisMatrix2, tmp$fitted.values))
+      
+    }
     # Compute predicted values
     predicted <- basisMatrix2 %*% theta + offset
     

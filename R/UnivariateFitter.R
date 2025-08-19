@@ -360,7 +360,14 @@ UnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0,NROW(Y)),
       oldcoef  <- oldcoef[-((j+1):(max.intknots+1)), , drop = FALSE]  # eliminate all the NA rows
       oldcoef  <- oldcoef[ , 1:(j+1+nz), drop = FALSE]                # p = n + k = j + 1  B-splines
       
-      if(!is.na(newknot)) iter <- j - q else iter <- j # if stage A breaks due to NA, w take the jth fit as the final fit
+      # If stage A breaks due to NA, w take the jth fit as the final fit
+      # Also, if intknots_init was set, the first length(intknots_init) rows of previous
+      # will be empty
+      if(is.na(newknot) || !is.null(intknots_init) && length(intknots_init) >= (j-q) ) {
+        iter <- j
+        } else {
+          iter <- j - q
+        }
     }
   
   # 1. LINEAR
