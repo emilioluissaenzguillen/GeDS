@@ -217,53 +217,19 @@ UnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0,NROW(Y)),
       rssnew <- c(rssnew, sum((res.tmp)^2))
     }
     
-    
-    
     ############################
     ## STEP 10: Stopping Rule ##
     ############################
-    if (j > q + n_starting_intknots) {
-      
-      if (rssnew[j]/rssnew[j-q] > 1) break
-      
-      # Adding the current ratio of deviances to the 'phis' vector
-      phis <- if (stoptype == "LR") {
-        c(phis, rssnew[j-q]-rssnew[j])
-      } else {
-        c(phis, rssnew[j]/rssnew[j-q])
-      }
-      
-      if (j - q > min.intknots) {
-        # (I) Smoothed Ratio of deviances
-        if(stoptype == "SR") {
-          # \hat{φ}_κ = 1 - exp{\hat{γ}_0 + \hat{γ}_1*κ}
-          # 1-\hat{φ}_κ = exp{\hat{γ}_0 + \hat{γ}_1*κ}
-          # ln(1-\hat{φ}_κ) = \hat{γ}_0 + \hat{γ}_1*κ
-          # Fit a linear model ln(1-φ) ~ \hat{γ}_0 + \hat{γ}_1*κ to the sample {φ_h, h}^κ_{h=q}
-          phismod <- log(1-phis); kappa <- length(intknots)
-          gamma <- .lm.fit(cbind(1, q:kappa), phismod)$coef
-          # Calculate \hat{φ}_κ based on the estimated coefficients
-          phi_kappa <- 1 - exp(gamma[1])*exp(gamma[2]*kappa)
-          # Store \hat{φ}_κ and the estimated coefficients \hat{γ}_0 and \hat{γ}_1
-          phis_star <- c(phis_star, phi_kappa)
-          oldintc <- c(oldintc, gamma[1]); oldslp <- c(oldslp, gamma[2])
-          # Creating a print statement that shows the current adjusted phi value
-          prnt <- paste0(", phi_hat = ", round(phi_kappa, 3))
-          # Check if \hat{φ}_κ ≥ φ_{exit}
-          if (phi_kappa >= phi) break
-          
-          # (II) Ratio of Deviances
-        } else if (stoptype == "RD") {
-          prnt <- paste0(", phi = ", round(rssnew[j]/rssnew[j-q],3))
-          if(rssnew[j]/rssnew[j-q] >= phi) break
-          
-          # (III) Likelihood Ratio
-        } else if (stoptype == "LR") {
-          prnt <- paste0(", p = ", round(pchisq(-(rssnew[j]-rssnew[j-q]), df=q), 3))
-          if(-(rssnew[j]-rssnew[j-q]) < qchisq(phi, df=q)) break
-        }
-      }
-    }
+    res <- stopping_rule(j = j, q = q, n_starting_intknots = n_starting_intknots,
+                         rssnew = rssnew, phis = phis, stoptype = stoptype,
+                         intknots = intknots, min.intknots = min.intknots, phi = phi,
+                         phis_star = phis_star, oldintc = oldintc, oldslp = oldslp)
+    
+    phis    <- res$phis; phis_star <- res$phis_star
+    oldintc <- res$oldintc; oldslp <- res$oldslp
+    prnt    <- res$prnt
+    
+    if (res$should_break) break
     
     ############
     ## STEP 2 ##
@@ -554,52 +520,19 @@ GenUnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)),
     # Working weights (weights in the final iteration of the IRLS fit)
     working.weights <- first.deg$temporary$weights  
     
-    ###########################
-    ## STEP 2: Stopping Rule ##
-    ###########################
-    if (j > q) {
-      
-      if (rssnew[j]/rssnew[j-q] > 1) break
-      
-      # Adding the current ratio of deviances to the 'phis' vector
-      if (flag) phis <- phis[1:(j-q-1)]
-      phis <- if (stoptype == "LR") {
-        c(phis, rssnew[j-q]-rssnew[j])
-      } else {
-        c(phis, rssnew[j]/rssnew[j-q])
-      }
-      
-      if (j - q > min.intknots) {
-        # (I) Smoothed Ratio of deviances
-        if(stoptype == "SR") {
-          # \hat{φ}_κ = 1 - exp{\hat{γ}_0 + \hat{γ}_1*κ}
-          # 1-\hat{φ}_κ = exp{\hat{γ}_0 + \hat{γ}_1*κ}
-          # ln(1-\hat{φ}_κ) = \hat{γ}_0 + \hat{γ}_1*κ
-          # Fit a linear model ln(1-φ) ~ \hat{γ}_0 + \hat{γ}_1*κ to the sample {φ_h, h}^κ_{h=q}
-          phismod <- log(1-phis); kappa <- length(intknots)
-          gamma <- .lm.fit(cbind(1, q:kappa), phismod)$coef
-          # Calculate \hat{φ}_κ based on the estimated coefficients
-          phi_kappa <- 1 - exp(gamma[1])*exp(gamma[2]*kappa)
-          # Store \hat{φ}_κ and the estimated coefficients \hat{γ}_0 and \hat{γ}_1
-          phis_star <- c(phis_star, phi_kappa)
-          oldintc <- c(oldintc, gamma[1]); oldslp <- c(oldslp, gamma[2])
-          # Creating a print statement that shows the current adjusted phi value
-          prnt <- paste0(", phi_hat = ", round(phi_kappa, 3))
-          # Check if \hat{φ}_κ ≥ φ_{exit}
-          if (phi_kappa >= phi) break
-          
-        # (II) Ratio of Deviances
-        } else if (stoptype == "RD") {
-          prnt <- paste0(", phi = ", round(rssnew[j]/rssnew[j-q],3))
-          if(rssnew[j]/rssnew[j-q] >= phi) break
-          
-        # (III) Likelihood Ratio
-        } else if (stoptype == "LR") {
-          prnt <- paste0(", p = ", round(pchisq(-(rssnew[j]-rssnew[j-q]), df=q), 3))
-          if(-(rssnew[j]-rssnew[j-q]) < qchisq(phi, df=q)) break
-        }
-      }
-    }
+    ############################
+    ## STEP 10: Stopping Rule ##
+    ############################
+    res <- stopping_rule(j = j, q = q, flag = flag,
+                         rssnew = rssnew, phis = phis, stoptype = stoptype,
+                         intknots = intknots, min.intknots = min.intknots, phi = phi,
+                         phis_star = phis_star, oldintc = oldintc, oldslp = oldslp)
+    
+    phis    <- res$phis; phis_star <- res$phis_star
+    oldintc <- res$oldintc; oldslp <- res$oldslp
+    prnt    <- res$prnt
+    
+    if (res$should_break) break
     
     ###############################################
     ## STEPS 3-8 (i.e. steps 2-7 of Normal GeDS) ##

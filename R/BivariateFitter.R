@@ -267,7 +267,6 @@ BivariateFitter <- function(X, Y, Z, W, weights = rep(1,length(X)), indicator,
                             FixedDim = Y, ordFixedDim = ordY, nintFixedDim = nintY, zeroesFixedDim = zeroesY,
                             dcumFixedDim = dcumY, beta = beta) 
     
-    
     Xnewknot = placeXKnot$Dim.newknot; weightX = placeXKnot$weightDim; flagX = placeXKnot$flagDim
 
     ###################################
@@ -278,7 +277,6 @@ BivariateFitter <- function(X, Y, Z, W, weights = rep(1,length(X)), indicator,
                             dcumFixedDim = dcumX, beta = beta) 
     
     Ynewknot = placeYKnot$Dim.newknot; weightY = placeYKnot$weightDim; flagY = placeYKnot$flagDim
-    
     
     # Check if both X and Y dimensions have flags indicating no valid knots could be found
     if(flagX && flagY) {
@@ -637,7 +635,6 @@ GenBivariateFitter <- function(X, Y, Z, W, family = family, weights = rep(1,leng
                             FixedDim = Y, ordFixedDim = ordY, nintFixedDim = nintY, zeroesFixedDim = zeroesY,
                             dcumFixedDim = dcumY, beta = beta) 
     
-    
     Xnewknot = placeXKnot$Dim.newknot; weightX = placeXKnot$weightDim; flagX = placeXKnot$flagDim
     
     ###################################
@@ -837,55 +834,30 @@ placeKnot <- function(Dim, Dim.intknots, matr, indicator, FixedDim, ordFixedDim,
   # print(paste0(all( (matrFixedDim - matrFixedDimCPP) < 1e-6), "CPP!"))
   
   
-  # Initialize empty vectors for storing mean Dim values, Dim interval widths, counts, and distances for cluster formation
-  Dim.mean <- Dim.width <- Dim.num <- dFixedDim.Dim <- numeric()
-  # Initialize counter for clusters
-  kk <- 1
+  # Initialize empty vectors for storing mean Dim values, Dim interval widths, and distances for cluster formation
+  Dim.mean <- Dim.width <- dFixedDim.Dim <- numeric()
   
-  # Loop through each FixedDim strip to form clusters and determine Dim knot placement
-  for (i in 1:nintFixedDim) {
-    # Check if the current FixedDim strip contains data points
-    if (!zeroesFixedDim[i]) {
-      # i. Handle the first FixedDim strip separately
-      if (i == 1) {
-        # Extract the Dim values corresponding to the first FixedDim strip
-        tmpDim <- matrFixedDim[1:dcumFixedDim[i], Dim.index]
-        # If the strip contains more than one data point, sort the matrix by Dim values
-        if (length(tmpDim) > 1) {
-          matrFixedDim[1:dcumFixedDim[i],] <- matrFixedDim[1:dcumFixedDim[i],][order(tmpDim),]
-        }
-        # Extract the residuals within the first FixedDim strip
-        tmpR <- matrFixedDim[1:dcumFixedDim[i], 3]
-        
-        # ii. Rest of FixedDim intervals
-      } else {
-        # Extract the Dim values corresponding to the current FixedDim strip
-        tmpDim <- matrFixedDim[(dcumFixedDim[i - 1] + 1):dcumFixedDim[i], Dim.index]
-        # If the strip contains more than one data point, sort the matrix by Dim values
-        if (length(tmpDim) > 1) {
-          matrFixedDim[(dcumFixedDim[i - 1] + 1):dcumFixedDim[i],] <- matrFixedDim[(dcumFixedDim[i - 1] + 1):dcumFixedDim[i],][order(tmpDim),]
-        }
-        # Extract the residuals within the current FixedDim strip
-        tmpR <- matrFixedDim[(dcumFixedDim[i - 1] + 1):dcumFixedDim[i], 3]
-      }
-      # Group the consecutive residuals into clusters by their sign
-      signs <- sign(tmpR)
-      for (jj in 1:length(tmpR)) {
-        # If all residual values have the same sign, count the entire set as one cluster
-        if (all(signs == signs[1])) {
-          dFixedDim.Dim[kk] <- length(signs) 
-          kk = kk + 1
-          break
-        } else {
-          # If signs change, identify the first change to split the cluster
-          dFixedDim.Dim[kk] <- min(which(signs != signs[1]) - 1) # number of consecutive residuals with same sign
-          # Update signs to exclude the identified cluster
-          signs <- signs[-(1:dFixedDim.Dim[kk])]                 # extract cluster from signs
-          kk = kk + 1
-        }
-      }
-    }
-  }
+  ## 1) Sort rows within each FixedDim strip by the Dim column.
+  # FixedDim strip ID for each observation
+  strip <- rep.int(seq_len(nintFixedDim), diff(c(0L, dcumFixedDim)))
+  # drop empty strips
+  keep_rows <- !zeroesFixedDim[strip]
+  idx <- which(keep_rows)
+  # sort within strip by Dim value
+  ord_idx <- idx[order(strip[idx], matrFixedDim[idx, Dim.index], method = "radix")]
+  matrFixedDim[idx, ] <- matrFixedDim[ord_idx, , drop = FALSE]
+  
+  # 2) Form consecutive clusters of residuals by sign, restarting at each strip boundary
+  st <- strip[idx]                   # strip id per kept row
+  s  <- sign(matrFixedDim[idx, 3])   # residual sign per kept row (0 kept as its own class)
+  # 'breaks' marks the START of each block:
+  #   - always TRUE for the first element,
+  #   - TRUE when the strip changes,
+  #   - TRUE when the sign changes.
+  breaks <- c(TRUE, (st[-1] != st[-length(st)]) | (s[-1] != s[-length(s)]))
+  # 3) Store cluster lengths in dFixedDim.Dim.
+  lens <- diff(c(which(breaks), length(s) + 1L))
+  dFixedDim.Dim[seq_along(lens)] <- lens
   
   # (Step 3 - UnivariateFitter) Within residual cluster means +  within-cluster ranges 
   dcumFixedDim.Dim <- cumsum(dFixedDim.Dim)
@@ -915,6 +887,4 @@ placeKnot <- function(Dim, Dim.intknots, matr, indicator, FixedDim, ordFixedDim,
   # Return the new Dim knot and its weight, along with the flag indicating if a valid knot was found
   return(list(Dim.newknot = as.numeric(xx$Dim.newknot), weightDim = as.numeric(xx$weightDim), flagDim = xx$flagDim))
 }
-
-
 

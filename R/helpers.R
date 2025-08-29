@@ -293,3 +293,102 @@ ci <- function(tmp, resid, prob = 0.95, basisMatrix, basisMatrix2, predicted,
   
 }
 
+################################################################################
+stopping_rule <- function(
+    j, q, n_starting_intknots,
+    rssnew,                           # numeric vector
+    flag, phis,                       # logical, numeric vector
+    stoptype = c("SR","RD","LR"),     # "Smoothed Ratio", "Ratio of Deviances", "Likelihood Ratio"
+    intknots,                         # vector (for kappa = length(intknots))
+    min.intknots,                     # scalar
+    phi,                              # threshold: φ_exit (SR/RD) or χ^2 tail prob (LR)
+    phis_star,                        # numeric vector to append (SR)
+    oldintc, oldslp                   # numeric vectors to append (SR)
+) {
+  
+  stoptype <- match.arg(stoptype)
+  
+  if (missing(n_starting_intknots)) n_starting_intknots <- 0
+  if (missing(flag)) flag <- FALSE
+  
+  # Default return (no action)
+  out <- list(
+    should_break = FALSE,
+    phis = phis,
+    phis_star = phis_star,
+    oldintc = oldintc,
+    oldslp = oldslp,
+    prnt = ""
+  )
+  
+  # Guard: only active after enough steps
+  if (j <= q + n_starting_intknots) return(out)
+  
+  # Early check: if ratio > 1 then stop (i.e. rss getting worse when adding more knots)
+  ratio_j <- rssnew[j] / rssnew[j - q]
+  if (ratio_j > 1) {
+    out$should_break <- TRUE
+    return(out)
+  }
+  
+  # Adding the current ratio of deviances to the 'phis' vector
+  if (flag) phis <- phis[1:(j - q - 1)]
+  phis <- if (stoptype == "LR") {
+    c(phis, rssnew[j - q] - rssnew[j])
+  } else {
+    c(phis, ratio_j)
+  }
+  
+  # If not past min.intknots, continue with the iterations
+  out$phis <- phis
+  if ((j - q) <= min.intknots) return(out)
+  
+  # (I) Smoothed Ratio of deviances
+  if(stoptype == "SR") {
+    # \hat{φ}_κ = 1 - exp{\hat{γ}_0 + \hat{γ}_1*κ}
+    # 1-\hat{φ}_κ = exp{\hat{γ}_0 + \hat{γ}_1*κ}
+    # ln(1-\hat{φ}_κ) = \hat{γ}_0 + \hat{γ}_1*κ
+    # Fit a linear model ln(1-φ) ~ \hat{γ}_0 + \hat{γ}_1*κ to the sample {φ_h, h}^κ_{h=q}
+    phismod <- log(1-phis)
+    kappa <- length(intknots)
+    gamma <- .lm.fit(cbind(1, q:kappa), phismod)$coef
+    
+    # Calculate \hat{φ}_κ based on the estimated coefficients
+    phi_kappa <- 1 - exp(gamma[1])*exp(gamma[2]*kappa)
+    
+    # Store \hat{φ}_κ and the estimated coefficients \hat{γ}_0 and \hat{γ}_1
+    phis_star <- c(phis_star, phi_kappa)
+    oldintc <- c(oldintc, gamma[1])
+    oldslp <- c(oldslp, gamma[2])
+    
+    # Creating a print statement that shows the current adjusted phi value
+    prnt <- paste0(", phi_hat = ", round(phi_kappa, 3))
+    
+    out$phis_star <- phis_star
+    out$oldintc <- oldintc
+    out$oldslp <- oldslp
+    out$prnt <- prnt
+    # Check if \hat{φ}_κ ≥ φ_{exit}
+    if (phi_kappa >= phi) out$should_break <- TRUE 
+    return(out)
+    
+  # (II) Ratio of Deviances
+  } else if (stoptype == "RD") {
+    prnt <- paste0(", phi = ", round(ratio_j, 3))
+    out$prnt <- prnt
+    if (ratio_j >= phi) out$should_break <- TRUE
+    return(out)
+    
+    # (III) Likelihood Ratio
+  } else if (stoptype == "LR") {
+    # stat = -(rss_j - rss_{j-q}); stop if stat < qchisq(phi, df=q)
+    stat <- -(rssnew[j] - rssnew[j - q])
+    prnt <- paste0(", p = ", round(pchisq(stat, df = q), 3))
+    out$prnt <- prnt
+    if (stat < qchisq(phi, df = q)) out$should_break <- TRUE
+    return(out)
+  }
+  
+  out
+}
+
