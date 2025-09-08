@@ -1,0 +1,485 @@
+---
+title: "Geometrically Designed Splines: GeDS"
+author: "Emilio Luis Sáenz Guillén"
+date: "`r Sys.Date()`"
+bibliography: citations.bib
+csl: apa.csl        
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Geometrically Designed Splines: GeDS}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  dpi = 300,
+  fig.align = "center",
+  out.width = "80%",
+  echo = TRUE,
+  message = FALSE,
+  warning = FALSE
+)
+
+```
+
+## Introduction
+
+**Geometrically designed spline (GeDS)** regression is an efficient and
+versatile free-knot spline regression technique. This is based on a
+locally-adaptive knot insertion scheme that produces a piecewise linear
+spline fit, over which smoother higher order spline fits are
+subsequently built. GeDS was firstly introduced for the univariate
+Normal case by [@Kaishev2016](https://link.springer.com/article/10.1007/s00180-015-0621-7). It was later expanded to the broader
+context of Generalized Non-linear Models (GNM) ---which include
+Generalized Linear Models (GLM) as a special case---, and to the
+bivariate case by [@Dimitrova2023](https://www.sciencedirect.com/science/article/abs/pii/S0096300322005677). More recently, GeDS
+methodology has been extended towards the benchmark of Generalized
+Additive Models (GAM) and Functional Gradient Boosting (FGB) by
+[@Dimitrova2025].
+
+GeDS methodology is implemented on the **R** package
+[GeDS](https://cran.r-project.org/web/packages/GeDS/index.html) that I
+introduce herein. For a tutorial on the the GAM-GeDS methodology, see [Generalized Additive Models (GAM) with GeD Splines](https://rpubs.com/emilioluissaenzguillen/1209067). For a tutorial focused on FGB-GeDS, see [Functional Gradient Boosting (FGB) with GeD Splines](https://rpubs.com/emilioluissaenzguillen/1341492).
+
+```{r message=FALSE}
+# install.packages("GeDS")
+library(GeDS)
+```
+
+## What are (polynomial) splines?
+
+A **polynomial spline** is a type of mathematical function made up of
+several polynomial segments that are "smoothly" joined together at
+specific points called *knots*. More specifically, a degree-$d$
+polynomial spline consists of a piecewise degree-$d$ polynomial
+function, with continuous $d-1$ first derivatives at each knot. So, for
+example, a linear spline is obtained by fitting a straight line in each
+interval that is defined by the knots, requiring continuity at each
+knot. Similarly, a cubic spline (degree=3) consists of cubic polynomials
+joined with continuous first and second derivatives at each knot.
+
+Polynomial splines can accommodate a wide range of shapes and are useful
+for fitting both simple and complex datasets that may not be
+well-represented by a single polynomial function. Their flexibility
+arises from the ability to adjust the position and number of knots,
+allowing for local adjustments to the fitted curve without affecting the
+entire function.
+
+Polynomial splines are typically represented through a set of basis
+functions (known as B-splines) spanning the space of the corresponding
+spline function. This basis representation —also referred to as the
+B-spline representation—, constitutes a significant advantage since it
+notably simplifies the mathematical manipulation and computation of
+these functions. B-splines provide an efficient way to evaluate,
+differentiate, and integrate polynomial spline functions, facilitating
+their use in various applications such as computer graphics and
+computer-aided design, data interpolation and approximation, and
+regression analysis.
+
+## Normal GeD Spline Regression
+
+Let me start introducing the case of univariate Normal GeDS regression.
+Consider a response variable $Y$ and a sole independent variable $X$,
+with $X \in [a, b]$, $a\in\mathbb{R}$, $b\in\mathbb{R}$, and assume
+there is a relationship between $X$ and $Y$ of the form:
+\begin{equation}
+    Y = f(X) + \epsilon
+\end{equation} where $f(\cdot)$ is an unknown function and $\epsilon$ is
+a random normal error variable with zero mean and variance
+$\mathbb{E}[\epsilon^2]=\sigma_\epsilon^2>0$. In other words, assume
+$Y|X$ to be normally distributed. A possible solution to the regression
+problem of estimating $f(\cdot)$ based on a sample of observations
+$\{X_i, Y_i\}^N_{i=1}$, is to approximate $f$ with an $n$-th order
+(i.e., degree $n - 1$) spline function that takes values from an
+interval $[a,b]$ and maps them into $\mathbb{R}$.
+
+Let me now illustrate the usage of the `NGeDS()` function, which
+constructs a Geometrically Designed (univariate or bivariate) variable
+knots spline regression model, for a response having a Normal
+distribution. But first, let us simulate some data based on the
+following test example. Assume the "true" predictor to be $\eta=f_1(x)$,
+where, \begin{equation}
+    f_1(x)=40\frac{x}{1+100x^2}+4,\quad x\in[-2,2].
+\end{equation}
+
+Based on $f_1(x)$ I generate random samples $\{X_i,Y_i\}_{i=1}^N$ with
+correspondingly normally distributed response variable, $Y$, and
+uniformly distributed explanatory variable, $X$. That is,
+$Y_i\sim N(\mu_i,\sigma)$ with $\sigma=0.2$, $\mu_i=\eta_i=f_1(X_i)$ and
+$X_i\sim U[-2,2]$, $i=1,...,N$, where $N$ denotes the sample size. For
+this example, I will consider $N=500$. The **R** implementation of this
+example is as follows:
+
+```{r}
+# Generate a data sample for the response variable
+# Y and the single covariate X
+set.seed(123)
+N <- 500
+f_1 <- function(x) (10*x/(1+100*x^2))*4+4
+X <- sort(runif(N, min = -2, max = 2))
+# Specify a model for the mean of Y to include only a component
+# non-linear in X, defined by the function f_1
+means <- f_1(X)
+# Add (Normal) noise to the mean of Y
+Y <- rnorm(N, means, sd = 0.2)
+```
+
+Let us plot our simulated data:
+
+```{r, fig.width=10, fig.height=6}
+plot(X, Y, pch = 20, col = "darkgrey")
+```
+
+A Normal GeDS model is then fit using the `NGeDS()` function. This
+implements the GeDS regression technique assuming a Normal response
+variable:
+
+```{r}
+# Fit a Normal GeDS regression using NGeDS
+(Gmod <- NGeDS(Y ~ f(X), beta = 0.6, phi = 0.995, Xextr = c(-2,2)))
+```
+
+where `beta` and `phi` are tuning parameters and `Xextr` stands for the
+left-most and right-most limits of the interval embedding the
+observations of $X$. GeDS algorithm operates through two main stages,
+**A** and **B**, that I will now briefly explain.
+
+### Stage A
+
+GeDS regression starts by fitting a least-squares (LS) straight line
+model to the data. After this, the residuals are computed and grouped
+into clusters based on their sign. Specifically, the first $d_1$
+consecutive residuals with the same sign form the first cluster, the
+next $d_2$ residuals with the same sign form the second cluster, and so
+on. Weights for these clusters of residuals are then calculated. In the
+calculation of these weights, the parameter `beta` determines the weight
+put on the *within-cluster mean residual value*, $m_j$, and the weight
+put on the *within-cluster* $X$-range, $\eta_j$. The weights, $j$, for
+each cluster of residuals are given by: \begin{equation}
+  w_j = \beta \times m'_j + (1 − \beta)\times\eta'_j,\quad j = 1,..., u
+\end{equation} where $u$ denotes the total number of clusters of
+residuals of identical signs, $m'_j=m'_j/m_{max}$ is the normalized
+within-cluster mean residual value and $\eta'_j=\eta_j/\eta_{max}$
+stands for the normalized within-cluster range of the independent
+variable $X$. A new knot is then inserted in the cluster of residuals
+that does not already contain a knot and that has the maximal weight
+$w_j$. The specific location of the new knot is determined by a weighted
+average of the $X$-coordinates of the residuals in the selected cluster
+of residuals. For a detailed explanation see [@Kaishev2016](https://link.springer.com/article/10.1007/s00180-015-0621-7).
+
+A LS linear spline fit is then computed including this new knot. Before
+continuing to a new GeDS iteration a stopping rule consisting on a ratio
+of consecutive residual sum of squares (RSS) is evaluated:
+\begin{equation}
+    \text{RSS}(\kappa+q)/\text{RSS}(\kappa)
+    =\sum_{i=1}^N(Y_i-\hat{f}\left(\delta_{\kappa+q,2};X_i)\right)^2 \Bigg/ \sum_{j=1}^N\left(Y_i-\hat{f}(\delta_{\kappa,2};X_i)\right)^2
+    \geq \phi_{\text{exit}}
+\end{equation} where $q \geq 1$ and $\phi_{\text{exit}}\in(0,1)$ is a
+certain pre-specified threshold level close to one.
+$\boldsymbol{\delta}_{\kappa,2}=\{\delta_1< \delta_2< \delta_3<...<\delta_{\kappa+2}<\delta_{\kappa+3}=\delta_{\kappa+4}\}$
+denotes the knots locations, and $\kappa$ the number of internal knots
+of the linear GeDS fit. In particular, if the ratio of the RSS of the
+current iteration and the RSS of the `q`th previous iteration is less
+than `phi`, we continue iterating, starting by fitting a LS linear
+spline model to the data, with one extra knot. Otherwise, stage A
+iterations stop.
+
+Stage A fitting process can be visualized as follows:
+
+```{r, fig.width=10, fig.height=5}
+layout(matrix(c(1,2), nrow=1, byrow=TRUE))
+plot(Gmod, n = 2, which = 1:(Gmod$Nintknots+1), legend.pos = NA, pch = 20, col = "darkgrey")
+```
+
+Argument `which` in `plot.GeDS` allows us to determine the iterations of
+stage A for which the corresponding GeDS fits should be plotted; `n`
+specifies the order of the GeDS fit that should be plotted; `n = 2`,
+means the linear fit is to be plotted. Indeed, stage A pursues a “stick
+breaking” procedure starting from a straight line fit, that is
+subsequently broken into smaller linear pieces.
+
+Note that the final stage A GeDS fit is the fit from the
+$(\kappa + 1)$th iteration, where $\kappa$ denotes the number of
+internal knots of this fit. This is because the first iteration fit is
+just a straight line LS fit and then at each GeDS iteration one internal
+knot is added.
+
+### Stage B
+
+Stage B, begins computing the *averaging knot location*[^1] of the knots
+vector of the final linear fit obtained via Stage A's iterations. This
+is computed for quadratic, and cubic orders; linear averaging knot
+location coincides with Stage A's knot location. Secondly, linear,
+quadratic, and cubic LS spline fits to the data are computed utilizing
+the corresponding relocated set of knots, thereby completing the GeDS
+procedure. Note that the final stage A GeDS fit coincides with the final
+linear GeDS fit.
+
+[^1]: See [@Kaishev2016](https://link.springer.com/article/10.1007/s00180-015-0621-7) for details.
+
+The final quadratic GeDS fit can be visualized as follows:
+
+```{r, fig.width=10, fig.height=6}
+layout(matrix(c(1), nrow=1, byrow=TRUE))
+plot(Gmod, f = f_1, n = 3, pch = 20, col = "darkgrey")
+```
+
+where the black line depicts the real underlying function $f_1(x)$.
+
+## Generalized GeD Spline Regression
+
+Normal GeDS regression methodology can be extended to the wider context
+of GNM/GLM models ([@Dimitrova2023](https://www.sciencedirect.com/science/article/abs/pii/S0096300322005677)).
+
+### The GNM (GLM) fitting problem
+
+Take $Y$ to be a response variable that depends on a single covariate
+$X$. In a generalized model, we assume that $Y |X$ has a distribution
+belonging to the *exponential family*. That is, $Y |X$ has a probability
+density function (continuous case) or probability mass function
+(discrete case) of the form: \begin{equation}
+  f(y;\vartheta,\phi) = \exp\left(\frac{y\vartheta − b(\vartheta)}{a(\phi)}+ c(y,\phi)\right)
+\end{equation} where $\vartheta = \vartheta(μ)$ is the so-called
+*natural parameter* and $\phi$ is the so-called *scale parameter*; $a$,
+$b$ and $c$ are functions that characterize the distribution. For
+example, in the Normal case, $\vartheta = \vartheta(\mu)=\mu$,
+$\phi=\sigma^2$, $a=a(\phi)=\phi$,
+$b=b(\vartheta)=\frac{\vartheta^2}{2}=\frac{\mu^2}{2}$ and
+$c=c(y,\phi)=-\frac{1}{2}\left[\frac{y^2}{\sigma^2}+\ln(2\pi\sigma^2)\right]$,
+and thus, the corresponding density function is: \begin{equation}
+  f(y;\mu,\sigma^2)=\frac{1}{\sqrt{2\pi\sigma^2}}\exp\left(-\frac{(y-\mu)^2}{2\sigma^2}\right).
+\end{equation} The objective is to model the expectation of $Y|X$:
+\begin{equation}
+  E\left[Y|X\right]=\mu=g^{-1}(\eta(\boldsymbol{\theta};X))
+\end{equation} where $g$ is some *link function* that describes how
+$\mu$ is connected with the *predictor component*
+$\eta(\boldsymbol{\theta};X)$. A generalized model is therefore defined
+by three components:
+
+-   a random component, that specifies a distribution for $Y |X$;
+-   a systematic component, that relates $\eta$ to the predictor(s),
+    $X$;
+-   and a link function, $g$, that connects the random (the conditional
+    mean $E\left[Y|X\right])$ and systematic components (the linear
+    predictor $\eta(\boldsymbol{\theta};X)$).
+
+Now, we can assume the predictor $\eta(\boldsymbol{\theta}; X)$ to be a
+polynomial spline function, whose degree, number and location of knots
+are unknown parameters that we need to estimate. Let us denote by
+$S_{\boldsymbol{t}_{k,n}}$ the linear space of all $n$th order spline
+functions defined on a set of non-decreasing knots
+$\boldsymbol{t}_{k,n} = \{t_i\}^{2n+k}_{i=1}$ , where $t_n = a$,
+$t_{n+k+1} = b$. We use splines with simple knots, except for the $n$
+left and right most knots which will be assumed coalescent, i.e.
+\begin{equation}
+t_{k,n} = \{t_1 = ... = t_n < t_{n+1} < ... < t_{n+k} < t_{n+k+1} = ... = t_{2n+k}\}
+\end{equation}
+Then, $\eta(\boldsymbol{\theta}; X)$ can be expressed as:
+\begin{equation}
+  \eta(\boldsymbol{\theta};X)= f(\boldsymbol{t}_{k,n}; X)=\boldsymbol{\theta}^T\boldsymbol{N}_n(X)=\sum_{i=1}^p\theta_iN_{i,n}(X).
+\end{equation} where $f \in S_{\boldsymbol{t}_{k,n}}$,
+$\left(\boldsymbol{\theta} =\theta_1, ..., \theta_p\right)^T$ is a
+vector of real valued coefficients and
+$N_n(x) = \left(N_{1,n}(X), . . ., N_{p,n}(X)\right)^T$, $p = n + k$,
+are B-splines of order $n$, defined on $t_{k,n}$.
+
+### Generalized GeDS estimation
+Now, to estimate the unknown linear predictor function $\eta(\boldsymbol{\theta};X)$ we can use the generalized GeDS method. Indeed, GeDS methodology successfully extends to the more general Exponential
+Family of distributions in the context of Generalized Non-Linear/Linear
+Models. Specifically, stage A of Normal GeDS is extended to the more
+general GNM/GLM context by replacing LS fitting by Iteratively
+Reweighted Least Squares (IRLS) fitting and the stopping rule by a
+deviance-based (instead of RSS) stopping criterion.
+
+The usage of function `GGeDS()` is illustrated with the same example as before. Code implemenations and plots are presented as follows.
+
+**Example 1.** The "true" linear predictor is assumed to be $\eta = f_1(x)$,
+where \begin{equation}
+f_1(x) = 40\frac{x}{1 + 100x^2} + 4,\quad x \in [−2, 2]. 
+\end{equation} 
+
+Random samples,
+$\{X_i,Y_i\}^N_{i=1}$, are generated with correspondingly Poisson, Gamma and
+Binomially distributed response variable, $Y$, and uniformly distributed
+explanatory variable, $X$. That is, $Y_i ∼ \text{Poisson}(\mu_i)$, with
+$\mu_i = \exp(\eta_i)$ and $\eta_i = f_1(X_i)$;
+$Y_i ∼ \text{Gamma}(\mu_i, \phi)$ with $\phi = 0.1$,
+$\mu_i = \exp(\eta_i)$ and $\eta_i = f_1(X_i)$;
+$Y_i ∼ \text{Binomial}(m,\mu_i)$ with $m = 50$,
+$\mu_i = \exp(\eta_i)/(1 + \exp(\eta_i))$, $\eta_i = f_1(X_i) − 4$; and
+$X_i \sim U[−2, 2]$, $i = 1, ..., N$, where $N=500$ is the sample size.
+
+```{r, fig.width=10, fig.height=6}
+# Generate a data sample for the response variable Y and the covariate X
+# See section 4.1 in Dimitrova et al. (2023)
+set.seed(123)
+N <- 500
+f_1 <- function(x) (10*x/(1+100*x^2))*4+4
+X <- sort(runif(N, min = -2, max = 2))
+# Specify a model for the mean of Y to include only a component
+# non-linear in X, defined by the function f_1
+means <- exp(f_1(X))
+```
+
+#### Poisson:
+
+```{r, fig.width=10, fig.height=6}
+#########################################
+## (A) Y ~ Poisson + log link function ##
+#########################################
+# Generate Poisson distributed Y according to the mean model
+Y <- rpois(N, means)
+# Fit a Poisson GeDS regression using GGeDS
+Gmod <- GGeDS(Y ~ f(X), beta = 0.2, phi = 0.995, family = "poisson",
+              Xextr = c(-2,2))
+plot(Gmod, f = function(x) exp(f_1(x)), n = 3, pch = 20, col = "darkgrey")
+
+```
+
+#### Gamma:
+
+```{r, fig.width=10, fig.height=6}
+#######################################
+## (B) Y ~ Gamma + log link function ##
+#######################################
+# Generate Gamma distributed Y according to the mean model
+Y <- rgamma(N, shape = means, rate = 0.1)
+# Fit a Gamma GeDS regression using GGeDS
+Gmod <- GGeDS(Y ~ f(X), beta = 0.1, phi = 0.995, family =  Gamma(log),
+              Xextr = c(-2,2))
+plot(Gmod, f = function(x) exp(f_1(x))/0.1, n = 3, pch = 20, col = "darkgrey")
+
+```
+
+#### (Quasi)Binomial:
+While the binomial distribution is used for modeling binary data with
+fixed success probabilities (e.g., success/failure, yes/no, 0/1) and
+independent trials, the quasibinomial distribution accommodates
+scenarios where the probability of success may vary across trials, and
+does not strictly adhere to a fixed probability of success for each
+trial. In particular, it is used for binary outcome data that exhibit
+so-called *overdispersion*, which occurs when the observed variance is
+greater than what the binomial distribution predicts. This variance
+flexibility provided by the quasibinomial distribution allows for a more
+adaptable approach to modeling binary outcome data.
+
+```{r, fig.width=10, fig.height=6}
+############################################
+## (C) Y ~ Binomial + logit link function ##
+############################################
+# Generate Binomial distributed Y according to the mean model
+eta <- f_1(X) - 4
+means <- exp(eta)/(1+exp(eta))
+Y <- rbinom(N, size = 50, prob = means) / 50
+# Fit a Binomial GeDS regression using GGeDS
+Gmod <- GGeDS(Y ~ f(X), beta = 0.1, phi = 0.995, family =  "binomial",
+              Xextr = c(-2,2))
+plot(Gmod, f = function(x) exp(f_1(x) - 4)/(1 + exp(f_1(x) - 4)),
+     n = 3, pch = 20, col = "darkgrey")
+```
+
+## Bivariate GeD Spline Regression
+
+Now, take the case where $Z$ to be a response variable that depends on two covariates
+$X_1=X$ and $X_2=Y$. [@Dimitrova2023](https://www.sciencedirect.com/science/article/abs/pii/S0096300322005677), introduce a bivariate
+extension of GeDS by assuming that the predictor component of the GLM is
+in the form of bivariate spline function:
+\begin{equation}
+  \eta(\boldsymbol{\theta};\boldsymbol{X})=f(\boldsymbol{T}_{k_1\times k_2};\boldsymbol{X})
+\end{equation}
+where $\boldsymbol{T}_{k_1\times k_2}=\boldsymbol{t}_{1;k_1,n_1}\times\boldsymbol{t}_{1;k_1,n_1}$
+and $\boldsymbol{t}*{1;k_1,n_1},* \boldsymbol{t}{2;k_2,n_2}$ are sets of
+knots with respect to $X_1=X$ and $X_2=Y$, where $k_1$ and $k_2$ denote
+respectively the number internal knots.
+
+Similar to the univariate case, bivariate GeDS regression starts
+applying the IRLS procedure to find a bivariate linear spline fit
+$\hat{f}(\Delta_{k_1\times k_2},\hat{\alpha}_p; x)$ with zero internal
+knots (i.e. a bivariate linear model). Subsequently, a stopping rule
+based on the deviances at consecutive iterations is checked and, if
+fulfilled, we move to stage B. Otherwise, a new knot in the $X_1=X$ or
+$X_2=Y$ direction is added. This is done by identifying a potential new
+knot $\delta^*$ for each direction, $X_1=X$ and $X_2=Y$, based on the
+univariate GeDS procedure (GeDS). Then, the knot with maximal
+*within-cluster mean residual/within-cluster range*-weight is added.
+
+Below, the implementation of Normal bivariate GeDS and Poisson bivariate GeDS, with `NGeDS()` and `GGeDS()` functions, respectively, is illustrated. In particular the following example is considered:
+
+**Example 2.** The "true" linear predictor is assumed to be $\eta = f(x_1,x_2)$,
+where \begin{equation}
+f(x_1,x_2) = \sin(2x_1)\sin(2x_2),\quad x \in [0, 3]^2. 
+\end{equation}
+
+For the Normal case, a dataset $\{X_{i1}, X_{i2}, Y_i\}_{i=1}^N$ is simulated, with $Y_i = f(X_{i1}, X_{i2}) + \epsilon_i$, where $\epsilon_i \sim \mathcal{N}(0, 0.1)$. For the Poisson case, $Z_i \sim \text{Poisson}(0, 0.1)$ $Z_i ∼ \text{Poisson}(\mu_i)$, with $\mu_i = \exp(\eta_i)$ and $\eta_i = f(X_{i1}, X_{i2})$. In both cases, $(X_{i1}, X_{i2})$ are randomly scattered within $[0,3]^2$, following a uniform distribution and $N = 400$. 
+
+#### Normal Bivariate GeDS:
+
+```{r, fig.width=10, fig.height=8}
+# bivariate example
+# See Dimitrova et al. (2023), section 5
+
+# Generate a data sample for the response variable
+# Z and the covariates X and Y assuming Normal noise
+set.seed(123)
+doublesin <- function(x){
+ sin(2*x[,1])*sin(2*x[,2])
+}
+
+X <- (round(runif(400, min = 0, max = 3),2))
+Y <- (round(runif(400, min = 0, max = 3),2))
+Z <- doublesin(cbind(X,Y))
+Z <- Z + rnorm(400, 0, sd = 0.2)
+# Fit a two dimensional GeDS model using NGeDS
+(BivGeDS <- NGeDS(Z ~ f(X, Y), beta = 0.3, phi = 0.95,
+Xextr = c(0, 3), Yextr = c(0, 3)))
+
+# Extract quadratic coefficients/knots/deviance
+coef(BivGeDS, n = 3)
+knots(BivGeDS, n = 3)
+deviance(BivGeDS, n = 3)
+
+# RSS w.r.t true function
+f_XY <- apply(cbind(X, Y), 1, function(row) doublesin(matrix(row, ncol = 2))) 
+mean((f_XY- Gmod$Quadratic.Fit$Predicted)^2)
+
+# Surface plot of the generating function (doublesin)
+plot(BivGeDS, f = doublesin)
+```
+
+#### Poisson Bivariate GeDS:
+
+```{r, fig.width=10, fig.height=8}
+# bivariate example
+# See Dimitrova et al. (2023), section 5
+
+# Generate a data sample for the response variable
+# Z and the covariates X and Y assuming Poisson distributed error
+set.seed(123)
+doublesin <- function(x) {
+# Adjusting the output to ensure it's positive
+exp(sin(2*x[,1]) + sin(2*x[,2]))
+}
+X <- round(runif(400, min = 0, max = 3), 2)
+Y <- round(runif(400, min = 0, max = 3), 2)
+# Calculate lambda for Poisson distribution
+lambda <- doublesin(cbind(X,Y))
+# Generate Z from Poisson distribution
+Z <- rpois(400, lambda)
+data <- data.frame(X, Y, Z)
+
+# Fit a Poisson GeDS regression using GGeDS
+(BivGeDS <- GGeDS(Z ~ f(X,Y), beta = 0.2, phi = 0.99, family = "poisson"))
+
+# Extract quadratic coefficients/knots/deviance
+coef(BivGeDS, n = 3)
+knots(BivGeDS, n = 3)
+deviance(BivGeDS, n = 3)
+
+# Poisson deviance w.r.t true function
+f_XY <- apply(cbind(X, Y), 1, function(row) doublesin(matrix(row, ncol = 2)))
+sum(poisson()$dev.resids(f_XY, BivGeDS$Quadratic.Fit$Predicted, wt = 1))
+
+# Surface plot of the generating function (doublesin)
+plot(BivGeDS, f = doublesin)
+```

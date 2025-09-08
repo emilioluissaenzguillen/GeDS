@@ -1023,6 +1023,33 @@ NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE,
       final_model$base_learners[[bl_name]]$cubic.int.knots <- cc_list[[bl_name]]
     }
     
+    
+    
+    higher_order_fits <- lapply(
+      c(quadratic = 3, cubic = 4),
+      function(n) stageB_fit(n, args, GeDS_variables, linear_variables,
+                             response, final_model, normalize_data,
+                             weights = NULL,  # do not pass
+                             offset  = NULL,  # do not pass
+                             link    = TRUE)  # pull from args$link
+    )
+    
+    # Save models + predictions
+    final_model$quadratic.fit <- higher_order_fits$quadratic$fit
+    final_model$cubic.fit     <- higher_order_fits$cubic$fit
+    
+    pred_quadratic <- higher_order_fits$quadratic$preds
+    pred_cubic     <- higher_order_fits$cubic$preds
+    
+    # Save quadratic and cubic knots for each base-learner
+    for (bl_name in names(base_learners)) {
+      final_model$base_learners[[bl_name]]$quadratic.int.knots <- higher_order_fits$quadratic$knots[[bl_name]]
+      final_model$base_learners[[bl_name]]$cubic.int.knots <- higher_order_fits$cubic$knots[[bl_name]]
+    }
+    
+    
+    
+    
     } else {
       pred_quadratic <-  pred_cubic <- NULL
       for (bl_name in names(base_learners)){

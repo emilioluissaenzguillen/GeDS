@@ -21,8 +21,8 @@
 #' before changing the plot page.
 #' @param main An optional character string used as the plot title. If set to
 #' \code{"detail"}, the knots vector will be displayed on the plot.
-#' @param legend.pos The position of the legend within the panel. See
-#' \link[graphics]{legend} for details.
+#' @param legend.pos The position of the legend within the panel. Set to `NA` to
+#' suppress the legend. See \link[graphics]{legend} for details.
 #' @param legend.text A character vector specifying the legend text.
 #' @param new.window Logical variable specifying whether the plot should be
 #' shown in a new window or in the active one.
@@ -1046,6 +1046,9 @@ plot.GeDSgam <- function(x, base_learners = NULL,
   # Other arguments
   others <- list(...)
   
+  # Plot color
+  col_fit <- if (is.null(others$col)) "red" else others$col
+  
   
   Y <- x$args$response[[1]]; pred_vars <- x$args$predictors
   
@@ -1059,7 +1062,6 @@ plot.GeDSgam <- function(x, base_learners = NULL,
     theta <- x$final_model$cubic.fit$theta
     int.knots <- x$internal_knots$cubic.int.knots
   }
-  
   
   # If you provide more/less f than base-learners stop
   if (!is.null(f) && length(f) != length(base_learners)) {
@@ -1077,9 +1079,9 @@ plot.GeDSgam <- function(x, base_learners = NULL,
     int.knt <- int.knots[[bl_name]]
     
     pattern <- paste0("^", gsub("([()])", "\\\\\\1", bl_name))
-    theta <- theta[grep(pattern, names(theta))]
+    theta_bl <- theta[grep(pattern, names(theta))]
     # Replace NA values with 0
-    theta[is.na(theta)] <- 0
+    theta_bl[is.na(theta_bl)] <- 0
     
     ##########################
     # 1. Univariate learners #
@@ -1096,18 +1098,18 @@ plot.GeDSgam <- function(x, base_learners = NULL,
                                     x = X_mat, ord = n, derivs = rep(0,length(X_mat)),
                                     outer.ok = T)
         # To recover backfitting predictions need de_mean
-        predicted <- if (n == 2) basisMatrix %*% theta - mean(basisMatrix %*% theta) else basisMatrix %*% theta 
+        predicted <- if (n == 2) basisMatrix %*% theta_bl - mean(basisMatrix %*% theta_bl) else basisMatrix %*% theta_bl 
         ylab <-  bl_name
         
         # 1.2. Univariate Linear
       } else if (bl$type == "linear") {
         # Linear
         if (!is.factor(X_mat)) {
-          predicted <- theta * X_mat
+          predicted <- theta_bl * X_mat
           # Factor
         } else {
-          names(theta) <- levels(X_mat)[-1]
-          theta[levels(X_mat)[1]] <- 0 # set baseline coef to 0
+          names(theta_bl) <- levels(X_mat)[-1]
+          theta_bl[levels(X_mat)[1]] <- 0 # set baseline coef to 0
         }
         ylab <- bquote(beta[1] %*% .(bl_name))
       }
@@ -1121,7 +1123,7 @@ plot.GeDSgam <- function(x, base_learners = NULL,
         plot_data <- plot_data[order(plot_data$X_mat),]
         
         ylim <- if (is.null(others$ylim)) range(predicted) else others$ylim
-        col_fit <- if (is.null(others$col)) "red" else others$col
+        
         
         plot(plot_data, type = "l",
              xlab = bl$variables, ylab = ylab,
@@ -1144,7 +1146,7 @@ plot.GeDSgam <- function(x, base_learners = NULL,
         # Factor
       } else {
         par(mar = c(7.1, 4.1, 4.1, 2.1))
-        barplot(theta,
+        barplot(theta_bl,
                 las = 2,
                 col = col_fit,
                 main = bl_name,

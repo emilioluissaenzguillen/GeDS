@@ -1,0 +1,361 @@
+---
+title: "Generalized Additive Models (GAM) with GeD Splines"
+author: "Emilio Luis Sáenz Guillén"
+date: "`r Sys.Date()`"
+bibliography: citations.bib
+csl: apa.csl        
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Generalized Additive Models (GAM) with GeD Splines}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  dpi = 300,
+  fig.align = "center",
+  out.width = "80%",
+  echo = TRUE,
+  message = FALSE,
+  warning = FALSE
+)
+
+```
+
+## Introduction
+
+**Geometrically designed spline (GeDS)** regression is an efficient and
+versatile free-knot spline regression technique. This is based on a
+locally-adaptive knot insertion scheme that produces an initial
+piecewise linear spline fit, over which smoother higher order spline
+fits are subsequently built. GeDS was firstly introduced for the
+univariate Normal case by [@Kaishev2016](https://link.springer.com/article/10.1007/s00180-015-0621-7). It was later expanded to the
+broader context of Generalized Non-linear Models (GNM) ---which include
+Generalized Linear Models (GLM) as a special case---, and to the
+bivariate case by [@Dimitrova2023](https://www.sciencedirect.com/science/article/abs/pii/S0096300322005677). More recently, GeDS
+methodology has been extended towards the benchmark of Generalized
+Additive Models (GAM) and Functional Gradient Boosting (FGB) by
+[@Dimitrova2025].
+
+GeDS methodology is implemented on the **R** package
+[GeDS](https://cran.r-project.org/web/packages/GeDS/index.html). In this
+post I will focus in introducing the **GAM-GeDS** implementation. If
+interested in the canonical GeDS methodology please check [Geometrically
+Designed Splines:
+`GeDS`](https://rpubs.com/emilioluissaenzguillen/1273496).
+
+## What are Generalized Additive Models?
+
+You are probably familiar with linear regression. Let's do a quick
+review of some concepts.
+
+### Linear Regression and GLM
+
+**Multiple linear regression model (MLR)** is used to study the
+relationship between a dependent/response/outcome variable $Y$ and one
+or more independent/predictor/explanatory variables $X_1,..., X_P$. In
+particular, we assume that there is a <u>linear relationship</u> between
+the population mean of the outcome variable $Y$ and the value of the
+explanatory variables $X_1,..., X_P$: \begin{align}
+    &\mathbb{E}\left[Y\right] = \alpha + \sum_{j=1}^P\beta_jX_j \quad\text{or}\quad Y = \alpha + \sum_{j=1}^P\beta_jX_j + \varepsilon&&
+\end{align} where the response $Y$ and the error $\varepsilon$ are
+random variables, while the covariates $X_j, \; j = 1,...,P,$ are
+assumed to be deterministic. The MLR model relies on four major
+assumptions ([@Rencher2008](https://onlinelibrary.wiley.com/doi/book/10.1002/9780470192610), [@Montgomery2021](https://www.wiley.com/en-gb/Introduction+to+Linear+Regression+Analysis%2C+6th+Edition-p-9781119578758)):
+
+**A1.** The relationship between the response $Y$ and the regressors
+$X_1,...,X_P$ is linear.
+
+**A2.** The error term has zero mean,
+$\mathbb{E}\left[\varepsilon\right]=0$, or, equivalently,
+$\mathbb{E}\left[Y\right] = \alpha + \sum_{j=1}^P\beta_jX_j$.
+
+**A3.** The error term has constant variance,
+$\mathbb{E}\left[\varepsilon^2\right]=\sigma^2$, or, equivalently,
+$\text{Var}(Y) =\sigma^2$.
+
+**A4.** The errors are uncorrelated,
+$\text{Cov}\left(\varepsilon_i, \varepsilon_j\right) = 0,\;\forall i\neq j$,
+or, equivalently,
+$\text{Cov}\left(Y_i, Y_j\right) = 0,\;\forall i\neq j$.
+
+And since we are often interested in testing hypotheses and constructing
+confidence intervals about the model parameters, an additional
+assumption is often included:
+
+**A5.** The errors are normally distributed.
+
+To sum up, we assume that the relation between $Y$ and $X_1,...,X_P$ is
+linear, that $\varepsilon \sim \mathcal{N}(0,\sigma^2)$ —or
+$Y \sim \mathcal{N}(\alpha + \sum_{j=1}^P\beta_jX_j,\sigma^2)$—, and
+that the errors are uncorrelated with each other. Jointly normally
+distributed random variables are independent if they are uncorrelated,
+and thus, instead of **A4**, it is also common to see instead the
+assumption that "errors are independent of each other", i.e.,
+$\varepsilon_i,\varepsilon_j$ are independent $\forall i\neq j$, or,
+equivalently, $Y_i,Y_j$ are independent $\forall i\neq j$. Given a
+sample $\{Y_i,X_i\}_{i=1}^N$, estimates of
+$\beta_0, \beta_1,...,\beta_P$ are usually obtained using the least
+squares method. If assumptions **A1**-**A4** hold then, by the
+Gauss-Markov theorem, the least-squares estimators $\beta_1,...\beta_P$
+are best linear unbiased estimators (BLUE). If **A5** is also satisfied,
+LS coincides with the maximum likelihood estimator (MLE).
+
+**Generalized linear models (GLM)** extend linear models to accommodate
+data from any distribution belonging to the exponential family, which,
+for example, includes the Normal, Poisson, Binomial or Gamma
+distributions. A GLM relates the conditional mean of the response
+variable to the linear predictor function via an invertible link
+function $g$: \begin{align}
+    &g\left(\mathbb{E}\left[Y\right]\right) = \beta_0+\beta_1X_1+\beta_2X_2+...+\beta_PX_P
+    &&
+\end{align}
+
+### Additive models and GAM
+
+**Additive models (AM)** extend MLR by allowing for the incorporation of
+nonlinear smooth functions of the covariates: \begin{align}
+    &\mathbb{E}\left[Y|X_1,..., X_P\right] = \alpha+\sum_{j=1}^P f_j(X_j)
+    \quad\text{or}\quad Y = \alpha + \sum_{j=1}^P f_j(X_j) +\varepsilon &&
+\end{align} where the error term $\varepsilon$ is assumed to have zero
+mean, $\mathbb{E}\left[\varepsilon\right]=0$, constant variance,
+$\mathbb{E}\left[\varepsilon^2\right]=\sigma^2$, and to be independent
+of the predictor variables $X_1,...,X_P$. It is also implicitly assumed
+that $\mathbb{E}\left[f_j\left(X_j\right)\right]=0$ (which implies
+$\mathbb{E}\left[Y\right]=\alpha$), since otherwise there would be
+unaccounted constants in each of the functions $f_j$
+([@Hastie1990](https://www.taylorfrancis.com/books/mono/10.1201/9780203753781/generalized-additive-models-hastie)).
+
+**Generalized additive models (GAM)** extend GLM in a similar way, i.e.,
+by replacing each linear component $\beta_jX_j$ with a smooth non-linear
+function $f_j(X_j)$, in order to allow for non-linear predictor effects.
+In other words, GAM extend AM by allowing the response variable to
+follow any distribution from the exponential family.
+
+\begin{align}
+    g(\mathbb{E}\left[Y|X_1,...,X_P\right]) = \alpha + \sum_{j=1}^P f_j(X_j), \quad\quad \mathbb{E}\left[f_j(X_j)\right] = 0,\quad j=1,...,P
+\end{align}
+
+### Generalized Additive Models fitting: Local-Scoring and Backfitting
+
+[@Hastie1990](https://www.taylorfrancis.com/books/mono/10.1201/9780203753781/generalized-additive-models-hastie), propose the *local scoring* algorithm in
+conjunction with the *backfitting* algorithm to fit GAM.
+
+#### 1. Backfitting
+
+One can fit an AM by means of the backfitting algorithm:
+
+------------------------------------------------------------------------
+
+**Algorithm 1**: Backfitting Algorithm for Additive Models
+
+------------------------------------------------------------------------
+
+1.  Initialize: $\hat{\alpha}=\frac{1}{N}\sum_{i=1}^NY_i$,
+    $\hat{f}_j= 0$, $\forall j$
+
+2.  For each base-learner $\hat{f}_j$, $j=1,...,P$ \begin{align}
+    &\hat{f}_j \leftarrow S_j\left[\left\{Y_i-\hat{\alpha}-\sum_{k\neq j}\hat{f}_k\left(X_{ik}\right)\right\}_{i=1}^N\right]\\
+    &\hat{f}_j \leftarrow \hat{f}_j -\frac{1}{N}\sum_{i=1}^N\hat{f}_j(X_{ij})
+    \end{align} for $S_j$ being some arbitrary scatterplot smoother
+    (i.e. some regression fitting model).
+
+3.  Repeat Step 2 until \begin{align}
+    \text{RSS}=\sum_{i=1}^N\left(Y_i-\hat{\alpha}-\sum_{j=1}^Pf_j(X_{ij})\right)^2
+    \end{align} fails to decrease.
+
+------------------------------------------------------------------------
+
+#### 2. Local Scoring
+
+For fitting GAM, the local scoring algorithm is proposed:
+
+------------------------------------------------------------------------
+
+**Algorithm 2**: Local Scoring Algorithm for Generalized Additive Models
+
+------------------------------------------------------------------------
+
+1.  \textbf{Initialize:}
+    $\hat{\alpha}=g\left(\frac{1}{N}\sum_{i=1}^NY_i\right)$,
+    $\hat{f}_j^0=0$, $j=1,...,P$, and $m=0$.
+
+2.  \textbf{Iterate:} Set $m=m+1$ and iterate to form the predictor
+    $\boldsymbol{\hat{\eta}}$, the mean $\boldsymbol{\hat{\mu}}$, the
+    weights $\boldsymbol{w}$, and the adjusted dependent variable
+    $\boldsymbol{z}$:
+
+-   Form the adjusted dependent variable \begin{align}
+    & z_i = \hat{\eta}^{(m-1)}_i+\left(Y_i - \hat{\mu}^{(m-1)}_i \right)\cdot\left(\frac{\partial\hat{\eta}}{\partial\hat{\mu}}\right)_i^{(m-1)}
+    \end{align} where,
+    $\hat{\eta}^{(m-1)}_i = \hat{\alpha} + \sum_{j=1}^P \hat{f}_j^{(m-1)}(X_{ij})$
+    and $\hat{\mu}^{(m-1)}_i = g^{-1}\left(\hat{\eta}^{(m-1)}_i\right)$
+-   Form the weights:
+    $w_ i = \left(V^{(m-1)}_ i\right)^{-1}\cdot \left[\left(\frac{\partial\hat{\mu}}{\partial \hat{\eta} }\right)_ i^{(m-1)}\right]^2$
+    where $V_i^{(m-1)}$ is the variance of $Y$ at $\hat{\mu}_i^{(m-1)}$.
+-   Fit an additive model to $\boldsymbol{z}$ by using the backfitting
+    algorithm with weights $\boldsymbol{w}$ to obtain the estimated
+    functions $\hat{f}_j^{(m)}(\cdot)$, $j=1,...P$, and the model
+    $\boldsymbol{\hat{\eta}^m}$.
+
+3.  \textbf{Until:} The empirical deviance
+    $\sum_{i=1}^N\text{dev}\left(Y_i,\hat{\mu}^m_i\right)$ fails to
+    decrease.
+
+------------------------------------------------------------------------
+
+Note that if `family = "gaussian"` the local scoring algorithm stems to
+straight implementation of backfitting.
+
+## Generalized Additive Models with GeD Splines
+
+Our GAM-GeDS implementation involves applying the local scoring
+algorithm, using Normal GeD splines as the function smoothers to
+estimate $f_j$ within the backfitting algorithm.
+
+```{r message=FALSE, warning=FALSE}
+# install.packages("GeDS")
+library(GeDS)
+```
+
+Let us illustrate the GAM-GeDS technique by using the `car.test.frame`
+dataset. The `car.test.frame` data frame has 60 rows and 8 columns,
+giving data on makes of cars taken from the April, 1990 issue of
+*Consumer Reports* ([@rpart](https://CRAN.R-project.org/package=rpart)). The variables are:
+
+-   `Price`: price in US dollars of a standard model
+-   `Country` of origin: a factor with levels `France`, `Germany`,
+    `Japan`, `Japan/USA`, `Korea`, `Mexico`, `Sweden` and `USA`.
+-   `Reliability`: a numeric vector coded 1 to 5.
+-   `Mileage`: fuel consumption in (US) miles per gallon (mpg).
+-   `Type`: a factor with levels `Compact`, `Large`, `Medium`, `Small`,
+    `Sporty`, and `Van`.
+-   `Weight`: kerb weight in pounds.
+-   `Disp.`: the engine capacity (displacement) in liters.
+-   `HP`: net horsepower of the vehicle.
+
+```{r message=FALSE, warning=FALSE}
+car_data <- rpart::car.test.frame
+Gmodgam <- NGeDSgam(Mileage ~ f(Price) + Country + Type + f(Weight) + f(Disp.) + f(HP),
+                    data = car_data, phi = 0.95)
+
+
+```
+
+The above messages inform us that no internal knot was fit for `Weight`,
+i.e. the GeDS learner considered that a straight line fit was the best
+option for this predictor. Hence, no averaging knot location is computed
+for this covariate (see Stage B in [Geometrically Designed
+Splines:`GeDS`](https://rpubs.com/emilioluissaenzguillen/1186169)). For
+`Disp.` only one internal knot was fit, hence, the averaging knot
+location for the quadratic and cubic fits is not computed. Note we relax
+the defaul GeDS stopping rule by setting `phi = 0.95` (instead of
+`phi = 0.9`).
+
+First, we can extract the coefficients of the linear/quadratic/cubic
+GeDS-GAM fits (not displayed for conciseness):
+
+```{r results = 'hide'}
+# Linear GAM-GeDS Fit
+coef(Gmodgam, n = 2)
+# Quadratic GAM-GeDS Fit
+coef(Gmodgam, n = 3)
+# Cubic GAM-GeDS Fit
+coef(Gmodgam, n = 4)
+```
+
+The coefficients for the linear fit are provided in piecewise polynomial
+form, while for the quadratic and cubic fits are given in B-spline form.
+
+Second, the knots can be extracted as follows:
+
+```{r}
+# Linear GAM-GeDS Fit
+knots(Gmodgam, n = 2)
+# Quadratic GAM-GeDS Fit
+knots(Gmodgam, n = 3)
+# Cubic GAM-GeDS Fit
+knots(Gmodgam, n = 4)
+```
+
+where note that the $n$ left and right most knots are assumed
+coalescent.
+
+Third, we can extract the deviances, which in this case (family =
+"gaussian") are the Residual Sum of Squares (RSS):
+
+```{r}
+# Linear GAM-GeDS Fit
+deviance(Gmodgam, n = 2)
+# Quadratic GAM-GeDS Fit
+deviance(Gmodgam, n = 3)
+# Cubic GAM-GeDS Fit
+deviance(Gmodgam, n = 4)
+```
+
+The components of a GAM-GeDS object can be plotted in the linear
+predictor scale as follows:
+
+```{r, fig.width=10, fig.height=6}
+# Linear GAM-GeDS Fit
+layout(matrix(c(1,2), nrow=1, byrow=TRUE))
+plot(Gmodgam, n = 2, col = "steelblue")
+
+# Quadratic GAM-GeDS Fit
+layout(matrix(c(1,2), nrow=1, byrow=TRUE))
+plot(Gmodgam, n = 3, col = "steelblue")
+
+# Cubic GAM-GeDS Fit
+layout(matrix(c(1,2), nrow=1, byrow=TRUE))
+plot(Gmodgam, n = 4, col = "steelblue")
+```
+
+For each fit, for each learner, the corresponding knots location is
+traced with vertical dotted lines.
+
+To assess the model's accuracy on unseen data we can proceed as follows:
+
+```{r message=FALSE, warning=FALSE, results = 'hide'}
+# Set seed for reproducibility
+set.seed(123)
+# Determine the size of the dataset
+n <- nrow(car_data)
+# Create a random sample of row indices for the training set
+trainIndex <- sample(1:n, size = floor(0.8 * n))
+# Subset the data into training and test sets
+train <- car_data[trainIndex, ]
+test <- car_data[-trainIndex, ]
+
+Gmodgam <- NGeDSgam(Mileage ~ f(Price) + Country + Type + f(Weight) + f(Disp.) + f(HP),
+                    data = train, phi = 0.9)
+
+```
+
+The truth is more likely to be smooth than wiggly, hence we reduce
+further `phi`. We compute predictions on the test sample and calculate
+the corresponding mean squared error for each fit:
+
+```{r}
+mean((test$Mileage - predict(Gmodgam, newdata = test, n = 2))^2)
+mean((test$Mileage - predict(Gmodgam, newdata = test, n = 3))^2)
+mean((test$Mileage - predict(Gmodgam, newdata = test, n = 4))^2)
+
+```
+
+To conclude, let us move to the actual GAM context by considering the
+modelling of `Price` instead. A widely used distribution for pricing
+models is `Gamma`.
+
+```{r message=FALSE, warning=FALSE, results = 'hide'}
+Gmodgam <- NGeDSgam(Price ~ f(Mileage) + Country + Type + f(Weight) + f(Disp.) + f(HP),
+                    data = train, family = Gamma(link=log), phi = 0.9)
+```
+
+And we calculate the Gamma deviance on the test set as follows:
+
+```         
+sum(Gamma()$dev(test$Price, predict(Gmodgam, newdata = test, n = 2), wt = 1))
+sum(Gamma()$dev(test$Price, predict(Gmodgam, newdata = test, n = 3), wt = 1))
+sum(Gamma()$dev(test$Price, predict(Gmodgam, newdata = test, n = 4), wt = 1))
+```

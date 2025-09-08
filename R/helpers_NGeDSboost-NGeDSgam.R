@@ -610,3 +610,44 @@ count_initial_zeroes <- function(x) {
   return(-leading_zeroes + 1)
 } 
 
+
+########################
+### 10. Stage B fits ###
+########################
+stageB_fit <- function(n, args, GeDS_variables, linear_variables,
+                       response, final_model, normalize_data,
+                       weights = FALSE, offset = FALSE, link = FALSE) {
+  
+  X_mat <- args$predictors[, GeDS_variables, drop = FALSE]
+  Z_mat <- args$predictors[, linear_variables, drop = FALSE]
+  Y_vec <- args$response[[response]]
+  n_obs <- length(Y_vec)
+  
+  # Turn boolean flags into actual values (or NULL)
+  wts <- if (isTRUE(weights)) args$weights else rep(1, n_obs)
+  off <- if (isTRUE(offset))  args$offset  else rep(0, n_obs)
+  lnk <- if (isTRUE(link))    args$link    else NULL
+  
+  # 1) knots
+  iklist <- compute_avg_int.knots(
+    final_model,
+    base_learners = args$base_learners,
+    args$X_sd, args$X_mean, normalize_data,
+    n = n
+  )
+  
+  # (IR)LS fit
+  fit <- tryCatch(
+    suppressMessages(
+      SplineReg_Multivar(X = X_mat, Y = Y_vec,
+                         Z = Z_mat, offset = off,
+                         weights = wts, base_learners = args$base_learners,
+                         InterKnotsList = iklist, n = n, family = args$family, link = lnk)
+    ),
+    error = function(e) { warning(sprintf("Error computing n=%d fit: %s", n, conditionMessage(e))); NULL }
+  )
+  
+  preds <- if (!is.null(fit) && !is.null(fit$predicted)) as.numeric(fit$predicted) else rep(NA_real_, n_obs)
+  list(fit = fit, preds = preds, knots = iklist)
+}
+

@@ -337,7 +337,8 @@ NGeDSgam <- function(formula, family = "gaussian", data, weights = NULL,
     "base_learners"= base_learners,
     "family" = family,
     "normalize_data" = normalize_data,
-    "offset" = offset
+    "offset" = offset,
+    "weights" = weights
     )
   
   # Add 'response' as the first element of the list 'args'
@@ -562,45 +563,28 @@ NGeDSgam <- function(formula, family = "gaussian", data, weights = NULL,
   #######################
   if (higher_order) {
     
-    # Quadratic fit
-    qq_list <- compute_avg_int.knots(final_model, base_learners = base_learners,
-                                   args$X_sd, args$X_mean, normalize_data, n = 3)
-    quadratic_fit <- tryCatch({
-      suppressMessages(
-        SplineReg_Multivar(X = args$predictors[GeDS_variables], Y = args$response[[response]],
-                           Z = args$predictors[linear_variables], offset = args$offset,
-                           base_learners = args$base_learners, weights = weights,
-                           InterKnotsList = qq_list, n = 3, family = family)
-        )
-      }, error = function(e) {
-        cat(paste0("Error computing quadratic fit:", e))
-        return(NULL)
-        })
-    final_model$quadratic.fit <- quadratic_fit
-    pred_quadratic <- as.numeric(quadratic_fit$predicted)
+    higher_order_fits <- lapply(
+      c(quadratic = 3, cubic = 4),
+      function(n) stageB_fit(n, args, GeDS_variables, linear_variables,
+                             response, final_model, normalize_data,
+                             weights = TRUE,      # pull args$weights
+                             offset  = TRUE,      # pull args$offset
+                             link    = FALSE)     # don't pass link separately
+    )
     
-    # Cubic fit
-    cc_list <- compute_avg_int.knots(final_model, base_learners = base_learners,
-                                     args$X_sd, args$X_mean, normalize_data, n = 4)
-    cubic_fit <- tryCatch({
-      suppressMessages(
-        SplineReg_Multivar(X = args$predictors[GeDS_variables], Y = args$response[[response]],
-                           Z = args$predictors[linear_variables], offset = args$offset,
-                           base_learners = args$base_learners, weights = weights,
-                           InterKnotsList = cc_list, n = 4, family = family)
-        )
-      }, error = function(e) {
-        cat(paste0("Error computing cubic fit:", e))
-        return(NULL)
-        })
-    final_model$cubic.fit <- cubic_fit
-    pred_cubic <- as.numeric(cubic_fit$predicted)
+    # Save models + predictions
+    final_model$quadratic.fit <- higher_order_fits$quadratic$fit
+    final_model$cubic.fit     <- higher_order_fits$cubic$fit
+   
+    pred_quadratic <- higher_order_fits$quadratic$preds
+    pred_cubic     <- higher_order_fits$cubic$preds
     
     # Save quadratic and cubic knots for each base-learner
-    for (bl_name in names(base_learners)){
-      final_model$base_learners[[bl_name]]$quadratic.int.knots <- qq_list[[bl_name]]
-      final_model$base_learners[[bl_name]]$cubic.int.knots <- cc_list[[bl_name]]
+    for (bl_name in names(base_learners)) {
+      final_model$base_learners[[bl_name]]$quadratic.int.knots <- higher_order_fits$quadratic$knots[[bl_name]]
+      final_model$base_learners[[bl_name]]$cubic.int.knots <- higher_order_fits$cubic$knots[[bl_name]]
     }
+    
   } else {
     pred_quadratic <-  pred_cubic <- NULL
     final_model$base_learners[[bl_name]]$quadratic.int.knots <- NULL

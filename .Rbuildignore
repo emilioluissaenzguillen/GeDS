@@ -1,8 +1,5 @@
 ^.*\.Rproj$
 ^\.Rproj\.user$
-^doc$
 ^Meta$
-^vignettes/jss_article\.pdf$
 ^\.github(/|$)
-
 ^dev$

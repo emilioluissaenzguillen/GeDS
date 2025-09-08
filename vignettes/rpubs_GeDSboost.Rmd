@@ -1,0 +1,505 @@
+---
+title: "Functional Gradient Boosting (FGB) with GeD Splines"
+author: "Emilio Luis Sáenz Guillén"
+date: "`r Sys.Date()`"
+bibliography: citations.bib
+csl: apa.csl        
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Functional Gradient Boosting (FGB) with GeD Splines}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  dpi=300,
+  fig.align = "center",
+  out.width = "80%",
+  echo = TRUE,
+  message = FALSE,
+  warning = FALSE
+)
+```
+
+## 1. Introduction
+
+**Geometrically designed spline (GeDS)** regression is an efficient and
+versatile free-knot spline regression technique. This is based on a
+locally-adaptive knot insertion scheme that produces an initial
+piecewise linear spline fit, over which smoother higher order spline
+fits are subsequently built. GeDS was firstly introduced for the
+univariate Normal case by [@Kaishev2016](https://link.springer.com/article/10.1007/s00180-015-0621-7).
+It was later expanded to the broader context of Generalized Non-linear Models (GNM) ---which include
+Generalized Linear Models (GLM) as a special case---, and to the
+bivariate case by [@Dimitrova2023](https://www.sciencedirect.com/science/article/abs/pii/S0096300322005677). More recently, GeDS
+methodology has been extended towards the benchmark of Generalized
+Additive Models (GAM) and Functional Gradient Boosting (FGB) by
+[@Dimitrova2025].
+
+GeDS methodology is implemented on the **R** package
+[GeDS](https://cran.r-project.org/web/packages/GeDS/index.html). In this
+post I will focus in introducing the **FGB-GeDS** implementation. If
+interested in the canonical GeDS methodology please check [Geometrically
+Designed Splines:
+`GeDS`](https://rpubs.com/emilioluissaenzguillen/1273496). If interested in the GAM-GeDS implementation see [Generalized Additive Models (GAM) with GeD Splines](https://rpubs.com/emilioluissaenzguillen/1209067).
+
+```{r message=FALSE, warning=FALSE}
+# install.packages("GeDS")
+library(GeDS)
+```
+
+## 2. Functional Gradient Boosting
+
+**Functional Gradient Boosting** ([@Friedman2001](https://doi.org/10.1214/aos/1013203451))—also referred to
+as ‘Gradient Boosting’ or simply ‘Boosting’— is an
+ensemble machine learning (ML) technique that iteratively combines multiple simple
+models (‘weak-learners’), each striving to enhance the performance of the
+previous accumulative model. The estimation process is carried out by minimizing
+a corresponding loss function via *gradient descent*; in other words, minimization
+occurs in the functional space rather than in the parameter space.
+
+Gradient Boosting algorithms rank among the top models for tabular data, often being the go-to choice for winning [ML competitions](https://medium.com/@abhaysingh71711/gradient-boosting-explained-turning-weak-models-into-winners-c5d145dca9ab).
+
+Though the concept of boosting had been earlier developped, [@Friedman2000](https://doi.org/10.1214/aos/1016218223) and [@Friedman2001](https://doi.org/10.1214/aos/1013203451) where the ones adapting it to the field of statistical modeling, laying the statistical foundation for numerous algorithms by providing a general approach to boosting through optimization in functional space. [@Friedman2001](https://doi.org/10.1214/aos/1013203451) developed the first explicit regression gradient boosting algorithms, significantly advancing the application of boosting techniques beyond classification, to general function approximation. Friedman demonstrates that boosting algorithms can be regarded as an empirical risk optimization technique implementing steepest gradient descent in function space. Consider the i.i.d. random variables $(Y,X)$ where $Y$ is a one-dimensional “output” or “response” variable and $X$ is a $P$-dimensional vector of “input” or “explanatory” variables. The objective is to estimate the optimal prediction function
+\begin{equation}
+    F^*(\cdot)=\text{argmin}_{F(\cdot)}\mathbb{E}\left[L(Y,F(X)\right]
+\end{equation}
+that maps $X$ to $Y$, where $F:\mathbb{R}^{P}\mapsto\mathbb{R}$ and $L(\cdot,\cdot):\mathbb{R}\times\mathbb{R}\mapsto\mathbb{R}^{+}$. In other words, $F^*(\cdot)$ is defined to be the population minimizer of a given loss function $L(\cdot)$ over the joint distribution of $(Y,X)$ (see [@Friedman2000](https://doi.org/10.1214/aos/1016218223)). To allow for gradient descent optimization of the loss and ensure convergence to a sole global minimum, $L(\cdot)$ is usually assumed to be differentiable and convex with respect to $F(\cdot)$. 
+
+Given a learning sample of observations $(Y_1, X_1), ...,(Y_N, X_N)$, estimation of $F^*(\cdot)$ is then undertaken by minimizing the empirical risk via iterative gradient descent in function space, that is, $\widehat{F}^*(\cdot)=\text{argmin}_{F(\cdot)}\frac{1}{N}\sum_{i=1}^NL\left(Y_i, F(X_i)\right)$. Functional gradient boosting, as given by [@Friedman2000](https://doi.org/10.1214/aos/1016218223), is presented in [Algorithm 1](#algorithm-label).
+
+
+------------------------------------------------------------------------
+
+<span id="algorithm-label"></span>**Algorithm 1**: Functional Gradient Boosting
+
+------------------------------------------------------------------------   
+Given a data sample $\{Y_i,X_i\}_{i=1}^N$, a differentiable loss function $L\left(Y,F(X)\right)$ and a stopping number of iterations $m_{stop}$, the generic FGB algorithm proceeds as follows:
+
+1. Initialize the model with a constant value (initial learner). A common choice is the empirical risk minimizer of the corresponding loss function:
+$$
+\widehat{F}_0(\cdot)=\text{argmin}_c\frac{1}{N}\sum_{i=1}^NL(Y_i, c),
+$$
+where $c$ is a constant that minimizes the average loss.  
+
+2. For $m=1$ to $m_{stop}$,
+
+- Compute the negative gradient vector:
+  $$
+  U_{i,m} = -\left[\frac{\partial L(Y_i, F(X_i))}{\partial F(X_i)}\right]_{F(X_i)=\widehat{F}_{m-1}(X_i)} \quad i=1,\ldots,N
+  $$
+
+- Fit a real-valued base (weak) learner $\hat{f}_m$ to the gradient vector $U_{i,m}$.
+
+- Compute the step size (shrinkage) parameter $\nu_m$ as 
+  $$
+  \nu_m = \text{argmin}_\nu \sum_{i=1}^N L\left(Y_i, \widehat{F}_{m-1}(X_i) + \nu \hat{f}_m(X_i)\right)
+  $$
+
+- Update the model:
+  $$
+  \widehat{F}_m(\cdot) = \widehat{F}_{m-1}(\cdot) + \nu_m \hat{f}_m(\cdot)
+  $$
+
+
+------------------------------------------------------------------------    
+
+### 2.1. Boosting with Splines
+Most popular boosting implementations ([gbm](https://cran.r-project.org/web/packages/gbm/index.html), [xgboost](https://cran.r-project.org/web/packages/xgboost/index.html), [lightgbm](https://cran.r-project.org/web/packages/lightgbm/index.html)), use decision trees as base-learners. Nonetheless, the use of splines within the gradient boosting framework, has also been largely considered. This combination allows for highly accurate and interpretable models that can also effectively manage nonlinear relationships within the data. A major exponent in this regard is the [`mboost`](https://cran.r-project.org/web/packages/mboost/index.html) **R** package, which builds on notable contributions in the literature. For instance, [@Buhlmann2003](https://doi.org/10.1198/016214503000125) propose component-wise cubic smoothing splines as a ‘practical and efficient’ procedure, particularly when dealing with high-dimensional predictors. The authors empirically demonstrate the competitiveness of boosting with smoothing splines compared to conventional estimation methods such as backfitting or boosting with trees. On a subsequent work, P-spline functions of the predictors were proposed, yielding similar prediction errors to smoothing splines while offering greater computational efficiency ([@Schmid2008](https://doi.org/10.1016/j.csda.2008.09.009)).
+
+### 2.2. Componentwise Functional Gradient Boosting
+Component-wise (or model-based) Gradient Boosting ([@Buhlmann2003](https://doi.org/10.1198/016214503000125), [@Buhlmann2007](https://doi.org/10.1214/07-STS242)) is a boosting algorithm for <u>fitting additive models</u>, inherently performing variable selection.  
+
+You may be more familiar with the Gradient Boosting Machine (GBM; [gbm](https://cran.r-project.org/web/packages/gbm/index.html)) algorithm mentioned above, one of the leading methods in Kaggle competitions. GBM uses decision trees as base-learners. At each boosting iteration, these trees are "grown" by splitting on any of the available input variables: the algorithm automatically determines which variables and splits to use in order to minimize the residual error. 
+
+In contrast, Component-wise Gradient Boosting requires explicit definition of the base learners for each variable or set of variables before fitting the model. Each base learner corresponds to a model for one specific component of the input data. These could be linear models, splines, or other types of functions applied to one or more variables. At each iteration, the algorithm fits the gradient with each base learner by separate. The model is then updated *exclusively* with the base learner that achieves the lowest residual sum of squares (RSS), ensuring that only the most effective component is chosen to improve the model at each step.
+
+Component-wise Gradient Boosting offers greater control over the modeling process by requiring users to specify the base learners, allowing for a more tailored approach to complex data structures, particularly when working with functional data. In contrast, traditional GBM operates in a more automated and flexible manner, making internal decisions about variable selection and splits during tree construction. As a result, the latter resulting models are typically less transparent (“black-box”), while Component-wise Gradient Boosting often yields models that are easier to interpret.
+
+Let us formally present Component-wise Gradient Boostin as follows. Consider a set of realizations of i.i.d random variables $\{Y_i,X_i\}_{i=1}^N$, where $Y_{1},...,Y_{N}$ are one-dimensional response vectors and $X_{1},...,X_{N}$ are $P$-dimensional vectors of covariates. Given this data sample and a pre-chosen set of $K$ univariate or multivariate base-learners (i.e., $K\leq P$), the objective is to estimate $F^{*}$ as:
+\begin{equation}
+\hat{F}^{*}=\hat{F}_{0}+\hat{F}^{*}_{1}+...+\hat{F}^{*}_{K}\quad\text{with}\quad\hat{F}^{*}_{j}=\nu\times\sum_{i=1}^{m^*}f_{i}^{j}\mathbb{1}\left(\boldsymbol{\hat{f}_{i}}=\hat{f}_{i}^{j}\right),\quad j=1,...,K
+\end{equation}
+where $m^*$ ($\sim m_{stop}$) stands for the boosting iteration where the optimal fit $\hat{F}^{*}$ is achieved; $\boldsymbol{\hat{f}_{i}}$ denotes the optimal learner selected according to some pre-established criterion at the $i$th boosting iteration. Each function estimate $\hat{F}^j$ is then the cumulative sum of the estimates $f_{i}^{j}$ for each iteration where the corresponding base-learner, $j$, was selected to update the model $\widehat{F}$, i.e., for each iteration where $\boldsymbol{\hat{f}_{i}}=\hat{f}_{i}^{j}$.
+
+
+## 3. Overcoming key limitations of Gradient Boosting with FGB-GeDS
+
+Some of the [major drawbacks](http://uc-r.github.io/gbm_regression#proscons) of gradient boosting include:
+
+1. Gradient boosting models (GBMs) iteratively minimize errors, which can lead to overemphasis on outliers and cause overfitting. In this regard the choice of two mains parameters arises:
+- The stopping boosting iteration, $m_{stop}$. For example, [@Buhlmann2011](https://link.springer.com/book/10.1007/978-3-642-20192-9) suggest this can be determined via cross-validation.
+- The shrinkage/learning/step-length rate, $\nu$. According to [@Friedman2001](https://doi.org/10.1214/aos/1013203451) (see [Algorithm 1](#algorithm-label)), the step length should be chosen to minimize the objective function at each boosting iteration. [@Buhlmann2011](https://link.springer.com/book/10.1007/978-3-642-20192-9) consider the choice of $\nu$ to be of minor importance as long as it is “small” to allow for gradual learning and reduce the risk of overfitting.
+There is a clear trade-off in the selection of $\nu$ and $m_{stop}$: smaller values of $\nu$ give rise to larger optimal $m_{stop}$-values, and viceversa ([@Friedman2001](https://doi.org/10.1214/aos/1013203451)).
+2. High flexibility of gradient boosting comes at the cost of numerous interacting parameters that may significantly affect the model's behavior and performance. This complexity may require an extensive search process during hyperparameter tuning.
+3. Computationally expensive - GBMs fitting often requires many boosting iterations which can be time and memory exhaustive. In addition, the final boosted fit is typically expressed as the cumulative sum of all the sub-models generated across successive boosting iterations, which lead to the necessity to sum a large number of base-learner fits when evaluating the model.
+4. Gradient boosting models lack straightforward interpretation and are often referred to as “black-box” models. The accumulative nature of the final boosted fit, which combines multiple (sometimes complex) base learners into a single predictive model, obscures the understanding of the overall model structure and the rationale behind individual predictions.
+
+<span style="font-size: 24px; color: black; vertical-align: -2px;">&#10142;</span> **FGB-GeDS** successfully deals with the above drawbacks:
+
+1. Optimal number of boosting iterations determined by a **stopping rule** based on a ratio of consecutive deviances.
+2. The strength of the base learners is automatically regulated by the GeDS learner, which determines the number of knots to fit to the gradient vector at each boosting iteration. Additionally, the strength of the learners can also be flexibly adjusted using two tuning parameters, `beta` and `phi` (see [Geometrically
+Designed Splines:
+`GeDS`](https://rpubs.com/emilioluissaenzguillen/1273496)). This adaptability is key in building a consistent approach with relatively stable performance.
+3. & 4. The final FGB-GeDS boosted model is represented as a *single spline model*, which simplifies its evaluation and enhances interpretability. This is achieved by re-expressing the B-spline representation of a GeDS base learner into a piecewise polynomial form, which allows for the direct summation of polynomial coefficients across corresponding segments within the boosting algorithm.
+
+## 4. Functional Gradient Boosting with GeDS base-learners
+The default FGB-GeDS implementation consists of an <u>initial weak GeDS learner</u> followed by a <u>few boosting iterations with strong GeDS learners</u>. Consider the following test example. Assume the "true" predictor to be $\eta=f_1(x)$, where,
+\begin{equation}
+    f_1(x)=40\frac{x}{1+100x^2}+4,\quad x\in[-2,2].
+\end{equation}
+Based on $f_1(x)$, we generate random samples $\{X_i,Y_i\}_{i=1}^N$ with
+correspondingly normally distributed response variable, $Y$, and
+uniformly distributed explanatory variable, $X$. We then fit an FGB-GeDS model to this simulated data using the `NGeDSboost()` function:
+
+```{r}
+# Generate a data sample for the response variable
+# Y and the single covariate X
+set.seed(123)
+N <- 500
+f_1 <- function(x) (10*x/(1+100*x^2))*4+4
+X <- sort(runif(N, min = -2, max = 2))
+# Specify a model for the mean of Y to include only a component
+# non-linear in X, defined by the function f_1
+means <- f_1(X)
+# Add (Normal) noise to the mean of Y
+Y <- rnorm(N, means, sd = 0.2)
+data = data.frame(X, Y)
+
+Gmodboost <- NGeDSboost(Y ~ f(X), data = data)
+```
+
+```{r, fig.width=16, fig.height=8}
+layout(matrix(c(1,2), nrow=1, byrow=TRUE))
+visualize_boosting(Gmodboost, 0:N.boost.iter(Gmodboost), final_fits = TRUE)
+```
+
+On the left, the linear fit of the model to the data at each boosting
+iteration is depicted, starting with an initial learner `NGeDS()` fit with two internal knots. Above each plot, the vector of internal knots of each fit is displayed. On the right, the `NGeDS()` base-learner fit to the recomputed residuals at each boosting iteration is depicted; the internal knots fitted at the corresponding iteration are displayed at the top of each plot.  The final
+plot displays the linear, quadratic, and cubic fits, which are obtained by first computing the corresponding averaging knot location of the knots vector obtained through the boosting iterations, and, second, re-estimating the B-spline coefficients via least squares (see Stage B in [Geometrically
+Designed Splines:
+`GeDS`](https://rpubs.com/emilioluissaenzguillen/1273496)).
+
+### 4.1. FGB-GeDS for regression
+I will illustrate the implementation of the `NGeDSboost()` function for regression using the AmesHousing dataset ([@DeCock2011](https://doi.org/10.1080/10691898.2011.11889627)). This includes 2,930 observations of 82 variables representing different features of houses in Ames, Iowa. Our variable of interest will be `Sale_Price`.
+```{r}
+# Load the processed version of the Ames dataset
+library(AmesHousing)
+ames_data <- make_ames()
+
+# Keep only numeric variables
+ames_data <- ames_data[sapply(ames_data, is.numeric)]
+
+# Define the response variable and predictors
+response <- "Sale_Price"
+predictors <- setdiff(names(ames_data), response)
+```
+
+To simplify the outputs, I eliminate predictor variables with weak correlations to the response.
+```{r}
+# Calculate correlations
+correlations <- sapply(predictors, function(predictor) {
+  cor(ames_data[[predictor]], ames_data[[response]])
+})
+
+predictors <- names(correlations[abs(correlations) > 0.3])
+
+ames_data <- ames_data[c(response, predictors)]
+
+print(names(ames_data))
+```
+We are left with 13 predictor variables:
+
+- `Year_Built`: Original construction date
+- `Year_Remod_Add`: Remodel date (same as construction date if no remodeling or additions)
+- `Mas_Vnr_Area`: Masonry veneer area in square feet.
+- `Total_Bsmt_SF`: Total square feet of basement area.
+- `First_Flr_SF`: First Floor square feet.
+- `Gr_Liv_Area`: Above grade (ground) living area square feet.
+- `Full_Bath`:  Full bathrooms above grade.
+- `TotRms_AbvGrd`: Total rooms above grade (does not include bathrooms).
+- `Fireplaces`: Number of fireplaces.
+- `Garage_Cars`: Size of garage in car capacity.
+- `Garage_Area`: Size of garage in square feet.
+- `Wood_Deck_SF`: Wood deck area in square feet.
+- `Open_Porch_SF`:  Open porch area in square feet.
+
+We can construct the model formula as follows:
+```{r}
+# Construct the formula for numeric predictors with function `f` applied
+predictors_formula_part <- paste0("f(", predictors, ")", collapse = " + ")
+# Combine both parts into the final formula
+ames_formula <- as.formula(paste(response, "~", predictors_formula_part))
+
+print(ames_formula)
+```
+Simulate some train/test split and fit the model on the train set:
+```{r message=FALSE}
+# Set the seed for reproducibility
+set.seed(123)
+# Determine the size of the dataset
+n <- nrow(ames_data)
+# Create a random sample of row indices for the training set
+trainIndex <- sample(1:n, size = floor(0.8 * n))
+# Subset the data into training and test sets
+train <- ames_data[trainIndex, ]
+test <- ames_data[-trainIndex, ]
+
+Gmodboost <- NGeDSboost(formula = ames_formula, data = train,
+                        initial_learner = FALSE,
+                        phi_boost_exit = 0.999, phi = 0.95)
+
+```
+Note that I'm pushing up the number of boosting iterations by setting `phi_boost_exit = 0.999` (instead of the default `phi_boost_exit = 0.99`) and reduce the strength of the `NGeDS()` base-learner by setting `phi = 0.95` (instead of the default `phi=0.99`).
+
+Compute predictions on the test set and calculate the corresponding root mean squared error (RMSE):
+```{r}
+sqrt(mean((test[[response]] - predict(Gmodboost, newdata = test, n = 2))^2))
+sqrt(mean((test[[response]] - predict(Gmodboost, newdata = test, n = 3))^2))
+sqrt(mean((test[[response]] - predict(Gmodboost, newdata = test, n = 4))^2))
+```
+
+
+```{r, fig.width=10, fig.height=6}
+bl_imp <- bl_imp(Gmodboost)
+plot(bl_imp)
+```
+
+As mentioned, the final FGB-GeDS model is just a single additive spline model. Hence, the components of a FGB-GeDS object can be plotted in the linear
+predictor scale as follows:
+```{r, fig.width=10, fig.height=6}
+# Linear FGB-GeDS Fit
+layout(matrix(c(1,2), nrow=1, byrow=TRUE))
+plot(Gmodboost, n = 2)
+# Quadratic FGB-GeDS Fit
+plot(Gmodboost, n = 3)
+# Cubic FGB-GeDS Fit
+plot(Gmodboost, n = 4)
+```
+
+If the focus is prediction reduce the strength of the GeDS base-learners to avoid overfitting:
+```{r}
+# Set the seed for reproducibility
+set.seed(123)
+# Determine the size of the dataset
+n <- nrow(ames_data)
+# Create a random sample of row indices for the training set
+trainIndex <- sample(1:n, size = floor(0.8 * n))
+# Subset the data into training and test sets
+train <- ames_data[trainIndex, ]
+test <- ames_data[-trainIndex, ]
+
+Gmodboost <- NGeDSboost(formula = ames_formula, data = train,
+                        initial_learner = FALSE,
+                        phi = 0.95, shrinkage = 0.4)
+
+# RMSE
+sqrt(mean((test$Sale_Price - predict(Gmodboost, n = 2, newdata = test))^2))
+```
+
+### 4.2. FGB-GeDS for classification
+
+#### 4.2.1. Two classes
+To illustrate the use of the FGB-GeDS method in a classification setting, let us begin with the simplest case of two classes. Specifically, we consider the well-known `iris` dataset and restrict attention to the `setosa` and `versicolor` species, using `Sepal.Length` as the predictor. Let us also consider the standard logit model, as well as the canonical [GeDS]((https://rpubs.com/emilioluissaenzguillen/1273496)) method and [GAM-GeDS](https://rpubs.com/emilioluissaenzguillen/1209067).
+
+```{r}
+# Define order of the GeDS models
+ord = 3 
+
+# versicolor vs setosa:
+iris_subset <- subset(iris, Species %in% c("setosa", "versicolor"))
+iris_subset$Species <- factor(iris_subset$Species)
+mod <- glm(Species ~ Sepal.Length, 
+             family = binomial(link = "logit"), 
+             data = iris_subset)
+# GeDS
+Gmod <- suppressWarnings(GGeDS(Species ~ f(Sepal.Length), data = iris_subset, family = binomial(link = "logit"), phi = 0.8))
+# GAM-GeDS
+Gmodgam <- suppressWarnings(NGeDSgam(Species ~ f(Sepal.Length), data = iris_subset, family = binomial(link = "logit"), phi = 0.8))
+# FGB-GeDS
+Gmodboost <- suppressWarnings(NGeDSboost(Species ~ f(Sepal.Length), data = iris_subset, family = mboost::Binomial()))
+
+# Predicted multinomial probabilities
+pred_glm <- predict(mod, type = "response")
+pred_GeDS <- predict(Gmod, type = "response", n = ord)
+pred_GeDSgam <- predict(Gmodgam, type = "response", n = ord)
+pred_GeDSboost <- predict(Gmodboost, type = "response", n = ord)
+```
+The four methods above fit the same model: `glm` yields a standard IRLS fit; `GGeDS` and `NGeDSgam`
+is a spline IRLS fit, with the latter employing the GeDS procedure for knots selection within a backfitting framework; `NGeDSboost` yields a linear boosted fit, along with IRLS quadratic and cubic fits constructed over the knots from this linear boosted fit.
+
+```{r, fig.width=10, fig.height=6}
+# Plot
+plot(iris_subset$Sepal.Length, as.numeric(iris_subset$Species) - 1,
+     xlab = "Sepal Length",
+     ylab = "Probability of Versicolor",
+     main = "Classification: setosa vs. versicolor",
+     pch = 16, col = "gray40")
+# GLM
+pred <- data.frame(Sepal.Length = as.vector(iris_subset$Sepal.Length), 
+                   Predicted = pred_glm)
+pred <- pred[order(pred$Sepal.Length), ]
+lines(pred, col = "blue")
+# GeDS
+lines(pred$Sepal.Length, pred_GeDS, col = "red")
+# GAM-GeDS
+pred <- data.frame(Sepal.Length = Gmodboost$args$predictors$Sepal.Length,
+                   pred = pred_GeDSgam)
+pred <- pred[order(pred$Sepal.Length), ]
+lines(pred, col = "green")
+# FGB-GeDS
+pred <- data.frame(Sepal.Length = Gmodboost$args$predictors$Sepal.Length,
+                   ppred = pred_GeDSboost)
+pred <- pred[order(pred$Sepal.Length), ]
+lines(pred, col = "purple")
+
+# Legend
+legend("topleft", legend = c("GLM (logit)", "GeDS", "GAM-GeDS", "FGB-GeDS"),
+       col = c("blue", "red", "green", "purple"),
+       lwd = 2, bty = "n")
+```
+
+#### 4.2.2. Multinomial classification
+FGB-GeDS still cannot handle multinomial logistic regression.  
+However, multinomial logistic regression is essentially a **generalization of binary logistic regression** (see [this blog post](https://bookdown.org/sarahwerth2024/CategoricalBook/multinomial-logit-regression-r.html) for an accessible overview).  
+
+To replicate it, we can fit two separate binomial regressions:
+
+- *Versicolor vs. Setosa*  
+- *Virginica vs. Setosa*  
+
+In binary classification we model the posterior probability $p(x)= P(Y =
+1|X = x)$ of an instance belonging to the positive class, through the log-odds (or logit) function:
+\begin{equation*}
+    \text{logit}(p(x))=\log\left(\frac{p(x)}{1-p(x)}\right)=F(x),\quad\text{i.e.,}\quad p(x)=\frac{e^{F(x)}}{1+e^{F(x)}}.
+\end{equation*}
+Now for the multinomial logit regression case with $J>2$ different classes, we pick a baseline class, say `setosa`, then,
+\begin{align*}
+&P(Y = setosa |X = x)= 1-\sum_{j=1}^{J-1}P(Y=j|X = x)=1-\sum_{j=1}^{J-1}\frac{e^{F^j(x)}}{1+e^{F^j(x)}}\\
+&=1-\frac{e^{\sum_{j=1}^{J-1}F^j(x)}}{1+e^{\sum_{j=1}^{J-1}F^j(x)}}=\frac{1}{1+e^{\sum_{j=1}^{J-1}F^j(x)}}.
+\end{align*}
+For each other class $j=versicolor,\ virginica$:
+\begin{align*}
+    &\log\left(\frac{p_j(x)}{p_{setosa}(x)}\right)=F^j(x),\quad\text{i.e.,}\quad p_j(x)=p_{setosa}(x)e^{F^j(x)}=\frac{e^{F^j(x)}}{1+e^{\sum_{j=1}^{J-1}F^j(x)}}
+\end{align*}
+
+From the binomial models $F^{versicolor}$ and $F^{virginica}$ we can then compute the multinomial probabilities for each species (*Setosa*, *Versicolor*, *Virginica*).
+
+Let us start defining a function to assess the models fits:
+```{r}
+# Function to compute the confusion matrix and accuracy
+evaluate_model <- function(predicted, actual) {
+  # Ensure both are factors with the same levels
+  predicted <- factor(predicted, levels = levels(actual))
+  
+  # Compute confusion matrix
+  conf_matrix <- table(Predicted = predicted, Actual = actual)
+  
+  # Compute accuracy
+  accuracy <- sum(diag(conf_matrix)) / sum(conf_matrix)
+  
+  # Return results as a list
+  return(list(
+    Confusion_Matrix = conf_matrix,
+    Accuracy = accuracy
+  ))
+}
+```
+The following function, `compute_multinomial_probs()`, combines two fitted binomial models (*Versicolor vs. Setosa* and *Virginica vs. Setosa*) to approximate a multinomial logistic regression. It extracts the linear predictors, applies the Log-Sum-Exp trick for stability, and returns the predicted probabilities for *Setosa*, *Versicolor*, and *Virginica* that sum to one.
+```{r}
+compute_multinomial_probs <- function(mod_1, mod_2, newdata, n) {
+  
+  # Compute linear predictors
+  if (missing(n)) {
+    eta1 <- predict(mod_1, newdata = newdata, type = "link")
+    eta2 <- predict(mod_2, newdata = newdata, type = "link")
+  } else {
+    # For GeDS models the order needs to be specified
+    eta1 <- predict(mod_1, newdata = newdata, type = "link", n = n)
+    eta2 <- predict(mod_2, newdata = newdata, type = "link", n = n)
+  }
+  
+  # Normalize exponentials for numerical stability (Log-Sum-Exp Trick)
+  max_eta <- pmax(0, eta1, eta2)
+  
+  # Compute stabilized exponentials
+  exp_setosa     <- exp(0 - max_eta) # i.e., \approx 1
+  exp_versicolor <- exp(eta1 - max_eta)
+  exp_virginica  <- exp(eta2 - max_eta)
+  
+  # Calculate the denominator using the stabilized values
+  denom <- exp_setosa + exp_versicolor + exp_virginica
+  
+  # Compute multinomial probabilities
+  p_setosa     <- exp_setosa / denom
+  p_versicolor <- exp_versicolor / denom
+  p_virginica  <- exp_virginica / denom
+  
+  # Combine results in a data frame
+  pred_probs <- data.frame(
+    setosa = p_setosa,
+    versicolor = p_versicolor,
+    virginica = p_virginica
+  )
+  
+  return(pred_probs)
+}  
+```
+Finally, the function `multinomial_logit_boost()` wraps everything together to fit a multinomial logistic regression using boosting. It takes a dataset, identifies a base class, and fits separate binomial boosting models against that base. The function then calls `compute_multinomial_probs()` to obtain class probabilities, assigns the predicted class labels, and evaluates the fit using `evaluate_model()`. The output includes probabilities, predicted classes, and accuracy results.
+```{r}
+multinomial_logit <- function(data, response, predictors, base_class,
+                                    method = NGeDSboost, params = list()) {
+  # Ensure response is a factor
+  data[[response]] <- factor(data[[response]])
+  
+  # Identify the other classes
+  classes <- levels(data[[response]])
+  classes <- classes[classes != base_class]
+  
+  # Construct the formula dynamically with f() applied to each predictor
+  predictor_formula <- paste(sprintf("f(%s)", predictors), collapse = " + ")
+  formula_str <- paste(response, "~", predictor_formula)
+  
+  # Train binomial models
+  models <- lapply(classes, function(class) {
+    subset_data <- subset(data, data[[response]] %in% c(base_class, class))
+    subset_data[[response]] <- factor(subset_data[[response]])
+    suppressWarnings(do.call(method, c(list(as.formula(formula_str), data = subset_data), params)))
+  })
+  
+  # Compute multinomial probabilities
+  pred_probs <- suppressWarnings(compute_multinomial_probs(models[[1]], models[[2]], newdata = data))
+  
+  # Predict classes
+  predicted_classes <- factor(
+    apply(pred_probs, 1, function(x) colnames(pred_probs)[which.max(x)]),
+    levels = colnames(pred_probs)
+  )
+  
+  # Evaluate model
+  evaluation_results <- evaluate_model(predicted_classes, data[[response]])
+  
+  return(list(probabilities = pred_probs, predicted_classes = predicted_classes, evaluation = evaluation_results))
+}
+```
+
+```{r}
+# Example usage:
+# NGeDSboost
+results <- multinomial_logit(iris, response = "Species",
+                             predictors = c("Sepal.Length", "Sepal.Width", "Petal.Length", "Petal.Width"),
+                             base_class = "setosa",
+                             method = NGeDSboost,
+                             params = list(
+                               family = mboost::Binomial(),
+                               phi = 0.99,
+                               q = 2
+                               ))
+
+# Access results:
+print(head(results$probabilities))
+print(head(results$predicted_classes))
+print(results$evaluation)
+```
+

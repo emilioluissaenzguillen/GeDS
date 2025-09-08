@@ -41,8 +41,8 @@ before changing the plot page.}
 \item{main}{An optional character string used as the plot title. If set to
 \code{"detail"}, the knots vector will be displayed on the plot.}
 
-\item{legend.pos}{The position of the legend within the panel. See
-\link[graphics]{legend} for details.}
+\item{legend.pos}{The position of the legend within the panel. Set to `NA` to
+suppress the legend. See \link[graphics]{legend} for details.}
 
 \item{legend.text}{A character vector specifying the legend text.}
 

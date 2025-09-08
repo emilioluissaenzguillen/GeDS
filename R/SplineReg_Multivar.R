@@ -382,7 +382,7 @@ SplineReg_GLM_Multivar <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)), bas
   # Convert any factor columns in Z to dummy variables
   if (!is.null(Z) && NCOL(Z) > 0) {
     Z <- model.matrix(~ ., data = Z)
-    if (!linear_intercept) Z <-  Z[, colnames(Z) != "(Intercept)"]
+    if (!linear_intercept) Z <-  Z[, colnames(Z) != "(Intercept)",  drop = FALSE]
     } else {
       Z <- NULL
     }

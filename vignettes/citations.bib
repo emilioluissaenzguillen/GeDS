@@ -1,0 +1,181 @@
+@article{Kaishev2016,
+  author = {Kaishev, Vladimir K. and Dimitrova, Dimitrina S. and Haberman, Steven and Verrall, Richard J.},
+  title = {Geometrically designed, variable knot regression splines},
+  journal = {Computational Statistics},
+  volume = {31},
+  number = {3},
+  pages = {1079--1105},
+  year = {2016},
+  doi = {10.1007/s00180-015-0621-7},
+  url = {https://doi.org/10.1007/s00180-015-0621-7},
+  abstract = {A new method of Geometrically Designed least squares (LS) splines with variable knots, named GeDS, is proposed. It is based on the property that the spline regression function, viewed as a parametric curve, has a control polygon and, due to the shape preserving and convex hull properties, it closely follows the shape of this control polygon. The latter has vertices whose x-coordinates are certain knot averages and whose y-coordinates are the regression coefficients. Thus, manipulation of the position of the control polygon may be interpreted as estimation of the spline curve knots and coefficients. These geometric ideas are implemented in the two stages of the GeDS estimation method. In stage A, a linear LS spline fit to the data is constructed, and viewed as the initial position of the control polygon of a higher order ($$n>2$$) smooth spline curve. In stage B, the optimal set of knots of this higher order spline curve is found, so that its control polygon is as close to the initial polygon of stage A as possible and finally, the LS estimates of the regression coefficients of this curve are found. The GeDS method produces simultaneously linear, quadratic, cubic (and possibly higher order) spline fits with one and the same number of B-spline coefficients. Numerical examples are provided and further supplemental materials are available online.},
+  issn = {1613-9658},
+}
+
+
+@article{Dimitrova2023,
+  volume = {436},
+  month = {January},
+  note = {{\copyright} 2022. This manuscript version is made available under the CC-BY-NC-ND 4.0 license https://creativecommons.org/licenses/by-nc-nd/4.0/},
+  title = {Geometrically designed variable knot splines in generalized (non-)linear models},
+  publisher = {Elsvier},
+  journal = {Applied Mathematics and Computation},
+  doi = {10.1016/j.amc.2022.127493},
+  year = {2023},
+  keywords = {variable-knot spline regression; tensor product B-splines; Greville abscissae; control polygon; generalized non-linear models},
+  url ={https://www.sciencedirect.com/science/article/pii/S0096300322005677},
+  issn = {0096-3003},
+  abstract = {In this paper we extend the GeDS methodology, recently developed by Kaishev et al. [18] for the Normal univariate spline regression case, to the more general GNM/GLM context. Our approach is to view the (non-)linear predictor as a spline with free knots which are estimated, along with the regression coefficients and the degree of the spline, using a two stage algorithm. In stage A, a linear (degree one) free-knot spline is fitted to the data applying iteratively re-weighted least squares. In stage B, a Schoenberg variation diminishing spline approximation to the fit from stage A is constructed, thus simultaneously producing spline fits of second, third and higher degrees. We demonstrate, based on a thorough numerical investigation that the nice properties of the Normal GeDS methodology carry over to its GNM extension and GeDS favourably compares with other existing spline methods. The proposed GeDS GNM/GLM methodology is extended to the multivariate case of more than one independent variable by utilizing tensor product splines and their related shape preserving variation diminishing property.},
+  author = {Dimitrova, D. S. and Kaishev, V. K. and Lattuada, A. and Verrall, R. J.}
+}
+
+
+@unpublished{Dimitrova2025,
+  author = {Dimitrova, D. S. and Guillen, E. S. and Kaishev, V. K.},
+  title = {{GeDS}: An {R} Package for Regression, Generalized Additive Models and Functional Gradient Boosting, based on Geometrically Designed (GeD) Splines},
+  note = {Manuscript submitted for publication},
+  year = {2025}
+}
+
+
+@article{Schwetlick1995,
+  author    = {Hubert Schwetlick and Torsten Schütze},
+  title     = {Least squares approximation by splines with free knots},
+  journal   = {BIT Numerical Mathematics},
+  volume    = {35},
+  number    = {3},
+  pages     = {361--384},
+  year      = {1995},
+  doi       = {10.1007/BF01732610},
+  url       = {https://doi.org/10.1007/BF01732610},
+  abstract  = {Suppose we are given noisy data which are considered to be perturbed values of a smooth, univariate function. In order to approximate these data in the least squares sense, a linear combination of B-splines is used where the tradeoff between smoothness and closeness of the fit is controlled by a smoothing term which regularizes the least squares problem and guarantees unique solvability independent of the position of knots. Moreover, a subset of the knot sequence which defines the B-splines, the so-calledfree knots, is included in the optimization process.},
+  ISSN      = {1572-9125},
+  date      = {1995-09-01},
+}
+
+
+@article{hastie1990generalized,
+  title={Generalized additive models},
+  author={T.J. Hastie and R.J. Tibshirani},
+  journal={Monographs on statistics and applied probability. Chapman \& Hall},
+  volume={43},
+  pages={335},
+  year={1990}
+}
+
+@book{Montgomery2021,
+  title={Introduction to linear regression analysis},
+  author={Montgomery, Douglas C and Peck, Elizabeth A and Vining, G Geoffrey},
+  year={2021},
+  publisher={John Wiley \& Sons}
+}
+
+@book{Rencher2008,
+  title={Linear models in statistics},
+  author={Rencher, Alvin C and Schaalje, G Bruce},
+  year={2008},
+  publisher={John Wiley \& Sons}
+}
+
+@Manual{rpart,
+    title = {rpart: Recursive Partitioning and Regression Trees},
+    author = {Terry Therneau and Beth Atkinson},
+    year = {2023},
+    note = {R package version 4.1.23},
+    url = {https://CRAN.R-project.org/package=rpart},
+  }
+
+@article{Friedman2001,
+author = {Jerome H. Friedman},
+title = {{Greedy function approximation: A gradient boosting machine.}},
+volume = {29},
+journal = {The Annals of Statistics},
+number = {5},
+publisher = {Institute of Mathematical Statistics},
+pages = {1189 -- 1232},
+keywords = {boosting, decision trees, Function estimation, robust nonparametric regression},
+year = {2001},
+doi = {10.1214/aos/1013203451},
+URL = {https://doi.org/10.1214/aos/1013203451}
+}
+
+@article{Buhlmann2003,
+author = {Peter Bühlmann and Bin Yu},
+title = {Boosting With the L2 Loss},
+journal = {Journal of the American Statistical Association},
+volume = {98},
+number = {462},
+pages = {324-339},
+year  = {2003},
+publisher = {Taylor & Francis},
+doi = {10.1198/016214503000125},
+URL = {https://doi.org/10.1198/016214503000125}
+}
+
+@article{Schmid2008,
+title = {Boosting additive models using component-wise P-Splines},
+journal = {Computational Statistics \& Data Analysis},
+volume = {53},
+number = {2},
+pages = {298-311},
+year = {2008},
+issn = {0167-9473},
+doi = {https://doi.org/10.1016/j.csda.2008.09.009},
+url = {https://www.sciencedirect.com/science/article/pii/S0167947308004416},
+author = {Matthias Schmid and Torsten Hothorn},
+abstract = {An efficient approximation of L2 Boosting with component-wise smoothing splines is considered. Smoothing spline base-learners are replaced by P-spline base-learners, which yield similar prediction errors but are more advantageous from a computational point of view. A detailed analysis of the effect of various P-spline hyper-parameters on the boosting fit is given. In addition, a new theoretical result on the relationship between the boosting stopping iteration and the step length factor used for shrinking the boosting estimates is derived.}
+}
+
+
+@article{Friedman2000,
+author = {Jerome Friedman and Trevor Hastie and Robert Tibshirani},
+title = {{Additive logistic regression: a statistical view of boosting (With discussion and a rejoinder by the authors)}},
+volume = {28},
+journal = {The Annals of Statistics},
+number = {2},
+publisher = {Institute of Mathematical Statistics},
+pages = {337 -- 407},
+keywords = {‎classification‎, machine learning, nonparametric estimation, stagewise fitting, tree},
+year = {2000},
+doi = {10.1214/aos/1016218223},
+URL = {https://doi.org/10.1214/aos/1016218223}
+}
+
+@book{Buhlmann2011,
+  title={Statistics for high-dimensional data: methods, theory and applications},
+  author={B{\"u}hlmann, Peter and Van De Geer, Sara},
+  year={2011},
+  publisher={Springer Science \& Business Media}
+}
+
+@article{Buhlmann2007,
+author = {Peter B{\"u}hlmann and Torsten Hothorn},
+title = {{Boosting Algorithms: Regularization, Prediction and Model Fitting}},
+volume = {22},
+journal = {Statistical Science},
+number = {4},
+publisher = {Institute of Mathematical Statistics},
+pages = {477 -- 505},
+keywords = {generalized additive models, generalized linear models, gradient boosting, software, Survival analysis, Variable selection},
+year = {2007},
+doi = {10.1214/07-STS242},
+URL = {https://doi.org/10.1214/07-STS242}
+}
+
+@article{DeCock2011,
+author = {Dean De Cock},
+title = {Ames, Iowa: Alternative to the Boston Housing Data as an End of Semester Regression Project},
+journal = {Journal of Statistics Education},
+volume = {19},
+number = {3},
+pages = {},
+year = {2011},
+publisher = {Taylor \& Francis},
+doi = {10.1080/10691898.2011.11889627},
+URL = {https://doi.org/10.1080/10691898.2011.11889627},
+eprint = {https://doi.org/10.1080/10691898.2011.11889627}
+}
+
+
+
+
