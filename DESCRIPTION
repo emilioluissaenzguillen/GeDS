@@ -51,10 +51,12 @@ Imports:
     splines,
     stats,
     utils
-Suggests: 
+Suggests:
+    AmesHousing,
     knitr,
     R.rsp,
     rmarkdown,
+    rpart,
     testthat (>= 3.0.0),
     TH.data
 LinkingTo: 

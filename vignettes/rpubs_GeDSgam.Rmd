@@ -9,6 +9,7 @@ vignette: >
   %\VignetteIndexEntry{Generalized Additive Models (GAM) with GeD Splines}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
+  %\VignetteDepends{rpart}
 ---
 
 ```{r setup, include=FALSE}
@@ -236,7 +237,8 @@ giving data on makes of cars taken from the April, 1990 issue of
 -   `HP`: net horsepower of the vehicle.
 
 ```{r message=FALSE, warning=FALSE}
-car_data <- rpart::car.test.frame
+library(rpart)
+car_data <- car.test.frame
 Gmodgam <- NGeDSgam(Mileage ~ f(Price) + Country + Type + f(Weight) + f(Disp.) + f(HP),
                     data = car_data, phi = 0.95)
 

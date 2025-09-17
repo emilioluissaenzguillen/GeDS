@@ -76,9 +76,28 @@ read.formula <- function(formula, data, weights, offset)
 ###############################################################
 # Function for reading the formula of NGeDSboost and NGeDSgam #
 ###############################################################
+# Recursive function to extract all calls from RHS
+get_terms <- function(expr) {
+  if (is.call(expr) && expr[[1]] == as.name("+")) {
+    # If it's a sum, recurse on both sides
+    c(get_terms(expr[[2]]), get_terms(expr[[3]]))
+  } else {
+    # Otherwise, return the term as a string
+    deparse(expr)
+  }
+}
 #' @importFrom stats reformulate setNames
 read.formula.gam <- read.formula.boost <- function(formula, data,
                                                    type = c("gam", "boost")){
+  
+  
+  # Collect raw terms
+  terms_raw <- get_terms(formula[[3]])
+  # Detect duplicates
+  dups <- terms_raw[duplicated(terms_raw)]
+  if (length(dups) > 0) {
+    stop(paste("Duplicate learner(s) detected:", paste(unique(dups), collapse = ", ")))
+  }
   
   formula <- as.formula(formula)
   
