@@ -22,8 +22,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // Knotnew
-NumericVector Knotnew(NumericVector weights, NumericVector residuals, NumericVector x, NumericVector dcum, NumericVector oldknots, double tol);
-RcppExport SEXP _GeDS_Knotnew(SEXP weightsSEXP, SEXP residualsSEXP, SEXP xSEXP, SEXP dcumSEXP, SEXP oldknotsSEXP, SEXP tolSEXP) {
+NumericVector Knotnew(NumericVector weights, NumericVector residuals, NumericVector x, NumericVector dcum, NumericVector oldknots, double tol, int support_order);
+RcppExport SEXP _GeDS_Knotnew(SEXP weightsSEXP, SEXP residualsSEXP, SEXP xSEXP, SEXP dcumSEXP, SEXP oldknotsSEXP, SEXP tolSEXP, SEXP support_orderSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -33,7 +33,8 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< NumericVector >::type dcum(dcumSEXP);
     Rcpp::traits::input_parameter< NumericVector >::type oldknots(oldknotsSEXP);
     Rcpp::traits::input_parameter< double >::type tol(tolSEXP);
-    rcpp_result_gen = Rcpp::wrap(Knotnew(weights, residuals, x, dcum, oldknots, tol));
+    Rcpp::traits::input_parameter< int >::type support_order(support_orderSEXP);
+    rcpp_result_gen = Rcpp::wrap(Knotnew(weights, residuals, x, dcum, oldknots, tol, support_order));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -129,7 +130,7 @@ END_RCPP
 
 static const R_CallMethodDef CallEntries[] = {
     {"_GeDS_whmx", (DL_FUNC) &_GeDS_whmx, 1},
-    {"_GeDS_Knotnew", (DL_FUNC) &_GeDS_Knotnew, 6},
+    {"_GeDS_Knotnew", (DL_FUNC) &_GeDS_Knotnew, 7},
     {"_GeDS_makenewknots", (DL_FUNC) &_GeDS_makenewknots, 2},
     {"_GeDS_makeEpsilonsb", (DL_FUNC) &_GeDS_makeEpsilonsb, 4},
     {"_GeDS_makeRatSplines", (DL_FUNC) &_GeDS_makeRatSplines, 2},

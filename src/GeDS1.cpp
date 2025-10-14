@@ -37,11 +37,12 @@ int whmx(NumericVector vector) {
 
 // [[Rcpp::export]]
 NumericVector Knotnew(NumericVector weights, NumericVector residuals, NumericVector x,
-                      NumericVector dcum, NumericVector oldknots, double tol) {
+                      NumericVector dcum, NumericVector oldknots, double tol,
+                      int support_order = 2) {
   
   int u = dcum.size();
   int n_oldknots = oldknots.size();
-  int n_oldintknots = n_oldknots - 6;
+  int n_oldintknots = n_oldknots - 2 * support_order;
   int data_size = x.size();
   
   int best_index, dcumInf, dcumSup, i, j;
@@ -53,6 +54,10 @@ NumericVector Knotnew(NumericVector weights, NumericVector residuals, NumericVec
     
     // Find the index of the cluster with the highest weight
     best_index = whmx(weights);
+    // If all weights are zero, fall back to center cluster
+    if (weights[best_index] == 0) {
+      best_index = u / 2;  // u is number of clusters
+    }
     
     // Determine lower and upper bounds
     dcumInf = (best_index == 0) ? 0 : dcum[best_index - 1];
@@ -70,7 +75,7 @@ NumericVector Knotnew(NumericVector weights, NumericVector residuals, NumericVec
       
       // Extract internal knots (ignoring the boundary knots)
       for (i = 0; i < n_oldintknots; ++i) {
-        oldintknots[i] = oldknots[6 + i];
+        oldintknots[i] = oldknots[2 * support_order + i];
       }
       
       if (inf != sup) {
@@ -115,12 +120,12 @@ NumericVector Knotnew(NumericVector weights, NumericVector residuals, NumericVec
     // that falls between the 1st and 4th knot in that set
     is_valid_knot = true;
     
-    for (i = 0; i < n_oldknots - 2; ++i) {
+    for (i = 0; i < n_oldknots - (support_order-1); ++i) {
       bool valid_interval = false;
       
       for (j = 0; j < data_size; ++j) {
         valid_interval = valid_interval || 
-          ((sortedknots[i] + tol < x[j]) && (sortedknots[i + 3] - tol > x[j])); 
+          ((sortedknots[i] + tol < x[j]) && (sortedknots[i + support_order] - tol > x[j])); 
         
         if (valid_interval) break;
       }     

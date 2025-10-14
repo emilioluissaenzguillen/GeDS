@@ -5,8 +5,8 @@ whmx <- function(vector) {
     .Call('_GeDS_whmx', PACKAGE = 'GeDS', vector)
 }
 
-Knotnew <- function(weights, residuals, x, dcum, oldknots, tol) {
-    .Call('_GeDS_Knotnew', PACKAGE = 'GeDS', weights, residuals, x, dcum, oldknots, tol)
+Knotnew <- function(weights, residuals, x, dcum, oldknots, tol, support_order = 2L) {
+    .Call('_GeDS_Knotnew', PACKAGE = 'GeDS', weights, residuals, x, dcum, oldknots, tol, support_order)
 }
 
 makenewknots <- function(knots, degree) {

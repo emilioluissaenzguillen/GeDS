@@ -186,6 +186,7 @@ UnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0,NROW(Y)),
   # GeDS iterations start by j = n_starting_intknots + 1
   init.iter <- if (is.null(intknots)) 1 else  n_starting_intknots + 1
   
+  
   ##############################################################################
   ################################## STAGE A ###################################
   ##############################################################################
@@ -287,11 +288,21 @@ UnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0,NROW(Y)),
     ###############
     ## STEPS 6/7 ##
     ###############
+    support_order <- 2
     newknot <- Knotnew(weights = w, residuals = res.weighted, x = distinctX,
-                       dcum = dcum, oldknots = c(rep(extr, 2 + 1), intknots), tol = tol)[1]
+                       dcum = dcum, oldknots = c(rep(extr, support_order), intknots),
+                       tol = tol, support_order = support_order)[1]
+    
+    # newknot2 <- Knotnew_R_clean(wht = w, restmp = res.weighted, x = distinctX,
+    #                             dcm = dcum, oldknots = sort(c(intknots, rep(extr, support_order))),
+    #                             tol = tol, support_order = support_order)$newknot
 
-    # newknot <- Knotnew_R(wht = w, restmp = res.weighted, x = distinctX, dcm = dcum,
-    #                      oldknots = sort(c(intknots, rep(extr, 3))), tol = tol)[1]
+    # newknot2 <- Knotnew_R(wht = w, restmp = res.weighted, x = distinctX,
+    #                             dcm = dcum, oldknots = sort(c(intknots, rep(extr, support_order))),
+    #                             tol = tol)[1]
+
+    # print( abs(newknot - newknot2) < 1e-6 )
+    
     if (isTRUE(all.equal(newknot, extr[1])) || isTRUE(all.equal(newknot, extr[2])) || is.na(newknot)) break
     
     intknots <- c(intknots, newknot)
@@ -581,15 +592,17 @@ GenUnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)),
     ###########################################
     ## STEP 6: calculate the cluster weights ##
     ###########################################
-    w <- beta*means + (1-beta)*wc.range+1e-8
+    w <- beta*means + (1 - beta)*wc.range
     
     ###############
     ## STEPS 7/8 ##
     ###############
     # i. Calculate new knot
+    support_order <- 2
     newknot <- Knotnew(weights = w, residuals = res.weighted, x = distinctX,
-                       dcum = dcum, oldknots = c(rep(extr, 2 + 1), intknots), tol = tol)[1]
-
+                       dcum = dcum, oldknots = c(rep(extr, support_order), intknots),
+                       tol = tol, support_order = support_order)[1]
+    
     # ii. Calculate guess-coefficient for newknot
     guess <- newknot.guess(intknots, extr, guess, newknot)
     

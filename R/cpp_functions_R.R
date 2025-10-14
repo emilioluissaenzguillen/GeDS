@@ -1,3 +1,72 @@
+Knotnew_R_clean <- function(wht, restmp, x, dcm, oldknots, tol, support_order = 2) {
+  
+  # Number of residual clusters
+  u <- length(dcm)
+  # Number of old knots and internal knots
+  noldint <- length(oldknots) - 2*support_order
+  # Dimension of the x vector
+  xdim <- length(x)  
+  # Initialize the index of the j_s-th cluster
+  index <- NA
+  # Initialize the new knot position
+  newknot <- NA
+  # Extract internal knots
+  oldintknots <- if (noldint > 0) get_internal_knots(oldknots, support_order) else numeric(0)
+  
+  for (kk in seq_len(u)) {
+    
+    # Index of the cluster with the maximum weight
+    index <- which.max(wht)
+    # If all weights are zero, pick the middle cluster instead of breaking
+    if (wht[index] == 0) {
+      index <- ceiling(length(wht) / 2)
+    }
+    
+    # Cluster boundaries
+    d_lower <- if (index == 1) 1 else dcm[index - 1] + 1
+    d_upper <- dcm[index]
+    inf <- x[d_lower]
+    sup <- x[d_upper]
+    
+    
+    # --- 1. Check for internal knot in the current cluster ---
+    cluster_has_knot <- FALSE
+    if (length(oldintknots) > 0) {
+      if (inf != sup) {
+        cluster_has_knot <- any(oldintknots >= inf & oldintknots <= sup)
+      } else {
+        cluster_has_knot <- any(abs(inf - oldintknots) < tol)
+      }
+    }
+    
+    # 2) If an internal knot already exists in this cluster, set its weight to zero
+    if (cluster_has_knot) {
+      wht[index] <- 0
+      next
+    }
+    
+    # --- 2. Propose new knot ---
+    weights_cluster <- restmp[d_lower:d_upper]
+    x_cluster <- x[d_lower:d_upper]
+    newknot <- sum(weights_cluster * x_cluster) / sum(weights_cluster)
+    
+    sortedknots <- sort(c(oldknots, newknot))
+    
+    # --- 3. Schoenberg-Whitney minimum support ---
+    support_valid <- any(sapply(seq_len(length(sortedknots) - support_order), function(i) {
+      any(x > (sortedknots[i] + tol) & x < (sortedknots[i + support_order] - tol))
+    }))
+    
+    if (!support_valid) {
+      wht[index] <- 0
+    } else {
+      break  # Valid knot found
+    }
+  }
+  
+  return(list(newknot = newknot, cluster_index = index))
+}
+
 Knotnew_R <- function(wht, restmp, x, dcm, oldknots, tol) {
   
   # Number of residual clusters
