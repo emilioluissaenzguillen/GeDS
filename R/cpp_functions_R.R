@@ -17,9 +17,12 @@ Knotnew_R_clean <- function(wht, restmp, x, dcm, oldknots, tol, support_order = 
     
     # Index of the cluster with the maximum weight
     index <- which.max(wht)
-    # If all weights are zero, pick the middle cluster instead of breaking
+    # If all weights are zero, assign triangular weights peaking at the centre
     if (wht[index] == 0) {
-      index <- ceiling(length(wht) / 2)
+      n <- length(wht)
+      center <- (n + 1) / 2
+      wht <- 1 - abs(seq_len(n) - center) / center
+      index <- which.max(wht)
     }
     
     # Cluster boundaries
@@ -27,7 +30,6 @@ Knotnew_R_clean <- function(wht, restmp, x, dcm, oldknots, tol, support_order = 
     d_upper <- dcm[index]
     inf <- x[d_lower]
     sup <- x[d_upper]
-    
     
     # --- 1. Check for internal knot in the current cluster ---
     cluster_has_knot <- FALSE
@@ -53,15 +55,23 @@ Knotnew_R_clean <- function(wht, restmp, x, dcm, oldknots, tol, support_order = 
     sortedknots <- sort(c(oldknots, newknot))
     
     # --- 3. Schoenberg-Whitney minimum support ---
-    support_valid <- any(sapply(seq_len(length(sortedknots) - support_order), function(i) {
-      any(x > (sortedknots[i] + tol) & x < (sortedknots[i + support_order] - tol))
+    # between every i and i+support_order knots there should be at least one x
+    support_valid <- all(sapply(seq_len(length(sortedknots) - support_order), function(i) {
+      any(x > (sortedknots[i] - tol) & x < (sortedknots[i + support_order] + tol))
     }))
     
-    if (!support_valid) {
+    # --- 4. Check new knot is not a boundary knot ---
+    newknot_is_internal <- isTRUE(
+      newknot >= min(sortedknots, na.rm = TRUE) + tol &&
+        newknot <= max(sortedknots, na.rm = TRUE) - tol
+    )
+    
+    if (!support_valid || !newknot_is_internal) {
       wht[index] <- 0
     } else {
       break  # Valid knot found
     }
+    
   }
   
   return(list(newknot = newknot, cluster_index = index))

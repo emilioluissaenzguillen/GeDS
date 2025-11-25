@@ -35,6 +35,25 @@ int whmx(NumericVector vector) {
   return k;
 }
 
+#include <Rcpp.h>
+#include <algorithm>
+
+// [[Rcpp::export]]
+bool is_internal_knot(double newknot,
+                             Rcpp::NumericVector sortedknots,
+                             double tol) {
+  if (sortedknots.size() == 0) return false;
+  
+  double min_k = *std::min_element(sortedknots.begin(), sortedknots.end());
+  double max_k = *std::max_element(sortedknots.begin(), sortedknots.end());
+  
+  bool newknot_is_internal =
+    (newknot >= min_k + tol) &&
+    (newknot <= max_k - tol);
+  
+  return newknot_is_internal;
+}
+
 // [[Rcpp::export]]
 NumericVector Knotnew(NumericVector weights, NumericVector residuals, NumericVector x,
                       NumericVector dcum, NumericVector oldknots, double tol,
@@ -46,7 +65,8 @@ NumericVector Knotnew(NumericVector weights, NumericVector residuals, NumericVec
   int data_size = x.size();
   
   int best_index, dcumInf, dcumSup, i, j;
-  long double sup, inf, newknot;
+  long double sup, inf;
+  long double newknot = NA_REAL;
   bool has_old_knots_between, is_valid_knot;
   
   // Iterate through each cluster to find the best knot position
@@ -54,9 +74,20 @@ NumericVector Knotnew(NumericVector weights, NumericVector residuals, NumericVec
     
     // Find the index of the cluster with the highest weight
     best_index = whmx(weights);
-    // If all weights are zero, fall back to center cluster
-    if (weights[best_index] == 0) {
-      best_index = u / 2;  // u is number of clusters
+    
+    // If all weights are zero, fall back to triangular profile and recompute best_index
+    if (weights[best_index] == 0.0) {
+      int n = static_cast<int>(weights.size());
+      double center = (n + 1.0) / 2.0;
+      // Reassign triangular weights
+      for (int i = 0; i < n; ++i) {
+        weights[i] = 1.0 - std::abs((double(i + 1) - center)) / center;
+      }
+      // Recompute best_index (mimic R's which.max: first occurrence)
+      best_index = std::distance(
+        weights.begin(),
+        std::max_element(weights.begin(), weights.end())
+      );
     }
     
     // Determine lower and upper bounds
@@ -116,8 +147,8 @@ NumericVector Knotnew(NumericVector weights, NumericVector residuals, NumericVec
     std::sort(sortedknots.begin(), sortedknots.end());
     
     // Step 4: Check if new knot placement satisfies the minimum support constraint, i.e.,
-    // For each consecutive set of 4 sortedknots, check whether there is at least one x
-    // that falls between the 1st and 4th knot in that set
+    // For each consecutive set of ()support_order+1) sortedknots, check whether there is at least one x
+    // that falls between the ith and ith+support_order knot in that set
     is_valid_knot = true;
     
     for (i = 0; i < n_oldknots - (support_order-1); ++i) {
@@ -125,26 +156,29 @@ NumericVector Knotnew(NumericVector weights, NumericVector residuals, NumericVec
       
       for (j = 0; j < data_size; ++j) {
         valid_interval = valid_interval || 
-          ((sortedknots[i] + tol < x[j]) && (sortedknots[i + support_order] - tol > x[j])); 
+          ((sortedknots[i] - tol < x[j]) && (sortedknots[i + support_order] + tol > x[j])); 
         
         if (valid_interval) break;
       }     
       
       is_valid_knot = is_valid_knot && valid_interval;
       if (!is_valid_knot) break;
-    }     
+    }
+    
+    // --- 4. Check new knot is not a boundary knot ---
+    bool newknot_is_internal = is_internal_knot(newknot, sortedknots, tol);
     
     // If the newknot placement is invalid, set the weight of the cluster to zero
-    if (!is_valid_knot) {
+    if (!is_valid_knot || !newknot_is_internal) {
       weights[best_index] = 0;
     } else { 
-      // Break out of the loop if a valid knot is found
-      break;
+      break; // Break out of the loop if a valid knot is found
     }  
   }   
   
   // Return the new knot and its index (adjusted to 1-based for R)
   return NumericVector::create(newknot, best_index + 1);
+  
 }      
 
 

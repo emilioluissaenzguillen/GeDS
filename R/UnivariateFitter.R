@@ -294,8 +294,8 @@ UnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0,NROW(Y)),
                        tol = tol, support_order = support_order)[1]
     
     # newknot2 <- Knotnew_R_clean(wht = w, restmp = res.weighted, x = distinctX,
-    #                             dcm = dcum, oldknots = sort(c(intknots, rep(extr, support_order))),
-    #                             tol = tol, support_order = support_order)$newknot
+    #                            dcm = dcum, oldknots = sort(c(intknots, rep(extr, support_order))),
+    #                            tol = tol, support_order = support_order)$newknot
 
     # newknot2 <- Knotnew_R(wht = w, restmp = res.weighted, x = distinctX,
     #                             dcm = dcum, oldknots = sort(c(intknots, rep(extr, support_order))),
@@ -602,6 +602,12 @@ GenUnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)),
     newknot <- Knotnew(weights = w, residuals = res.weighted, x = distinctX,
                        dcum = dcum, oldknots = c(rep(extr, support_order), intknots),
                        tol = tol, support_order = support_order)[1]
+    
+    # newknot2 <- Knotnew_R_clean(wht = w, restmp = res.weighted, x = distinctX,
+    #                             dcm = dcum, oldknots = sort(c(intknots, rep(extr, support_order))),
+    #                             tol = tol, support_order = support_order)$newknot
+    # 
+    # print( abs(newknot - newknot2) < 1e-6 )
     
     # ii. Calculate guess-coefficient for newknot
     guess <- newknot.guess(intknots, extr, guess, newknot)
