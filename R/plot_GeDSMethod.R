@@ -738,6 +738,11 @@ plot.GeDS <- function(x, f = NULL, which, dev = FALSE, ask = FALSE,
 #' @param x A GeDSboost object, as returned by \code{NGeDSboost()}.
 #' @param n Integer value (2, 3 or 4) specifying the order (\eqn{=} degree
 #' \eqn{+ 1}) of the FGB-GeDS fit to be extracted.
+#' @param base_learners Either NULL or a vector of character string specifying
+#' the base-learners of the model for which predictions should be plotted. Note
+#' that single base-learner predictions are provided on the linear predictor scale.
+#' @param ask Logical variable specifying whether the user should be prompted
+#' before changing the plot page.
 #' @param ... Further arguments to be passed to the
 #' \code{\link[graphics]{plot.default}} function.
 #' 
@@ -769,7 +774,7 @@ plot.GeDS <- function(x, f = NULL, which, dev = FALSE, ask = FALSE,
 #' @importFrom splines splineDesign 
 #' @export
 
-plot.GeDSboost <- function(x, n = 3L,...)
+plot.GeDSboost <- function(x, n = 3L, base_learners = NULL, ask = FALSE,...)
 {
   
   # Check if x is of class "GeDSboost"
@@ -777,7 +782,15 @@ plot.GeDSboost <- function(x, n = 3L,...)
     stop("The input 'x' must be of class 'GeDSboost'")
   }
   
-  base_learners <- x$args$base_learners
+  old_ask <- devAskNewPage(ask = ask)
+  on.exit(devAskNewPage(old_ask), add = TRUE)
+  
+  if (is.null(base_learners)) {
+    base_learners <- x$args$base_learners
+  } else {
+    base_learners <- x$args$base_learners[names(x$args$base_learners) %in% base_learners]
+  }
+  
   Y <- x$args$response[[1]]
   if (x$args$family@name == "Negative Binomial Likelihood (logit link)") {
     Y <- (Y + 1)/2
@@ -870,7 +883,9 @@ plot.GeDSboost <- function(x, n = 3L,...)
       int.knots <- x$internal_knots$cubic.int.knots
     }
     
-    for (bl_name in names(base_learners)) {
+    bl_names <- names(base_learners)
+    
+    for (bl_name in bl_names) {
       
       bl <- base_learners[[bl_name]]
       X_mat <- pred_vars[, intersect(bl$variables, colnames(pred_vars))]
@@ -955,6 +970,8 @@ plot.GeDSboost <- function(x, n = 3L,...)
 #' @param f (Optional) specifies the underlying component function or generating
 #' process to which the model was fit. This parameter is useful if the user wishes
 #' to plot the specified function/process alongside the model fit and the data.
+#' @param ask Logical variable specifying whether the user should be prompted
+#' before changing the plot page.
 #' @param ... Further arguments to be passed to the
 #' \code{\link[graphics]{plot.default}} function.
 #' @examples
@@ -1029,13 +1046,16 @@ plot.GeDSboost <- function(x, n = 3L,...)
 #' @export
 
 plot.GeDSgam <- function(x, base_learners = NULL,
-                         f = NULL, n = 3L,...)
+                         f = NULL, n = 3L, ask = FALSE,...)
 {
   
   # Check if x is of class "GeDSgam"
   if(!inherits(x, "GeDSgam")) {
     stop("The input 'x' must be of class 'GeDSgam'")
   }
+  
+  old_ask <- devAskNewPage(ask = ask)
+  on.exit(devAskNewPage(old_ask), add = TRUE)
   
   if (is.null(base_learners)) {
     base_learners <- x$args$base_learners
@@ -1047,7 +1067,7 @@ plot.GeDSgam <- function(x, base_learners = NULL,
   others <- list(...)
   
   # Plot color
-  col_fit <- if (is.null(others$col)) "red" else others$col
+  col_fit <- if (is.null(others$col)) "steelblue" else others$col
   
   
   Y <- x$args$response[[1]]; pred_vars <- x$args$predictors
@@ -1071,7 +1091,9 @@ plot.GeDSgam <- function(x, base_learners = NULL,
   
   
   # Plot each base-learner
-  for (bl_name in names(base_learners)) {
+  bl_names <- names(base_learners)
+  
+  for (bl_name in bl_names) {
     
     bl <- base_learners[[bl_name]]
     X_mat <- pred_vars[, intersect(bl$variables, colnames(pred_vars))]

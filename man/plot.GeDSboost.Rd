@@ -4,13 +4,20 @@
 \alias{plot.GeDSboost}
 \title{Plot Method for GeDSboost Objects}
 \usage{
-\method{plot}{GeDSboost}(x, n = 3L, ...)
+\method{plot}{GeDSboost}(x, n = 3L, base_learners = NULL, ask = FALSE, ...)
 }
 \arguments{
 \item{x}{A GeDSboost object, as returned by \code{NGeDSboost()}.}
 
 \item{n}{Integer value (2, 3 or 4) specifying the order (\eqn{=} degree
 \eqn{+ 1}) of the FGB-GeDS fit to be extracted.}
+
+\item{base_learners}{Either NULL or a vector of character string specifying
+the base-learners of the model for which predictions should be plotted. Note
+that single base-learner predictions are provided on the linear predictor scale.}
+
+\item{ask}{Logical variable specifying whether the user should be prompted
+before changing the plot page.}
 
 \item{...}{Further arguments to be passed to the
 \code{\link[graphics]{plot.default}} function.}

@@ -4,7 +4,7 @@
 \alias{plot.GeDSgam}
 \title{Plot Method for GeDSgam Objects}
 \usage{
-\method{plot}{GeDSgam}(x, base_learners = NULL, f = NULL, n = 3L, ...)
+\method{plot}{GeDSgam}(x, base_learners = NULL, f = NULL, n = 3L, ask = FALSE, ...)
 }
 \arguments{
 \item{x}{A GeDSgam object, as returned by \code{NGeDSgam()}.}
@@ -19,6 +19,9 @@ to plot the specified function/process alongside the model fit and the data.}
 
 \item{n}{Integer value (2, 3 or 4) specifying the order (\eqn{=} degree
 \eqn{+ 1}) of the GAM-GeDS fit.}
+
+\item{ask}{Logical variable specifying whether the user should be prompted
+before changing the plot page.}
 
 \item{...}{Further arguments to be passed to the
 \code{\link[graphics]{plot.default}} function.}
