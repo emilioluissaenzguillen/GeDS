@@ -400,15 +400,24 @@ SplineReg_LM_Multivar <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)), base
       # # Compute the minimal-norm solution for theta using the Moore-Penrose generalized inverse.
       # theta <- as.numeric(ginv(basisMatrix2) %*% Y0)
       # # Now theta contains the computed coefficients that reproduce lm()'s fitted values.
-
-      # Compute t(basisMatrix2) %*% basisMatrix2 using crossprod (more efficient)
-      matcb <- crossprod(basisMatrix2)
-      matcbinv <- ginv(matcb)
-      theta <- as.numeric(matcbinv %*% crossprod(basisMatrix2, tmp$fitted.values))
+      
+      # Alternative 1
+      # # Compute t(basisMatrix2) %*% basisMatrix2 using crossprod (more efficient)
+      # matcb <- crossprod(basisMatrix2)
+      # matcbinv <- ginv(matcb)
+      # theta <- as.numeric(matcbinv %*% crossprod(basisMatrix2, tmp$fitted.values))
+      
+      # Alternative 2
+      w_sqrt <- sqrt(as.numeric(weights))
+      Xw <- sweep(basisMatrix2, 1, w_sqrt, "*")
+      yw <- Y0 * w_sqrt
+      theta <- drop(MASS::ginv(Xw) %*% yw)
 
     }
     names(theta) <- sub("basisMatrix2", "", names(coef(tmp)))
     predicted <- tmp$fitted.values + offset
+    
+    # check: as.numeric(basisMatrix2 %*% theta - predicted)
 
     # Reset environment of lm object
     f <- tmp$terms

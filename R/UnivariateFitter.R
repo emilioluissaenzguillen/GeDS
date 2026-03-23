@@ -242,6 +242,9 @@ UnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0,NROW(Y)),
     } else {
       res.weighted <- res.tmp*weights
     }
+    # Avoid spurious sign changes due to floating-point noise near zero
+    sign_tol <- 1e-14
+    res.weighted[abs(res.weighted) <= sign_tol] <- 0
     # Group the consecutive residuals into clusters by their sign
     signs <- sign(res.weighted)
     for(i in 1:length(distinctX)) {
@@ -555,6 +558,8 @@ GenUnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)),
     } else {
       res.weighted <- res.tmp*weights*working.weights
     }
+    # Avoid spurious sign changes due to floating-point noise near zero
+    res.weighted[abs(res.weighted) <= tol] <- 0
     # Group the consecutive residuals into clusters by their sign
     signs <- sign(res.weighted)
     for (i in 1:length(distinctX)) {
