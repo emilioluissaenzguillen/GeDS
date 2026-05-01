@@ -191,16 +191,13 @@
 #'        model.}
 #'       \item{\code{dev}}{Deviance of the final model.}
 #'       \item{\code{Y_hat}}{Fitted values.}
-#'       \item{\code{base_learners}}{A list containing, for each base-learner
-#'       \emph{selected by the boosting algorithm} (i.e. chosen as the
-#'       best base-learner in at least one boosting iteration), the intervals
-#'       defined by the piecewise linear fit and its corresponding polynomial
-#'       coefficients. It also includes the knots corresponding to each order
-#'       fit, which result from computing the corresponding averaging knot
-#'       location. See Kaishev et al. (2016) for details. If the number of
-#'       internal knots of the final linear fit is less than \eqn{n-1}, the
-#'       averaging knot location is not computed. Base-learners present in the
-#'       model formula but never selected during boosting are not included.}
+#'       \item{\code{base_learners}}{A list containing, for each base-learner, the
+#'       intervals defined by the piecewise linear fit and its corresponding
+#'       polynomial coefficients. It also includes the knots corresponding to each
+#'       order fit, which result from computing the corresponding averaging knot
+#'       location. See Kaishev et al. (2016) for details. If the number of internal
+#'       knots of the final linear fit is less than \eqn{n-1}, the averaging knot location
+#'       is not computed.}
 #'       \item{\code{linear.fit}/\code{quadratic.fit}/\code{cubic.fit}}{Final
 #'       linear, quadratic and cubic fits in B-spline form. These include the
 #'       same elements as in a \code{\link{NGeDS}}/\code{\link{GGeDS}} object (see
@@ -898,11 +895,6 @@ NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE,
     
   }
   
-  # Base-learners selected by the algorithm
-  selected_bl_names <- unique(unlist(lapply(models, function(m) m$best_bl$name)))
-  selected_bl_names <- selected_bl_names[!is.null(selected_bl_names) & selected_bl_names != "NULL"]
-  base_learners_selected <- args$base_learners[selected_bl_names]
-  
   ## 7. Set the "final model" to be the one with lower deviance
   # 7.1. De-normalize predictions if necessary
   if (normalize_data == TRUE && family_stats$family != "binomial") {
@@ -928,29 +920,29 @@ NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE,
     dev = min(deviances),
     Y_hat = models[[model_min_deviance]]$Y_hat,     
     F_hat = models[[model_min_deviance]]$F_hat,
-    base_learners = models[[model_min_deviance]]$base_learners[names(base_learners_selected)]
+    base_learners = models[[model_min_deviance]]$base_learners
   )
   # Save linear internal knots for each base-learner
-  for (bl_name in names(base_learners_selected)) {
+  for (bl_name in names(base_learners)) {
     final_model$base_learners[[bl_name]]$linear.int.knots <- get_internal_knots(final_model$base_learners[[bl_name]]$knots)
   }
   
   # Extract variables of GeDS/linear base-learners
-  GeDS_variables <- unname(unlist(lapply(base_learners_selected, function(x) if (x$type == "GeDS") x$variables)))
-  linear_variables <- unname(unlist(lapply(base_learners_selected, function(x) if (x$type == "linear") x$variables)))
+  GeDS_variables <- unname(unlist(lapply(base_learners, function(x) if (x$type == "GeDS") x$variables)))
+  linear_variables <- unname(unlist(lapply(base_learners, function(x) if (x$type == "linear") x$variables)))
   
   #############################
   ## B-Spline Representation ##
   #############################
   # If all base-learners are univariate we transform the linear pp representation into B-spline form
-  bivariate_learners <- base_learners_selected[sapply(base_learners_selected, function(bl) length(bl$variables)) == 2]
+  bivariate_learners <- base_learners[sapply(base_learners, function(bl) length(bl$variables)) == 2]
   
   # (i) Knots
-  ll_list <- compute_avg_int.knots(final_model, base_learners = base_learners_selected,
+  ll_list <- compute_avg_int.knots(final_model, base_learners = base_learners,
                                    args$X_sd, args$X_mean, normalize_data, n = 2)
   # (ii) Coefficients
   # Univariate GeDS base-learners B-spline coefficients
-  bSpline.base_learners <- base_learners_selected[!names(base_learners_selected) %in% linear_variables]
+  bSpline.base_learners <- args$base_learners[!names(args$base_learners) %in% linear_variables]
   if (length(bivariate_learners) == 0) {
     bSpline_coef <- unlist(bSpline.coef(final_model, univariate_learners = bSpline.base_learners))
     # Handle linear and factor bl/variables
@@ -991,45 +983,45 @@ NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE,
   #######################
   if (higher_order) {
     
-    # # Quadratic fit
-    # qq_list <- compute_avg_int.knots(final_model, base_learners = base_learners_selected,
-    #                                args$X_sd, args$X_mean, normalize_data, n = 3)
-    # quadratic_fit <- tryCatch({
-    #   suppressMessages(
-    #     SplineReg_Multivar(X = args$predictors[GeDS_variables], Y = args$response[[response]],
-    #                        Z = args$predictors[linear_variables], base_learners = base_learners_selected,
-    #                        InterKnotsList = qq_list, # weights = weights: if knots were already found setting prior weights on observations, no need of weighting again
-    #                        n = 3, family = args$family, link = args$link)
-    #     )
-    #   }, error = function(e) {
-    #     cat(paste0("Error computing quadratic fit:", e))
-    #     return(NULL)
-    #     })
-    # final_model$quadratic.fit <- quadratic_fit
-    # pred_quadratic <- as.numeric(quadratic_fit$predicted)
-    # 
-    # # Cubic fit
-    # cc_list <- compute_avg_int.knots(final_model, base_learners = base_learners_selected,
-    #                                args$X_sd, args$X_mean, normalize_data, n = 4)
-    # cubic_fit <- tryCatch({
-    #   suppressMessages(
-    #     SplineReg_Multivar(X = args$predictors[GeDS_variables], Y = args$response[[response]],
-    #                        Z = args$predictors[linear_variables], base_learners = base_learners_selected,
-    #                        InterKnotsList = cc_list, # weights = weights: if knots were already found setting prior weights on observations, no need of weighting again
-    #                        n = 4, family = args$family, link = args$link)
-    #     )
-    #   }, error = function(e) {
-    #     cat(paste0("Error computing cubic fit:", e))
-    #     return(NULL)
-    #     })
-    # final_model$cubic.fit <- cubic_fit
-    # pred_cubic <- as.numeric(cubic_fit$predicted)
-    # 
-    # # Save quadratic and cubic knots for each base-learner
-    # for (bl_name in names(base_learners_selected)){
-    #   final_model$base_learners[[bl_name]]$quadratic.int.knots <- qq_list[[bl_name]]
-    #   final_model$base_learners[[bl_name]]$cubic.int.knots <- cc_list[[bl_name]]
-    # }
+    # Quadratic fit
+    qq_list <- compute_avg_int.knots(final_model, base_learners = base_learners,
+                                   args$X_sd, args$X_mean, normalize_data, n = 3)
+    quadratic_fit <- tryCatch({
+      suppressMessages(
+        SplineReg_Multivar(X = args$predictors[GeDS_variables], Y = args$response[[response]],
+                           Z = args$predictors[linear_variables], base_learners = args$base_learners,
+                           InterKnotsList = qq_list, # weights = weights: if knots were already found setting prior weights on observations, no need of weighting again
+                           n = 3, family = args$family, link = args$link)
+        )
+      }, error = function(e) {
+        cat(paste0("Error computing quadratic fit:", e))
+        return(NULL)
+        })
+    final_model$quadratic.fit <- quadratic_fit
+    pred_quadratic <- as.numeric(quadratic_fit$predicted)
+    
+    # Cubic fit
+    cc_list <- compute_avg_int.knots(final_model, base_learners = base_learners,
+                                   args$X_sd, args$X_mean, normalize_data, n = 4)
+    cubic_fit <- tryCatch({
+      suppressMessages(
+        SplineReg_Multivar(X = args$predictors[GeDS_variables], Y = args$response[[response]],
+                           Z = args$predictors[linear_variables], base_learners = args$base_learners,
+                           InterKnotsList = cc_list, # weights = weights: if knots were already found setting prior weights on observations, no need of weighting again
+                           n = 4, family = args$family, link = args$link)
+        )
+      }, error = function(e) {
+        cat(paste0("Error computing cubic fit:", e))
+        return(NULL)
+        })
+    final_model$cubic.fit <- cubic_fit
+    pred_cubic <- as.numeric(cubic_fit$predicted)
+    
+    # Save quadratic and cubic knots for each base-learner
+    for (bl_name in names(base_learners)){
+      final_model$base_learners[[bl_name]]$quadratic.int.knots <- qq_list[[bl_name]]
+      final_model$base_learners[[bl_name]]$cubic.int.knots <- cc_list[[bl_name]]
+    }
     
     
     
@@ -1050,9 +1042,9 @@ NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE,
     pred_cubic     <- higher_order_fits$cubic$preds
     
     # Save quadratic and cubic knots for each base-learner
-    for (bl_name in names(base_learners_selected)) {
-      final_model$base_learners[[bl_name]]$quadratic.int.knots <- higher_order_fits$quadratic$int.knots[[bl_name]]
-      final_model$base_learners[[bl_name]]$cubic.int.knots <- higher_order_fits$cubic$int.knots[[bl_name]]
+    for (bl_name in names(base_learners)) {
+      final_model$base_learners[[bl_name]]$quadratic.int.knots <- higher_order_fits$quadratic$knots[[bl_name]]
+      final_model$base_learners[[bl_name]]$cubic.int.knots <- higher_order_fits$cubic$knots[[bl_name]]
     }
     
     
@@ -1060,25 +1052,25 @@ NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE,
     
     } else {
       pred_quadratic <-  pred_cubic <- NULL
-      for (bl_name in names(base_learners_selected)){
+      for (bl_name in names(base_learners)){
         final_model$base_learners[[bl_name]]$quadratic.int.knots <- NULL
         final_model$base_learners[[bl_name]]$cubic.int.knots <- NULL
       }
     }
   
   # Simplify final_model structure
-  for (bl_name in names(base_learners_selected)){
+  for (bl_name in names(base_learners)){
     final_model$base_learners[[bl_name]]$knots <- NULL
   }
   
   preds <- list(pred_linear = pred_linear, pred_quadratic = pred_quadratic, pred_cubic = pred_cubic)
   
   # Store internal knots
-  linear.int.knots <- setNames(vector("list", length(base_learners_selected)), names(base_learners_selected))
-  quadratic.int.knots <- setNames(vector("list", length(base_learners_selected)), names(base_learners_selected))
-  cubic.int.knots <- setNames(vector("list", length(base_learners_selected)), names(base_learners_selected))
+  linear.int.knots <- setNames(vector("list", length(base_learners)), names(base_learners))
+  quadratic.int.knots <- setNames(vector("list", length(base_learners)), names(base_learners))
+  cubic.int.knots <- setNames(vector("list", length(base_learners)), names(base_learners))
   # Loop through each base learner and extract the int.knots
-  for(bl_name in names(base_learners_selected)){
+  for(bl_name in names(base_learners)){
     # Extract and store linear internal knots
     linear_int.knt <- final_model$base_learners[[bl_name]]$linear.int.knots
     linear.int.knots[bl_name] <- list(linear_int.knt)

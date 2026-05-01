@@ -581,8 +581,8 @@ NGeDSgam <- function(formula, family = "gaussian", data, weights = NULL,
     
     # Save quadratic and cubic knots for each base-learner
     for (bl_name in names(base_learners)) {
-      final_model$base_learners[[bl_name]]$quadratic.int.knots <- higher_order_fits$quadratic$int.knots[[bl_name]]
-      final_model$base_learners[[bl_name]]$cubic.int.knots <- higher_order_fits$cubic$int.knots[[bl_name]]
+      final_model$base_learners[[bl_name]]$quadratic.int.knots <- higher_order_fits$quadratic$knots[[bl_name]]
+      final_model$base_learners[[bl_name]]$cubic.int.knots <- higher_order_fits$cubic$knots[[bl_name]]
     }
     
   } else {

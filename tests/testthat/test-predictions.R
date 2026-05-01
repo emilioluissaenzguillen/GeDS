@@ -242,30 +242,12 @@ test_that("MTCARS - NGeDSboost predictions consistency", {
           pred0 <- 0
         }
 
-        sum <- pred1+pred2+pred3+pred4+pred5+pred6+pred7+pred8+pred9
-        
-        if (ord == 2) {
-          b0 <- unname(Gmodboost$final_model$linear.fit$theta["b0"])
-          if (is.na(b0)) b0 <- 0
-        } else {
-          b0 <- 0
-        }
-        
-        if (!Gmodboost$args$initial_learner && ord == 2) {
-          pred0 <- mean(mtcars$mpg)
-          if (Gmodboost$args$normalize_data) {
-            pred0 <- (pred0 - Gmodboost$args$Y_mean) / Gmodboost$args$Y_sd
-          }
-        } else {
-          pred0 <- 0
-        }
-        
-        sum <- pred0 + b0 + sum
-        
+        sum <- pred0 + pred1+pred2+pred3+pred4+pred5+pred6+pred7+pred8+pred9
+
         if (Gmodboost$args$normalize_data && ord == 2) {
           sum <- sum * Gmodboost$args$Y_sd + Gmodboost$args$Y_mean
         }
-        
+
         expect_equal(
           sum,
           predict(Gmodboost, newdata = mtcars, type = "response", n = ord),
