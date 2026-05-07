@@ -186,13 +186,16 @@ An object of class \code{"GeDSboost"} (a named list) with components:
        model.}
       \item{\code{dev}}{Deviance of the final model.}
       \item{\code{Y_hat}}{Fitted values.}
-      \item{\code{base_learners}}{A list containing, for each base-learner, the
-      intervals defined by the piecewise linear fit and its corresponding
-      polynomial coefficients. It also includes the knots corresponding to each
-      order fit, which result from computing the corresponding averaging knot
-      location. See Kaishev et al. (2016) for details. If the number of internal
-      knots of the final linear fit is less than \eqn{n-1}, the averaging knot location
-      is not computed.}
+      \item{\code{base_learners}}{A list containing, for each base-learner
+      \emph{selected by the boosting algorithm} (i.e. chosen as the
+      best base-learner in at least one boosting iteration), the intervals
+      defined by the piecewise linear fit and its corresponding polynomial
+      coefficients. It also includes the knots corresponding to each order
+      fit, which result from computing the corresponding averaging knot
+      location. See Kaishev et al. (2016) for details. If the number of
+      internal knots of the final linear fit is less than \eqn{n-1}, the
+      averaging knot location is not computed. Base-learners present in the
+      model formula but never selected during boosting are not included.}
       \item{\code{linear.fit}/\code{quadratic.fit}/\code{cubic.fit}}{Final
       linear, quadratic and cubic fits in B-spline form. These include the
       same elements as in a \code{\link{NGeDS}}/\code{\link{GGeDS}} object (see

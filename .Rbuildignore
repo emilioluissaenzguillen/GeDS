@@ -3,3 +3,5 @@
 ^Meta$
 ^\.github(/|$)
 ^dev$
+^\.positai$
+^\.claude$

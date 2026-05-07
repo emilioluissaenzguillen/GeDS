@@ -786,7 +786,7 @@ plot.GeDSboost <- function(x, n = 3L, base_learners = NULL, ask = FALSE,...)
   on.exit(devAskNewPage(old_ask), add = TRUE)
   
   if (is.null(base_learners)) {
-    base_learners <- x$args$base_learners
+    base_learners <- x$args$base_learners[names(x$final_model$base_learners)]
   } else {
     base_learners <- x$args$base_learners[names(x$args$base_learners) %in% base_learners]
   }
@@ -863,12 +863,8 @@ plot.GeDSboost <- function(x, n = 3L, base_learners = NULL, ask = FALSE,...)
       }
     })
     
+    base_learners <- base_learners[names(base_learners) %in% names(x$final_model$base_learners)]
     base_learners <- Filter(function(learner) length(learner$variables) == 1, base_learners)
-    
-    # Plot only base-learners that were selected
-    bl_selected <- unique(unlist(lapply(x$models, function(model) model$best_bl$name)))
-    # Keep the order of base_learners, but only include those that are in bl_selected
-    base_learners <- base_learners[names(sapply(base_learners, function(learner) learner$name %in% bl_selected))]
     
     pred_vars <- x$args$predictors
     
@@ -1065,9 +1061,8 @@ plot.GeDSgam <- function(x, base_learners = NULL,
   
   # Other arguments
   others <- list(...)
-  
-  # Plot color
   col_fit <- if (is.null(others$col)) "steelblue" else others$col
+  others$col <- NULL
   
   
   Y <- x$args$response[[1]]; pred_vars <- x$args$predictors
@@ -1113,14 +1108,11 @@ plot.GeDSgam <- function(x, base_learners = NULL,
       # 1.1. Univariate GeDS
       if (bl$type == "GeDS") {
         # Including int.knt and giving more values enhances visualization
-        X_mat <- seq(from = min(X_mat), to = max(X_mat), length.out = 1000)
+        X_mat <- seq(from = min(X_mat), to = max(X_mat), length.out = 100)
         X_mat <- sort(c(X_mat, int.knt))
-        # Create spline basis matrix using specified knots, evaluation points and order
-        basisMatrix <- splineDesign(knots = sort(c(int.knt,rep(range(X_mat),n))),
-                                    x = X_mat, ord = n, derivs = rep(0,length(X_mat)),
-                                    outer.ok = T)
-        # To recover backfitting predictions need de_mean
-        predicted <- if (n == 2) basisMatrix %*% theta_bl - mean(basisMatrix %*% theta_bl) else basisMatrix %*% theta_bl 
+        X_df <- as.data.frame(X_mat)
+        names(X_df) <- bl$variables
+        predicted <- predict.GeDSgam(x, newdata = X_df, n = n, base_learner = bl_name, type = "link")
         ylab <-  bl_name
         
         # 1.2. Univariate Linear
@@ -1167,13 +1159,10 @@ plot.GeDSgam <- function(x, base_learners = NULL,
         
         # Factor
       } else {
-        par(mar = c(7.1, 4.1, 4.1, 2.1))
         barplot(theta_bl,
                 las = 2,
-                col = col_fit,
                 main = bl_name,
-                ylab = bquote(beta))
-        par(mar = c(5.1, 4.1, 4.1,2.1))
+                ylab = bquote(beta),...)
       }
       
       #########################
