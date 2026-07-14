@@ -9,7 +9,7 @@
 #' \code{crossv_GeDS} performs k-fold cross-validation for tuning the relevant
 #' parameters of \code{NGeDS}, \code{GGeDS}, \code{NGeDSgam}, and
 #' \code{NGeDSboost} functions.
-#' 
+#'
 #' @param formula A description of the structure of the model structure,
 #' including the dependent and independent variables.
 #' @param data A \code{data.frame} containing the variables referenced in the formula.
@@ -27,15 +27,18 @@
 #' \item \code{phi_grid = c(0.9, 0.95, 0.99)} and
 #' \item \code{q_grid = c(2, 3))}.
 #' }
+#' @param n_cores Integer specifying the number of cores to use for parallel
+#' cross-validation. If \code{NULL}, the function uses one fewer than the number
+#' of detected cores, subject to CRAN check limits.
 #'
 #' @return Two data frames, \code{best_params} and \code{results}.
 #' \code{best_params} contains the best combination of parameters according to
-#' the cross-validated MSE. \code{results} presents the cross-validated MSE and 
-#' the average number of internal knots across the folds for each possible 
+#' the cross-validated MSE. \code{results} presents the cross-validated MSE and
+#' the average number of internal knots across the folds for each possible
 #' combination of parameters, given the input \code{parameters}. In the case of
 #' \code{model_fun = NGeDSboost}, it also provides the cross-validated number of
 #' boosting iterations.
-#' 
+#'
 #' @examples
 #' ###################################################
 #' # Generate a data sample for the response variable
@@ -50,34 +53,34 @@
 #' # Add (Normal) noise to the mean of Y
 #' Y <- rnorm(N, means, sd = 0.1)
 #' data = data.frame(X = X, Y = Y)
-#' 
+#'
 #' \dontrun{
 #' ## NGeDS
 #' # Define different combinations of parameters to cross-validate
 #' param = list(beta_grid = c(0.5),
 #'              phi_grid = c(0.9, 0.95),
 #'              q_grid = c(2))
-#' 
+#'
 #' cv_NGeDS <- crossv_GeDS(Y ~ f(X), data = data, NGeDS, n = 3,
 #'                         parameters = param)
-#' 
+#'
 #' print(cv_NGeDS$best_params)
 #' View(cv_NGeDS$results)
-#' 
+#'
 #' ## NGeDSboost
 #' param = list(int.knots_init_grid = c(1, 2),
 #'              shrinkage_grid = 1,
 #'              beta_grid = c(0.3, 0.5),
 #'              phi_grid = c(0.95, 0.99),
 #'              q_grid = 2)
-#' 
+#'
 #' cv_NGeDSboost <- crossv_GeDS(Y ~ f(X), data = data, NGeDSboost, n = 2L,
 #'                              n_folds = 2L, parameters = param)
-#' 
+#'
 #' print(cv_NGeDSboost$best_params)
 #' View(cv_NGeDSboost$results)
 #' }
-#' 
+#'
 #' @importFrom foreach foreach %dopar% %:%
 #' @importFrom doParallel registerDoParallel
 #' @importFrom parallel makeCluster stopCluster detectCores
@@ -90,7 +93,7 @@ globalVariables(c("i", "j", "k", "l", "m"))
 
 # Define a function to perform k-fold cross-validation
 crossv_GeDS <- function(formula, data, model_fun, n = 2L, n_folds = 5L,
-                        parameters, ...)
+                        parameters, n_cores = NULL, ...)
   {
   # Ensure model_fun is a supported function
   model_fun_name <- deparse(substitute(model_fun))
@@ -98,16 +101,18 @@ crossv_GeDS <- function(formula, data, model_fun, n = 2L, n_folds = 5L,
   if (!model_fun_name %in% supported_models) {
     stop("Unsupported model function. Please use one of the following: ", paste(supported_models, collapse=", "))
   }
-  
+
   # Cross-validation based on the model function
   if (model_fun_name %in% c("NGeDS", "GGeDS", "NGeDSgam")) {
     cv <- cross_validate.GeDS(formula = formula, data = data, model_fun = model_fun,
-                              n = n, n_folds = n_folds, parameters = parameters)
+                              n = n, n_folds = n_folds, parameters = parameters,
+                              n_cores = n_cores, ...)
     } else if (model_fun_name %in% c("NGeDSboost")) {
       cv <- cross_validate.GeDSboost(formula = formula, data = data, model_fun = model_fun,
-                                     n = n, n_folds = n_folds, parameters = parameters)
+                                     n = n, n_folds = n_folds, parameters = parameters,
+                                     n_cores = n_cores, ...)
     }
-  
+
   return(list(best_params = cv$best_params, results = as.data.frame(cv$results)))
 }
 
@@ -117,7 +122,8 @@ crossv_GeDS <- function(formula, data, model_fun, n = 2L, n_folds = 5L,
 cross_validate.GeDS <- function(formula, data, model_fun, n = 2L, n_folds = 5L,
                                 parameters = list(beta_grid = c(0.3, 0.5, 0.7),
                                                   phi_grid = c(0.9, 0.95, 0.99),
-                                                  q_grid = c(2, 3)), ...)
+                                                  q_grid = c(2, 3)),
+                                n_cores = NULL, ...)
 {
   # Parse formula
   terms <- all.vars(formula)
@@ -161,7 +167,19 @@ cross_validate.GeDS <- function(formula, data, model_fun, n = 2L, n_folds = 5L,
                            ncol = 11)
 
   # Register parallel backend
-  n_cores <- max(1, detectCores() - 1) # Avoid using all cores
+  available_cores <- detectCores()
+  if (is.na(available_cores)) available_cores <- 1L
+
+  if (is.null(n_cores)) {
+    n_cores <- max(1L, available_cores - 1L)
+  } else {
+    n_cores <- max(1L, as.integer(n_cores))
+  }
+
+  if (identical(Sys.getenv("_R_CHECK_LIMIT_CORES_"), "TRUE")) {
+    n_cores <- min(n_cores, 2L)
+  }
+
   cl <- makeCluster(n_cores)
   registerDoParallel(cl)
 
@@ -204,26 +222,26 @@ cross_validate.GeDS <- function(formula, data, model_fun, n = 2L, n_folds = 5L,
 
         # Number of internal knots
         if (inherits(fit, "GeDS")) {
-          if (fit$Type == "LM - Univ" || fit$Type == "GLM - Univ") {
+          if (fit$type == "LM - Univ" || fit$type == "GLM - Univ") {
             intknots_fold$univbl[fold_idx] <- fit$Nintknots
-          } else if (fit$Type == "LM - Biv" || fit$Type == "GLM - Biv") {
+          } else if (fit$type == "LM - Biv" || fit$type == "GLM - Biv") {
             intknots_fold$bivblX[fold_idx] <- fit$Nintknots$X
             intknots_fold$bivblY[fold_idx] <- fit$Nintknots$Y
           }
         }
 
       }
-      
+
       if (inherits(fit, "GeDS")) {
-        if (fit$Type == "LM - Univ" || fit$Type == "GLM - Univ") {
+        if (fit$type == "LM - Univ" || fit$type == "GLM - Univ") {
           data.frame(beta = beta_grid[i],
                      phi = phi_grid[j],
                      q = q_grid[k],
                      cv_mse = mean(mse_fold),
                      avg_intknots = mean(intknots_fold$univbl),
                      avg_fitting_time = mean(time_fold))
-          
-          } else if (fit$Type == "LM - Biv" || fit$Type == "GLM - Biv")
+
+          } else if (fit$type == "LM - Biv" || fit$type == "GLM - Biv")
             data.frame(beta = beta_grid[i],
                        phi = phi_grid[j],
                        q = q_grid[k],
@@ -239,7 +257,7 @@ cross_validate.GeDS <- function(formula, data, model_fun, n = 2L, n_folds = 5L,
                      cv_mse = mean(mse_fold),
                      avg_fitting_time = mean(time_fold))
         }
-      
+
     }
 
   # Stop the parallel backend
@@ -249,7 +267,13 @@ cross_validate.GeDS <- function(formula, data, model_fun, n = 2L, n_folds = 5L,
   results_matrix <- do.call(cbind, results_list)
 
   # Find the optimal parameters that minimize the cross-validated mse
-  best_params <- results_matrix[which.min(results_matrix[,"cv_mse"]), ]
+  results_df <- as.data.frame(results_matrix)
+
+  best_params <- results_df[
+    which.min(results_df$cv_mse),
+    ,
+    drop = FALSE
+  ]
 
   # Return the optimal parameters
   return(list(best_params = best_params, results = results_matrix))
@@ -263,7 +287,8 @@ cross_validate.GeDSboost <- function(formula, data, model_fun, n = 2L, n_folds =
                                                        shrinkage_grid = c(0.1, 0.5, 1),
                                                        beta_grid = c(0.3, 0.5, 0.7),
                                                        phi_grid = c(0.9, 0.95, 0.99),
-                                                       q_grid = c(2, 3)), ...)
+                                                       q_grid = c(2, 3)),
+                                     n_cores = NULL, ...)
 {
   # Parse formula
   terms <- all.vars(formula)
@@ -307,7 +332,19 @@ cross_validate.GeDSboost <- function(formula, data, model_fun, n = 2L, n_folds =
                            ncol = 11)
 
   # Register parallel backend
-  n_cores <- detectCores()
+  available_cores <- detectCores()
+  if (is.na(available_cores)) available_cores <- 1L
+
+  if (is.null(n_cores)) {
+    n_cores <- max(1L, available_cores - 1L)
+  } else {
+    n_cores <- max(1L, as.integer(n_cores))
+  }
+
+  if (identical(Sys.getenv("_R_CHECK_LIMIT_CORES_"), "TRUE")) {
+    n_cores <- min(n_cores, 2L)
+  }
+
   cl <- makeCluster(n_cores)
   registerDoParallel(cl)
 
@@ -381,7 +418,13 @@ cross_validate.GeDSboost <- function(formula, data, model_fun, n = 2L, n_folds =
   results_matrix <- do.call(cbind, results_list)
 
   # Find the optimal internal_knots, max_iterations and shrinkage values that minimize the cross-validated mse
-  best_params <- results_matrix[which.min(results_matrix[,"cv_mse"]), ]
+  results_df <- as.data.frame(results_matrix)
+
+  best_params <- results_df[
+    which.min(results_df$cv_mse),
+    ,
+    drop = FALSE
+  ]
 
   # Return the optimal internal_knots, max_iterations and shrinkage values
   return(list(best_params = best_params, results = results_matrix))
@@ -406,17 +449,17 @@ cross_validate.GeDSboost <- function(formula, data, model_fun, n = 2L, n_folds =
 #   X <- as.matrix(data[predictors])
 #   # Get the number of observations
 #   n_obs <- nrow(data)
-# 
+#
 #   # Check if order is correctly set
 #   n <- as.integer(n)
 #   if(!(n %in% 2L:4L)) {
 #     n <- 3L
 #     warning("'n' incorrectly specified. Set to 3.")
 #   }
-# 
+#
 #   # If cv model is linear, avoid computing higher order fits
 #   if (n == 2) higher_order <- FALSE else higher_order <- TRUE
-# 
+#
 #   # Validate n_folds
 #   if (is.null(n_folds) || !is.numeric(n_folds) || n_folds <= 0) {
 #     n_folds <- 5L
@@ -426,15 +469,15 @@ cross_validate.GeDSboost <- function(formula, data, model_fun, n = 2L, n_folds =
 #   }
 #   # Generate a list of fold indices
 #   folds <- split(sample(1:n_obs), rep(1:n_folds, len = n_obs))
-# 
+#
 #   # Extract parameters
 #   beta_grid <- param_gridCheck(parameters, "beta_grid", c(0.3, 0.5, 0.7))
 #   phi_grid <- param_gridCheck(parameters, "phi_grid", c(0.9, 0.95, 0.99))
 #   q_grid <- param_gridCheck(parameters, "q_grid", c(2, 3))
-# 
+#
 #   # Initialize a dataframe to store hyperparameters and corresponding MSE values
 #   results_df <- data.frame()
-# 
+#
 #   # Loop through each combination
 #   for (i in 1:length(beta_grid)) {
 #     for (j in 1:length(phi_grid)) {
@@ -469,18 +512,18 @@ cross_validate.GeDSboost <- function(formula, data, model_fun, n = 2L, n_folds =
 #             time_fold[fold_idx] <- difftime(end_time, start_time, units = "secs")
 #             # Evaluate the model on the test set
 #             test_pred <- predict(fit, newdata = test_data, n = n)
-# 
+#
 #             # Calculate the mean squared error for the test set
 #             mse_fold[fold_idx] <- mean((test_data[[outcome]] - test_pred)^2)
-# 
+#
 #             # Number of boosting iterations and average number of internal knots per boosting iteration
 #             if (inherits(fit, "GeDS")) {
 #               n_iterations_fold[fold_idx] <- fit$iters
-#               if (fit$Type == "LM - Univ" || fit$Type == "GLM - Univ") {
+#               if (fit$type == "LM - Univ" || fit$type == "GLM - Univ") {
 #                 avg_intknots_fold$avg_intknots_univbl[fold_idx] <- fit$Nintknots
 #                 avg_intknots_fold$avg_intknots_bivblX[fold_idx] <- NA
 #                 avg_intknots_fold$avg_intknots_bivblY[fold_idx] <- NA
-#                 } else if (fit$Type == "LM - Biv" || fit$Type == "GLM - Biv") {
+#                 } else if (fit$type == "LM - Biv" || fit$type == "GLM - Biv") {
 #                   avg_intknots_fold$avg_intknots_univbl[fold_idx] <- NA
 #                   avg_intknots_fold$avg_intknots_bivblX[fold_idx] <- fit$Nintknots$X
 #                   avg_intknots_fold$avg_intknots_bivblY[fold_idx] <- fit$Nintknots$Y
@@ -489,7 +532,7 @@ cross_validate.GeDSboost <- function(formula, data, model_fun, n = 2L, n_folds =
 #               aux <- n_intknots(fit)
 #               n_iterations_fold[fold_idx] <- mean(fit$iters$backfitting)
 #             }
-#             
+#
 #           }
 #           # Store hyperparameters and corresponding MSE value in results_df
 #           results_df <- rbind(results_df, data.frame(beta = beta_grid[i],
@@ -512,10 +555,16 @@ cross_validate.GeDSboost <- function(formula, data, model_fun, n = 2L, n_folds =
 #       }
 #     }
 #   }
-# 
+#
 #   # Find the optimal internal_knots, max_iterations and shrinkage values that minimize the cross-validated mse
-#   best_params <- results_df[which.min(results_df$mse), ]
-# 
+#
+#    results_df <- as.data.frame(results_matrix)
+#    best_params <- results_df[
+#      which.min(results_df$mse),
+#      ,
+#      drop = FALSE
+#      ]
+#
 #   # Return the optimal internal_knots, max_iterations and shrinkage values
 #   return(list(best_params = best_params, results = results_df))
 # }
@@ -539,17 +588,17 @@ cross_validate.GeDSboost <- function(formula, data, model_fun, n = 2L, n_folds =
 #   X <- as.matrix(data[predictors])
 #   # Get the number of observations
 #   n_obs <- nrow(data)
-# 
+#
 #   # Check if order is correctly set
 #   n <- as.integer(n)
 #   if(!(n %in% 2L:4L)) {
 #     n <- 3L
 #     warning("'n' incorrectly specified. Set to 3.")
 #   }
-# 
+#
 #   # If cv GeDSboost/GeDSgam model is linear, avoid computing higher order fits
 #   if (n == 2) higher_order <- FALSE else higher_order <- TRUE
-# 
+#
 #   # Validate n_folds
 #   if (is.null(n_folds) || !is.numeric(n_folds) || n_folds <= 0) {
 #     n_folds <- 5L
@@ -559,17 +608,17 @@ cross_validate.GeDSboost <- function(formula, data, model_fun, n = 2L, n_folds =
 #   }
 #   # Generate a list of fold indices
 #   folds <- split(sample(1:n_obs), rep(1:n_folds, len = n_obs))
-# 
+#
 #   # Extract parameters
 #   int.knots_init_grid <- param_gridCheck(parameters, "int.knots_init_grid", c(0, 1, 2))
 #   shrinkage_grid <- param_gridCheck(parameters, "shrinkage_grid", c(0.8, 0.9, 1))
 #   beta_grid <- param_gridCheck(parameters, "beta_grid", c(0.3, 0.5, 0.7))
 #   phi_grid <- param_gridCheck(parameters, "phi_grid", c(0.9, 0.95, 0.99))
 #   q_grid <- param_gridCheck(parameters, "q_grid", c(2, 3))
-# 
+#
 #   # Initialize a dataframe to store hyperparameters and corresponding MSE values
 #   results_df <- data.frame()
-# 
+#
 #   # Loop through each combination
 #   for (i in 1:length(int.knots_init_grid)) {
 #     for (j in 1:length(shrinkage_grid)) {
@@ -607,10 +656,10 @@ cross_validate.GeDSboost <- function(formula, data, model_fun, n = 2L, n_folds =
 #                 time_fold[fold_idx] <- difftime(end_time, start_time, units = "secs")
 #                 # Evaluate the model on the test set
 #                 test_pred <- predict.GeDSboost(fit, newdata = test_data, n = n)
-# 
+#
 #                 # Calculate the mean squared error for the test set
 #                 mse_fold[fold_idx] <- mean((test_data[[outcome]] - test_pred)^2)
-# 
+#
 #                 # Number of boosting iterations and average number of internal knots per boosting iteration
 #                 aux <- n_intknots(fit)
 #                 n_iterations_fold[fold_idx] <- aux$n_iterations
@@ -644,10 +693,15 @@ cross_validate.GeDSboost <- function(formula, data, model_fun, n = 2L, n_folds =
 #       }
 #     }
 #   }
-# 
+#
 #   # Find the optimal internal_knots, max_iterations and shrinkage values that minimize the cross-validated mse
-#   best_params <- results_df[which.min(results_df$mse), ]
-# 
+#    results_df <- as.data.frame(results_matrix)
+#    best_params <- results_df[
+#      which.min(results_df$mse),
+#      ,
+#      drop = FALSE
+#      ]
+#
 #   # Return the optimal internal_knots, max_iterations and shrinkage values
 #   return(list(best_params = best_params, results = results_df))
 # }
@@ -665,7 +719,7 @@ n_intknots <- function(object, avg = TRUE){
       n_iterations <- sum(object$iters$backfitting)
     }
   n_intknots <- n_intknotsX <- n_intknotsY <- 0
-  
+
   if (n_iterations == 0) {
     n_intknots_univbl <- n_intknots_bivblX <- n_intknots_bivblY <- 0
   } else {
@@ -680,25 +734,25 @@ n_intknots <- function(object, avg = TRUE){
         n_intknotsY <- length(base_learners[[bl_name]]$linear.int.knots$ikY)
       }
     }
-    
+
     if(avg) {
       n_intknots_univbl <- n_intknots / n_iterations
       n_intknots_bivblX <- n_intknotsX / n_iterations
       n_intknots_bivblY <- n_intknotsY / n_iterations
       } else {
         n_intknots_univbl <- n_intknots
-        n_intknots_bivblX <- n_intknotsX 
+        n_intknots_bivblX <- n_intknotsX
         n_intknots_bivblY <- n_intknotsY
       }
-    
+
   }
-  
+
   n_intknots <- list(univbl = n_intknots_univbl,
                      bivblX = n_intknots_bivblX,
                      bivblY = n_intknots_bivblY)
-  
-  
-  
+
+
+
   return(list(n_intknots = n_intknots, n_iterations = n_iterations))
 }
 

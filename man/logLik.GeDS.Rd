@@ -26,7 +26,7 @@ non-integer values will be passed to the function \code{\link{as.integer}}.}
 An object of class \code{\link[stats]{logLik}}.
 }
 \description{
-Method for \code{\link[stats]{logLik}} that returns the log-likelihood of 
+Method for \code{\link[stats]{logLik}} that returns the log-likelihood of
 the selected GeDS, GeDS-GAM or FGB-GeDS model.
 }
 \seealso{

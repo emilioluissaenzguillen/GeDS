@@ -70,7 +70,7 @@ The outputs of both \code{\link{NGeDS}} and \code{\link{GGeDS}} functions are
 and \code{\link{NGeDSboost}} functions are\code{"GeDSgam"} class and
 \code{"GeDSboost"} class objects, respectively. \code{"GeDS"} class,
 \code{"GeDSgam"} class and \code{"GeDSboost"} class objects contain
-second, third and fourth order spline fits. As described in 
+second, third and fourth order spline fits. As described in
 Kaishev et al. (2016), Dimitrova et al. (2023) and  Dimitrova et al. (2025),
 the "final" GeDS fit is the one minimizing the empirical deviance. Nevertheless,
 the user can choose to use any of the available fits.
@@ -113,7 +113,7 @@ Useful links:
 
 }
 \author{
-Dimitrina S. Dimitrova <D.Dimitrova@citystgeorges.ac.uk>,\cr 
+Dimitrina S. Dimitrova <D.Dimitrova@citystgeorges.ac.uk>,\cr
 Vladimir K. Kaishev <V.Kaishev@citystgeorges.ac.uk>,\cr
 Andrea Lattuada <Andrea.Lattuada@hotmail.com>,\cr
 Emilio L. Sáenz Guillén <Emilio.Saenz-Guillen@citystgeorges.ac.uk> and\cr

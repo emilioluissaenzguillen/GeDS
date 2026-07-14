@@ -73,11 +73,11 @@ independent variable (if bivariate GeDS is run). See Details.}
 information of the fit at each GeDS iteration. By default equal to \code{FALSE}.}
 
 \item{stoptype}{A character string indicating the type of GeDS stopping rule
-to be used. It should be either one of \code{"SR"}, \code{"RD"} or 
+to be used. It should be either one of \code{"SR"}, \code{"RD"} or
 \code{"LR"}, partial match allowed. See Details below.}
 
-\item{higher_order}{Logical; if \code{TRUE}, the function proceeds to Stage B, 
-fitting higher-order models (quadratic and cubic), after completing Stage A. 
+\item{higher_order}{Logical; if \code{TRUE}, the function proceeds to Stage B,
+fitting higher-order models (quadratic and cubic), after completing Stage A.
 Default is \code{TRUE}.}
 }
 \value{
@@ -110,7 +110,7 @@ The  \code{GGeDS} function extends the GeDS methodology, developed by
 Kaishev et al. (2016) and implemented in the \code{\link{NGeDS}} function
 for the normal case, to the more general GNM (GLM) context, allowing for the
 response to have any distribution from the exponential family. Under the
-GeDS-GNM approach the (non-)linear predictor is viewed as a spline with 
+GeDS-GNM approach the (non-)linear predictor is viewed as a spline with
 variable knots that are estimated along with the regression coefficients and
 the order of the spline, using a two stage procedure. In stage A, a linear
 variable-knot spline is fitted to the data applying iteratively re-weighted
@@ -138,7 +138,7 @@ regression coefficients equal to 1. These terms should be identified via the
 function \code{\link[stats]{offset}}.
 
 The parameter \code{beta} tunes the placement of a new knot in stage A of the
-algorithm. At the beginning of each GeDS iteration, a second-order spline is 
+algorithm. At the beginning of each GeDS iteration, a second-order spline is
 fitted to the data. As follows, the "working residuals"
 (see \code{\link{IRLSfit}}) are computed and grouped by their sign. A new knot
 is then placed within the cluster that maximizes a certain measure. This measure
@@ -164,7 +164,7 @@ that stands for \emph{Ratio of Deviances}; \code{"SR"}, that stands for
 rather than on their ratio as in the case of \code{"RD"} and \code{"SR"}.
 Therefore \code{"LR"} can be viewed as a log likelihood ratio test performed
 at each iteration of the knot placement. In each of these cases the
-corresponding stopping criterion is compared with a threshold value 
+corresponding stopping criterion is compared with a threshold value
 \code{phi} (see below).
 
 The argument \code{phi} provides a threshold value required for the stopping
@@ -341,7 +341,7 @@ deviance(BivGeDS, n = 2) # or sum(poisson()$dev.resids(Z, BivGeDS$Linear.Fit$Pre
 deviance(BivGeDS, n = 3)
 deviance(BivGeDS, n = 4)
 
-# Poisson mean deviance w.r.t true function 
+# Poisson mean deviance w.r.t true function
 f_XY <- apply(cbind(X, Y), 1, function(row) doublesin(matrix(row, ncol = 2)))
 mean(poisson()$dev.resids(f_XY, BivGeDS$Linear.Fit$Predicted, wt = 1))
 mean(poisson()$dev.resids(f_XY, BivGeDS$Quadratic.Fit$Predicted, wt = 1))

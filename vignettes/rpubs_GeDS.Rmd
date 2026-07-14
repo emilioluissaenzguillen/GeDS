@@ -3,7 +3,7 @@ title: "Geometrically Designed Splines: GeDS"
 author: "Emilio Luis Sáenz Guillén"
 date: "`r Sys.Date()`"
 bibliography: citations.bib
-csl: apa.csl        
+csl: apa.csl
 output: rmarkdown::html_vignette
 vignette: >
   %\VignetteIndexEntry{Geometrically Designed Splines: GeDS}
@@ -33,18 +33,18 @@ subsequently built. GeDS was firstly introduced for the univariate
 Normal case by [@Kaishev2016](https://link.springer.com/article/10.1007/s00180-015-0621-7). It was later expanded to the broader
 context of Generalized Non-linear Models (GNM) ---which include
 Generalized Linear Models (GLM) as a special case---, and to the
-bivariate case by [@Dimitrova2023](https://www.sciencedirect.com/science/article/abs/pii/S0096300322005677). More recently, GeDS
+bivariate case by [@Dimitrova2023](https://doi.org/10.1016/j.amc.2022.127493). More recently, GeDS
 methodology has been extended towards the benchmark of Generalized
 Additive Models (GAM) and Functional Gradient Boosting (FGB) by
 [@Dimitrova2025].
 
 GeDS methodology is implemented on the **R** package
-[GeDS](https://cran.r-project.org/web/packages/GeDS/index.html) that I
+[GeDS](https://CRAN.R-project.org/package=GeDS) that I
 introduce herein. For a tutorial on the the GAM-GeDS methodology, see [Generalized Additive Models (GAM) with GeD Splines](https://rpubs.com/emilioluissaenzguillen/1209067). For a tutorial focused on FGB-GeDS, see [Functional Gradient Boosting (FGB) with GeD Splines](https://rpubs.com/emilioluissaenzguillen/1341492).
 
 ```{r message=FALSE}
 # install.packages("GeDS")
-library(GeDS)
+library("GeDS")
 ```
 
 ## What are (polynomial) splines?
@@ -230,7 +230,7 @@ where the black line depicts the real underlying function $f_1(x)$.
 ## Generalized GeD Spline Regression
 
 Normal GeDS regression methodology can be extended to the wider context
-of GNM/GLM models ([@Dimitrova2023](https://www.sciencedirect.com/science/article/abs/pii/S0096300322005677)).
+of GNM/GLM models ([@Dimitrova2023](https://doi.org/10.1016/j.amc.2022.127493)).
 
 ### The GNM (GLM) fitting problem
 
@@ -296,8 +296,8 @@ The usage of function `GGeDS()` is illustrated with the same example as before. 
 
 **Example 1.** The "true" linear predictor is assumed to be $\eta = f_1(x)$,
 where \begin{equation}
-f_1(x) = 40\frac{x}{1 + 100x^2} + 4,\quad x \in [−2, 2]. 
-\end{equation} 
+f_1(x) = 40\frac{x}{1 + 100x^2} + 4,\quad x \in [−2, 2].
+\end{equation}
 
 Random samples,
 $\{X_i,Y_i\}^N_{i=1}$, are generated with correspondingly Poisson, Gamma and
@@ -382,7 +382,7 @@ plot(Gmod, f = function(x) exp(f_1(x) - 4)/(1 + exp(f_1(x) - 4)),
 ## Bivariate GeD Spline Regression
 
 Now, take the case where $Z$ to be a response variable that depends on two covariates
-$X_1=X$ and $X_2=Y$. [@Dimitrova2023](https://www.sciencedirect.com/science/article/abs/pii/S0096300322005677), introduce a bivariate
+$X_1=X$ and $X_2=Y$. [@Dimitrova2023](https://doi.org/10.1016/j.amc.2022.127493), introduce a bivariate
 extension of GeDS by assuming that the predictor component of the GLM is
 in the form of bivariate spline function:
 \begin{equation}
@@ -408,10 +408,10 @@ Below, the implementation of Normal bivariate GeDS and Poisson bivariate GeDS, w
 
 **Example 2.** The "true" linear predictor is assumed to be $\eta = f(x_1,x_2)$,
 where \begin{equation}
-f(x_1,x_2) = \sin(2x_1)\sin(2x_2),\quad x \in [0, 3]^2. 
+f(x_1,x_2) = \sin(2x_1)\sin(2x_2),\quad x \in [0, 3]^2.
 \end{equation}
 
-For the Normal case, a dataset $\{X_{i1}, X_{i2}, Y_i\}_{i=1}^N$ is simulated, with $Y_i = f(X_{i1}, X_{i2}) + \epsilon_i$, where $\epsilon_i \sim \mathcal{N}(0, 0.1)$. For the Poisson case, $Z_i \sim \text{Poisson}(0, 0.1)$ $Z_i ∼ \text{Poisson}(\mu_i)$, with $\mu_i = \exp(\eta_i)$ and $\eta_i = f(X_{i1}, X_{i2})$. In both cases, $(X_{i1}, X_{i2})$ are randomly scattered within $[0,3]^2$, following a uniform distribution and $N = 400$. 
+For the Normal case, a dataset $\{X_{i1}, X_{i2}, Y_i\}_{i=1}^N$ is simulated, with $Y_i = f(X_{i1}, X_{i2}) + \epsilon_i$, where $\epsilon_i \sim \mathcal{N}(0, 0.1)$. For the Poisson case, $Z_i \sim \text{Poisson}(0, 0.1)$ $Z_i ∼ \text{Poisson}(\mu_i)$, with $\mu_i = \exp(\eta_i)$ and $\eta_i = f(X_{i1}, X_{i2})$. In both cases, $(X_{i1}, X_{i2})$ are randomly scattered within $[0,3]^2$, following a uniform distribution and $N = 400$.
 
 #### Normal Bivariate GeDS:
 
@@ -440,7 +440,7 @@ knots(BivGeDS, n = 3)
 deviance(BivGeDS, n = 3)
 
 # RSS w.r.t true function
-f_XY <- apply(cbind(X, Y), 1, function(row) doublesin(matrix(row, ncol = 2))) 
+f_XY <- apply(cbind(X, Y), 1, function(row) doublesin(matrix(row, ncol = 2)))
 mean((f_XY- Gmod$Quadratic.Fit$Predicted)^2)
 
 # Surface plot of the generating function (doublesin)

@@ -22,16 +22,16 @@ data(CrystalData10k)
 data(CrystalData300k)
 }
 \description{
-This dataset contains crystallographic measurements obtained from a particle 
-accelerator experiment. The measurements correspond to the function \eqn{F(Q)} 
-at various \eqn{Q} values, which are used to analyze the scattering properties 
-of an unknown crystalline material. The dataset is available in two versions 
+This dataset contains crystallographic measurements obtained from a particle
+accelerator experiment. The measurements correspond to the function \eqn{F(Q)}
+at various \eqn{Q} values, which are used to analyze the scattering properties
+of an unknown crystalline material. The dataset is available in two versions
 based on the precision of the measurements:
 \itemize{
   \item \code{CrystalData10k} (lower precision);
   \item \code{CrystalData300k} (higher precision);
 }
-The goal of the experiment is to estimate \eqn{F(Q)} from noisy data using 
+The goal of the experiment is to estimate \eqn{F(Q)} from noisy data using
 a GeDS model, and subsequently compute its Fourier transform to gain some valuable
 insights into the structure of the material.
 }
@@ -43,11 +43,11 @@ data('CrystalData10k')
 # Fit a GeDS/GeDSboost model and compare how well the intensity peaks are captured
 Gmod <- NGeDS(F_Q ~ f(Q), data = CrystalData10k, phi = 0.999, q = 3)
 # for CrystalData300k set int.knots_init = 1, phi = 0.999, q = 4, instead
-Gmodboost <- NGeDSboost(F_Q ~ f(Q), data = CrystalData10k, phi = 0.9975, q = 4) 
+Gmodboost <- NGeDSboost(F_Q ~ f(Q), data = CrystalData10k, phi = 0.9975, q = 4)
 
 par(mfrow = c(1,2))
 plot(Gmod, n = 2)
-plot(Gmodboost, n = 2) 
+plot(Gmodboost, n = 2)
 }
 
 }

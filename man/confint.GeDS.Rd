@@ -16,7 +16,7 @@
 \item{object}{The \code{"GeDS"}/\code{"GeDSgam"}/\code{"GeDSboost"} class object
 from which the confidence intervals for the selected order \code{n} should be extracted.}
 
-\item{parm}{A specification of which parameters are to be given confidence intervals, 
+\item{parm}{A specification of which parameters are to be given confidence intervals,
 either a vector of numbers or names; defaults to all parameters.}
 
 \item{level}{The confidence level required (default is 0.95).}

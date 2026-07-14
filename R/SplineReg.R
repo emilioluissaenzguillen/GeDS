@@ -55,7 +55,12 @@
 #' \code{SplineReg} computes only the corresponding predicted values.
 #' @param only_pred Logical, if \code{TRUE} only \code{theta},
 #' \code{predicted}, \code{residuals} and \code{rss} will be computed.
-#' 
+#' @param fast Logical. If \code{TRUE} a fast
+#' fitting path is used (\code{\link[stats]{glm.fit}} without computing
+#' confidence intervals or the control polygon), intended for internal use in
+#' the stage A loop of GeDS boosting. By default \code{FALSE}.
+#'
+#'
 #' @details
 #' The functions estimate the coefficients of a predictor model with a spline
 #' component (and possibly a parametric component) for a given order,
@@ -88,15 +93,15 @@
 #' as possible input data validation is mild. Hence it is expected that the user
 #' checks carefully the input parameters before using \code{SplineReg_GLM}. The
 #' \code{"residuals"} in the output of this function are similar to the so
-#' called "working residuals" in the \code{\link[stats]{glm}} function. 
+#' called "working residuals" in the \code{\link[stats]{glm}} function.
 #' \code{"residuals"}  are the residuals \eqn{r_i} used in the knot placement
 #' procedure, i.e. \deqn{r_i= (y_i - \hat{\mu}_i){d \mu_i \over d \eta_i },} but
 #' in contrast to \code{\link[stats]{glm}} "working residuals", they are
 #' computed using the final IRLS fitted \eqn{\hat{\mu}_i}. \code{"residuals"}
 #' are then used in locating the knots of the linear spline fit of Stage A.
-#' 
+#'
 #' In \code{SplineReg_GLM} confidence intervals are not computed.
-#' 
+#'
 #' @return A \code{list} containing:
 #' \describe{
 #' \item{theta}{A vector containing the fitted coefficients of the spline
@@ -124,7 +129,7 @@
 #' \code{SplineReg_LM} is used, or the output of the function
 #' \code{\link[stats]{glm}} if \code{SplineReg_GLM} is used.}
 #' }
-#' 
+#'
 #' @references
 #' Kaishev, V. K., Dimitrova, D. S., Haberman, S. & Verrall, R. J. (2006).
 #' Geometrically designed, variable know regression splines: asymptotics and
@@ -145,25 +150,75 @@
 #' @seealso \code{\link{NGeDS}}, \code{\link{GGeDS}}, \code{\link{Fitters}},
 #' \code{\link{IRLSfit}}, \code{\link[stats]{lm}} and
 #' \code{\link[stats]{glm.fit}}.
-#' 
+#'
 #' @rdname SplineReg
 #' @aliases SplineReg
+#' @importFrom Matrix Matrix
 #' @importFrom splines splineDesign
 #' @importFrom stats lm coef
 #' @export
 
 SplineReg_LM <- function(X, Y, Z = NULL, offset = rep(0,length(X)), weights = rep(1,length(X)),
                          InterKnots, n, extr = range(X), prob = 0.95,
-                         coefficients = NULL, only_pred = FALSE)
+                         coefficients = NULL, only_pred = FALSE, fast = FALSE)
   {
   # Convert spline order to integer
   n <- as.integer(n)
+
+  if(fast){
+
+    knots_full <- sort(c(InterKnots, rep(extr, n)))
+    nz <- if (is.null(Z)) 0L else NCOL(Z)
+    p  <- (length(knots_full) - n) + nz          # number of regression columns
+    Y0 <- Y - offset
+    unit_w <- all(weights == 1)
+
+    use_sparse <- p >= 50L || length(X) >= 5000L
+    if (!use_sparse) {
+      # Small basis: a dense .lm.fit beats building sparse structures (and is the
+      # original, bit-identical path). This covers the many tiny boosting fits.
+      basisMatrix  <- splineDesign(knots = knots_full, derivs = rep(0, length(X)),
+                                   x = X, ord = n, outer.ok = TRUE)
+      basisMatrix2 <- cbind(basisMatrix, Z)
+      tmp   <- if (unit_w) .lm.fit(basisMatrix2, Y0) else lm.wfit.light(basisMatrix2, Y0, weights)
+      theta <- coef(tmp)
+    } else {
+      # Large basis: each row has only n nonzero entries, so X'WX is banded and
+      # factorizes in ~O(N) instead of the O(N p^2) of a dense QR.
+      basisMatrix  <- splineDesign(knots = knots_full, derivs = rep(0, length(X)),
+                                   x = X, ord = n, outer.ok = TRUE, sparse = TRUE)
+      basisMatrix2 <- if (is.null(Z)) basisMatrix
+      else cbind(basisMatrix, Matrix(as.matrix(Z), sparse = TRUE))
+      theta <- tryCatch({
+        if (unit_w) {
+          XtX <- crossprod(basisMatrix2)
+          Xty <- crossprod(basisMatrix2, Y0)
+        } else {
+          rw  <- sqrt(weights)
+          Xw <- basisMatrix2 * rw
+          XtX <- crossprod(Xw)
+          Xty <- crossprod(Xw, rw * Y0)
+        }
+        as.numeric(solve(XtX, Xty))
+      }, error = function(e) {
+        bm  <- as.matrix(basisMatrix2)
+        tmp <- if (unit_w) .lm.fit(bm, Y0) else lm.wfit.light(bm, Y0, weights)
+        coef(tmp)
+      })
+    }
+    predicted <- as.numeric(basisMatrix2 %*% theta) + offset
+    resid <- Y - predicted
+    return(list("theta" = theta, "predicted" = predicted, "residuals" = resid,
+                "rss" = as.numeric(crossprod(resid)), "basis" = basisMatrix2,
+                "temporary" = NULL))
+  }
+
   # Create spline basis matrix using specified knots, evaluation points and order
   basisMatrix <- splineDesign(knots = sort(c(InterKnots,rep(extr,n))), x = X, ord = n,
                           derivs = rep(0,length(X)), outer.ok = T)
   # Combine spline basis with parametric design matrix (if provided)
   basisMatrix2 <- cbind(basisMatrix, Z)
-  
+
   # 1) If coefficients are NOT provided estimate the corresponding regression model
   if (is.null(coefficients)) {
     # Substract offset (if any) from Y
@@ -177,43 +232,43 @@ SplineReg_LM <- function(X, Y, Z = NULL, offset = rep(0,length(X)), weights = re
       # # Compute the minimal-norm solution for theta using the Moore-Penrose generalized inverse.
       # theta <- as.numeric(ginv(basisMatrix2) %*% Y0)
       # # Now theta contains the computed coefficients that reproduce lm()'s fitted values.
-      
+
       # Compute t(basisMatrix2) %*% basisMatrix2 using crossprod (more efficient)
       matcb <- crossprod(basisMatrix2)
       matcbinv <- ginv(matcb)
       theta <- as.numeric(matcbinv %*% crossprod(basisMatrix2, tmp$fitted.values))
-      
+
     }
     # Compute predicted values
     predicted <- basisMatrix2 %*% theta + offset
-    
+
   # 2) If coefficients are provided, use them to compute predicted values directly
   } else {
     tmp <- NULL
     theta <- coefficients
     predicted <- basisMatrix2 %*% theta + offset
   }
-  
+
   # Calculate residuals
   resid <- Y - predicted
-  
+
   if (!only_pred) {
     # Knots for control polygon
     nodes <- sort(c(InterKnots,rep(extr,n)))[-c(1, NCOL(basisMatrix)+1)]
     polyknots <- makenewknots(nodes, degree = n)
-    
+
     # Confidence intervals
     ci <- ci(tmp, resid, prob = 0.95, basisMatrix, basisMatrix2, predicted,
              n_obs = length(Y), type = "lm", huang = TRUE)
     nci <- ci$nci; aci <- ci$aci
-    
+
     } else {
       polyknots <- nci <- aci <- NULL
     }
-  
+
   out <- list("theta" = theta, "predicted" = predicted, "residuals" = resid,
               "rss" = as.numeric(crossprod(resid)), "basis" = basisMatrix,
-              "nci" = nci, "aci" = aci, 
+              "nci" = nci, "aci" = aci,
               "polygon" = list("kn" = polyknots,
                                "thetas" = theta[1:NCOL(basisMatrix)]),
               "temporary" = tmp)
@@ -222,17 +277,17 @@ SplineReg_LM <- function(X, Y, Z = NULL, offset = rep(0,length(X)), weights = re
 
 
 #' @importFrom splines splineDesign
-#' @importFrom stats glm coef
+#' @importFrom stats glm glm.fit coef
 #' @export
 #' @rdname SplineReg
 SplineReg_GLM <- function(X, Y, Z, offset = rep(0,nobs), weights = rep(1,length(X)),
                           InterKnots, n, extr = range(X), family, mustart,
-                          inits = NULL, etastart = NULL)
+                          inits = NULL, etastart = NULL, fast = FALSE)
   {
   # Ensure X, Y, Z, InterKnots are numeric, and n and extr are integers
   X <- as.numeric(X); Y <- as.numeric(Y); Z <- as.numeric(Z)
   InterKnots <- as.numeric(InterKnots); n <- as.integer(n); extr <- as.numeric(extr)
-  
+
   # Check that 'n' (spline order) has length 1
   if(length(n) != 1) stop("'n' must have length 1")
   ord <- n # to avoid problem in use of family$initialize e.g. binomial()
@@ -242,16 +297,16 @@ SplineReg_GLM <- function(X, Y, Z, offset = rep(0,nobs), weights = rep(1,length(
   if(is.null(weights)) weights <- rep(1,length(Y))
   # Set required environment variables for family$initialize and IRLSfit
   y <- Y; nobs <- NROW(Y)
-  
+
   # Create spline basis matrix using specified knots, order, and evaluation points
   basisMatrix <- splineDesign(knots = sort(c(InterKnots,rep(extr,n))), x = X, ord = n,
                           derivs = rep(0,length(X)), outer.ok = T)
   # Combine spline basis with parametric design matrix (if provided)
   basisMatrix2 <- cbind(basisMatrix,Z)
-  
+
   # Initialize mustart based on input or defaults
   if (missing(mustart) || is.null(mustart)) {
-    
+
     if (is.null(inits)) {
       # Set environment to parent frame
       env <- parent.frame()
@@ -264,7 +319,20 @@ SplineReg_GLM <- function(X, Y, Z, offset = rep(0,nobs), weights = rep(1,length(
       mustart <- family$linkinv(basisMatrix2 %*% inits)
     }
   }
-  
+
+  Y0 <- Y - offset
+
+  # Stage-A fast path: glm.fit (no formula parsing) and no CI/polygon.
+  # glm() forwards to glm.fit() with the same mustart, so the fit is identical.
+  if (fast) {
+    tmp <- glm.fit(basisMatrix2, Y0, family = family, weights = weights,
+                   mustart = mustart, intercept = FALSE)
+    return(list("theta" = tmp$coefficients, "residuals" = tmp$residuals,
+                "basis" = basisMatrix,
+                "temporary" = list("iter" = tmp$iter, "deviance" = tmp$deviance,
+                                   "weights" = tmp$weights)))
+  }
+
   Y0 <- Y - offset
   # Fit linear model without intercept, using weights
   # tmp <- IRLSfit(basisMatrix2, Y0, offset = offset,
@@ -272,7 +340,7 @@ SplineReg_GLM <- function(X, Y, Z, offset = rep(0,nobs), weights = rep(1,length(
   # tmp <- glm.fit(basisMatrix2, Y0, family = family,
   #                weights = weights, mustart = mustart)
   tmp <- glm(Y0 ~ -1 + basisMatrix2, family = family, weights = weights, mustart = mustart)
-  
+
   # Extract fitted coefficients
   theta <- coef(tmp)
   # Compute predicted mean values of the response variable
@@ -282,10 +350,10 @@ SplineReg_GLM <- function(X, Y, Z, offset = rep(0,nobs), weights = rep(1,length(
   polyknots <- makenewknots(nodes, degree = ord)
   # Extract residuals
   resid <- tmp$residuals
-  
+
   ci <- ci(tmp, resid, prob = 0.95, basisMatrix, basisMatrix2, predicted,
            n_obs = length(Y), type = "glm", huang = FALSE)
-  
+
   out <- list("theta" = theta, "predicted" = predicted, "residuals" = resid,
               "rss" = tmp$deviance, "basis" = basisMatrix, "nci" = ci$nci,
               "polygon" = list("kn" = polyknots,

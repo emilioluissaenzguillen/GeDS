@@ -6,7 +6,7 @@
 #' @title Lines Method for GeDS Objects
 #' @name lines.GeDS
 #' @description
-#' Lines method for GeDS objects. Adds a GeDS curve to an existing plot. 
+#' Lines method for GeDS objects. Adds a GeDS curve to an existing plot.
 #' @param x A \code{"GeDS"} class object, as returned by \code{NGeDS()} or \code{GGeDS()}.
 #' @param n Integer value (2, 3 or 4) specifying the order (\eqn{=} degree
 #' \eqn{+ 1}) of the GeDS fit that should be plotted. By default equal to
@@ -22,7 +22,7 @@
 #' @param data An optional \code{data.frame}, \code{list}, or \code{environment}.
 #' It should contain values of the independent variables for which the GeDS predicted
 #' values should be plotted. If left empty, the values are extracted from the object \code{x}.
-#' 
+#'
 #' @param ... Further arguments to be passed to the default
 #' \code{\link[graphics]{lines}} function.
 #'
@@ -57,7 +57,7 @@
 #'
 #' # Add a curve corresponding to the second order fit (the linear one)
 #' lines(Gmod, n = 2, col = "green", lwd = 2, lty = 3)
-#' 
+#'
 #' @seealso \code{\link[graphics]{lines}} for the definition of the generic
 #' function; \code{\link{NGeDS}} and \code{\link{GGeDS}} for examples.
 #' @importFrom graphics lines lines.default
@@ -70,16 +70,16 @@ lines.GeDS <- function(x , n = 3L, transform = function(x) x,
 {
   object <- x
   if(object$type == "LM - Biv" || object$type == "GLM - Biv") stop("Works only with univariate spline objects")
-  
+
   extr <- object$args$extr
-  
+
   # Check if order is correctly set
   n <- as.integer(n)
   if(!(n %in% 2L:4L)) {
     n <- 3L
     warning("'n' incorrectly specified. Set to 3.")
   }
-  
+
   # Extract fit
   if(n == 2L) {
     temp <- object$linear.fit
@@ -88,30 +88,30 @@ lines.GeDS <- function(x , n = 3L, transform = function(x) x,
   } else if(n == 4L) {
     temp <- object$cubic.fit
   }
-  
+
   kn <- knots.GeDS(Fn = object, n = n, options= "internal")
   fitters <- F
   if(is.null(object$terms)) fitters <- T
   if (fitters) {
     predicted <- if (x$type == "LM - Univ") temp$predicted else if (x$type == "GLM - Univ") x$args$family$linkfun(temp$predicted)
     Xvalues <- object$args$X
-    
+
   } else {
-    
+
     if(!missing(data)) {
       dati2 <- read.formula(object$Formula,data)
       Xvalues <- dati2$X
-      
+
       mm <- splineDesign(knots = sort(c(kn,rep(extr,n))), derivs = rep(0,length(Xvalues)),
                          x = Xvalues, ord = n, outer.ok = T)
       if (!onlySpline && !is.null(object$args$Z)) mm <- cbind(mm,dati2$Z)
-      
+
       offset <- if(!onlySpline && !is.null(object$args$offset)) {
         dati2$offset
       } else {
         rep(0,length(Xvalues))
       }
-      
+
     } else {
       Xvalues <- object$args$X
       if(onlySpline && length(unique(Xvalues)) < 1000) {
@@ -119,22 +119,22 @@ lines.GeDS <- function(x , n = 3L, transform = function(x) x,
         step <- rep(step,(1000))
         Xvalues <- min(extr)+c(0,cumsum(step))
       }
-      
+
       mm <- splineDesign(knots = sort(c(kn,rep(extr,n))), derivs = rep(0,length(Xvalues)),
                          x = Xvalues, ord = n, outer.ok = T)
       if(!onlySpline && !is.null(object$args$Z)) mm <- cbind(mm, object$args$Z)
-      
+
       offset <- if(!onlySpline && !is.null(object$args$offset)) {
         object$args$offset
       } else {
         rep(0,length(Xvalues))
       }
     }
-    
+
     th <- coef.GeDS(object, n=n, onlySpline = onlySpline)
     predicted <- mm%*%th + offset
   }
-  
+
   predicted <- transform(predicted)
   lines.default(Xvalues, predicted,...)
 }

@@ -113,7 +113,7 @@ An object of class \code{"GeDSgam"} (a named list) with components:
       \item{\code{quasi(link = "identity", variance = "constant")},}
       \item{\code{quasibinomial(link = "logit", "probit", "cloglog", "identity", "inverse", "log", "1/mu^2", "sqrt")} and}
       \item{\code{quasipoisson(link = "log", "identity", "sqrt")}.}
-      }         
+      }
       }
       \item{\code{normalize_data}}{If \code{TRUE}, then response and predictors
       were standardized before running the local-scoring algorithm.}
@@ -166,7 +166,7 @@ An object of class \code{"GeDSgam"} (a named list) with components:
 \description{
 Implements the Local Scoring Algorithm (Hastie and Tibshirani
 (1986)), applying normal linear GeD splines (i.e., \code{\link{NGeDS}}
-function) to fit the targets within each backfitting iteration. Higher order 
+function) to fit the targets within each backfitting iteration. Higher order
 fits are computed by pursuing stage B of GeDS after the local-scoring algorithm
 is run.
 }
@@ -184,7 +184,7 @@ On the one hand, \code{NGeDSgam} includes all the parameters of
 \code{\link{NGeDS}}, which in this case tune the function smoother fit at each
 backfitting iteration. On the other hand, \code{NGeDSgam} includes some
 additional parameters proper to the local-scoring procedure. We describe
-the main ones as follows. 
+the main ones as follows.
 
 The \code{family} chosen determines the link function, adjusted dependent
 variable and weights to be used in the local-scoring algorithm. The number of
@@ -205,9 +205,9 @@ coordinates. See \code{\link[=formula.GeDS]{formula}}.
 \examples{
 
 # Load package
-library(GeDS) 
+library("GeDS")
 
-data(airquality) 
+data(airquality)
 data = na.omit(airquality)
 data$Ozone <- data$Ozone^(1/3)
 
@@ -224,7 +224,7 @@ cat("\n", "MEAN SQUARED ERROR", "\n",
 "Cubic NGeDSgam:", MSE_Gmodgam_cubic, "\n")
 
 ## S3 methods for class 'GeDSgam'
-# Print 
+# Print
 print(Gmodgam); summary(Gmodgam)
 # Knots
 knots(Gmodgam, n = 2)

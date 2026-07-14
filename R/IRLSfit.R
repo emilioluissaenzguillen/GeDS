@@ -31,12 +31,12 @@
 #' @param control A list of parameters for controlling the IRLS fitting process
 #' to be passed on to \code{\link[stats]{glm.control}}. See
 #' \code{\link[stats]{glm.fit}} for further details.
-#' 
+#'
 #' @return A list containing:
 #' \describe{
 #' \item{coefficients}{A named vector containing the estimated regression
 #' coefficients.}
-#' \item{residuals}{The working residuals, which are the residuals from the 
+#' \item{residuals}{The working residuals, which are the residuals from the
 #' final iteration of the IRLS fit. Cases with zero weights are omitted, and
 #' their working residuals are \code{NA}.}
 #' \item{res2}{The working residuals after the final IRLS iteration. They are
@@ -65,7 +65,7 @@
 #' \code{effects} relating to the final weighted linear fit, see
 #' \code{\link{glm.fit}} documentation.
 #' }
-#' 
+#'
 #' @details
 #' This function is a slightly modified version of the \code{\link[stats]{glm.fit}}
 #' function from the package \pkg{stats} to which we refer
@@ -83,7 +83,7 @@
 #' The source code of \code{IRLSfit} contains also some commented lines that
 #' produce useful plots at each IRLS iteration. Normally, printing these plots
 #' is time consuming, but they could be run for inspection purposes.
-#' 
+#'
 #' @seealso \code{\link[stats]{glm.fit}}
 #' @importFrom stats glm.control gaussian .lm.fit
 #' @export

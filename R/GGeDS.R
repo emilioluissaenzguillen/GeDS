@@ -49,18 +49,18 @@
 #' @param show.iters Logical variable indicating whether or not to print
 #' information of the fit at each GeDS iteration. By default equal to \code{FALSE}.
 #' @param stoptype A character string indicating the type of GeDS stopping rule
-#' to be used. It should be either one of \code{"SR"}, \code{"RD"} or 
+#' to be used. It should be either one of \code{"SR"}, \code{"RD"} or
 #' \code{"LR"}, partial match allowed. See Details below.
-#' @param higher_order Logical; if \code{TRUE}, the function proceeds to Stage B, 
-#' fitting higher-order models (quadratic and cubic), after completing Stage A. 
+#' @param higher_order Logical; if \code{TRUE}, the function proceeds to Stage B,
+#' fitting higher-order models (quadratic and cubic), after completing Stage A.
 #' Default is \code{TRUE}.
-#' 
+#'
 #' @details
 #' The  \code{GGeDS} function extends the GeDS methodology, developed by
 #' Kaishev et al. (2016) and implemented in the \code{\link{NGeDS}} function
 #' for the normal case, to the more general GNM (GLM) context, allowing for the
 #' response to have any distribution from the exponential family. Under the
-#' GeDS-GNM approach the (non-)linear predictor is viewed as a spline with 
+#' GeDS-GNM approach the (non-)linear predictor is viewed as a spline with
 #' variable knots that are estimated along with the regression coefficients and
 #' the order of the spline, using a two stage procedure. In stage A, a linear
 #' variable-knot spline is fitted to the data applying iteratively re-weighted
@@ -70,7 +70,7 @@
 #' all of which are included in the output (an object of class \code{"GeDS"}).
 #' A detailed description of the underlying algorithm can be found in
 #' Dimitrova et al. (2023).
-#' 
+#'
 #' As noted in \code{\link[=formula.GeDS]{formula}}, the argument \code{formula}
 #' allows the user to specify predictor models with two components: a spline
 #' regression (non-parametric) component involving part of the independent
@@ -81,14 +81,14 @@
 #' predictor. Failure to specify the independent variable for the  spline
 #' regression component through the function \code{f} will return an error.
 #' See \code{\link[=formula.GeDS]{formula}}.
-#' 
+#'
 #' Within the argument \code{formula}, similarly as in other \R functions, it is
 #' possible to specify one or more offset variables, i.e. known terms with fixed
 #' regression coefficients equal to 1. These terms should be identified via the
 #' function \code{\link[stats]{offset}}.
-#' 
+#'
 #' The parameter \code{beta} tunes the placement of a new knot in stage A of the
-#' algorithm. At the beginning of each GeDS iteration, a second-order spline is 
+#' algorithm. At the beginning of each GeDS iteration, a second-order spline is
 #' fitted to the data. As follows, the "working residuals"
 #' (see \code{\link{IRLSfit}}) are computed and grouped by their sign. A new knot
 #' is then placed within the cluster that maximizes a certain measure. This measure
@@ -99,13 +99,13 @@
 #' The higher \code{beta} is, the more weight is put to the mean of the
 #' residuals and the less to the range of their corresponding x-values (see
 #' Kaishev et al., 2016, for further details).
-#' 
+#'
 #' The default values of \code{beta} are \code{beta = 0.5} if the response is
 #' assumed to be Gaussian, \code{beta = 0.2} if it is Poisson (or Quasipoisson),
 #' while if it is Binomial, Quasibinomial or Gamma \code{beta = 0.1}, which
 #' reflect our experience of running GeDS for different underlying functional
 #' dependencies.
-#' 
+#'
 #' The argument \code{stoptype} allows to choose between three alternative
 #' stopping rules for the knot selection in stage A of GeDS: \code{"RD"},
 #' that stands for \emph{Ratio of Deviances}; \code{"SR"}, that stands for
@@ -114,7 +114,7 @@
 #' rather than on their ratio as in the case of \code{"RD"} and \code{"SR"}.
 #' Therefore \code{"LR"} can be viewed as a log likelihood ratio test performed
 #' at each iteration of the knot placement. In each of these cases the
-#' corresponding stopping criterion is compared with a threshold value 
+#' corresponding stopping criterion is compared with a threshold value
 #' \code{phi} (see below).
 #'
 #' The argument \code{phi} provides a threshold value required for the stopping
@@ -124,7 +124,7 @@
 #' the lower \code{phi} is, more knots are included in the spline regression.
 #' Further details for each of the three alternative stopping rules can be found
 #' in Dimitrova et al. (2023).
-#' 
+#'
 #' The argument \code{q} is an input parameter that fine-tunes the stopping rule
 #' in stage A. It specifies the number of consecutive iterations over which the
 #' deviance must exhibit stable convergence to terminate knot placement in stage
@@ -132,7 +132,7 @@
 #' \code{"LR"} the deviance at the current iteration is compared to the deviance
 #' computed \code{q} iterations before, i.e. before
 #' introducing the last \code{q} knots.
-#' 
+#'
 #' @return An object of class \code{"GeDS"} (a named list) with similar components
 #' described under \code{\link{NGeDS}}’s \code{@return} plus the following slots:
 #' \describe{
@@ -150,19 +150,19 @@
 #' this slot is empty if the object is not created by one of these functions.}
 #' \item{extcall}{\code{call} to the \code{\link{GGeDS}} function.}
 #' }
-#' 
+#'
 #' @references
 #' Kaishev, V.K., Dimitrova, D.S., Haberman, S. and Verrall, R.J. (2016).
 #' Geometrically designed, variable knot regression splines.
 #' \emph{Computational Statistics}, \strong{31}, 1079--1105. \cr
 #' DOI: \doi{10.1007/s00180-015-0621-7}
-#' 
+#'
 #' Dimitrova, D. S., Kaishev, V. K., Lattuada, A. and Verrall, R. J.  (2023).
 #' Geometrically designed variable knot splines in generalized (non-)linear
 #' models.
 #' \emph{Applied Mathematics and Computation}, \strong{436}. \cr
 #' DOI: \doi{10.1016/j.amc.2022.127493}
-#' 
+#'
 #' @examples
 #' ######################################################################
 #' # Generate a data sample for the response variable Y and the covariate X
@@ -175,7 +175,7 @@
 #' # Specify a model for the mean of Y to include only a component
 #' # non-linear in X, defined by the function f_1
 #' means <- exp(f_1(X))
-#' 
+#'
 #' #############
 #' ## POISSON ##
 #' #############
@@ -213,7 +213,7 @@
 #' knots(Gmod, n = 4)
 #' coef(Gmod, n = 4)
 #' deviance(Gmod, n = 4)
-#' 
+#'
 #' ###########
 #' ## GAMMA ##
 #' ###########
@@ -223,7 +223,7 @@
 #' Gmod <- GGeDS(Y ~ f(X), beta = 0.1, phi = 0.99, q = 2, family = Gamma(log),
 #'               Xextr = c(-2,2))
 #' plot(Gmod, f = function(x) exp(f_1(x))/0.1)
-#' 
+#'
 #' ##############
 #' ## BINOMIAL ##
 #' ##############
@@ -297,7 +297,7 @@
 #' plot(Age, quasibinomial()$linkfun(Rate), ylab = expression(logit(q[x])), xlab = "Age")
 #' lines(M2, n = 3, lwd = 1, col = "red")
 #' par(op)
-#' 
+#'
 #' #########################################
 #' # bivariate example
 #' set.seed(123)
@@ -312,33 +312,33 @@
 #' # Generate Z from Poisson distribution
 #' Z <- rpois(400, lambda)
 #' data <- data.frame(X, Y, Z)
-#' 
+#'
 #' # Fit a Poisson GeDS regression using GGeDS
 #' BivGeDS <- GGeDS(Z ~ f(X,Y), beta = 0.2, phi = 0.99, family = "poisson")
-#' 
+#'
 #' # Poisson mean deviance w.r.t data
 #' deviance(BivGeDS, n = 2) # or sum(poisson()$dev.resids(Z, BivGeDS$Linear.Fit$Predicted, wt = 1))
 #' deviance(BivGeDS, n = 3)
 #' deviance(BivGeDS, n = 4)
-#' 
-#' # Poisson mean deviance w.r.t true function 
+#'
+#' # Poisson mean deviance w.r.t true function
 #' f_XY <- apply(cbind(X, Y), 1, function(row) doublesin(matrix(row, ncol = 2)))
 #' mean(poisson()$dev.resids(f_XY, BivGeDS$Linear.Fit$Predicted, wt = 1))
 #' mean(poisson()$dev.resids(f_XY, BivGeDS$Quadratic.Fit$Predicted, wt = 1))
 #' mean(poisson()$dev.resids(f_XY, BivGeDS$Cubic.Fit$Predicted, wt = 1))
-#' 
+#'
 #' # Surface plot of the generating function (doublesin)
 #' plot(BivGeDS, f = doublesin)
 #' # Surface plot of the fitted model
 #' plot(BivGeDS)
-#' 
+#'
 #' @seealso \code{\link{NGeDS}}; S3 methods such as \code{\link{coef.GeDS}},
 #' \code{\link{confint.GeDS}}, \code{\link{deviance.GeDS}}, \code{\link{family}},
 #' \code{\link{formula}}, \code{\link{knots.GeDS}}, \code{\link{lines.GeDS}},
 #' \code{\link{logLik}}, \code{\link{plot.GeDS}}, \code{\link{predict.GeDS}},
 #' \code{\link{print.GeDS}}, \code{\link{summary.GeDS}}; \code{\link{Integrate}}
 #' and \code{\link{Derive}}; \code{\link{PPolyRep}}.
-#' 
+#'
 #' @importFrom stats gaussian Gamma binomial poisson quasibinomial quasipoisson
 #' @export
 
@@ -349,7 +349,7 @@ GGeDS <- function(formula, family = gaussian(), data, weights, beta, phi = 0.99,
   # 1. Capture current function call and use formula's environment if 'data' is missing
   save <- match.call()
   if (missing(data)) data <- environment(formula)
-  
+
   # 2. formula
   newdata <- read.formula(formula, data)
   X <- newdata$X                                    # GeDS covariates
@@ -357,7 +357,7 @@ GGeDS <- function(formula, family = gaussian(), data, weights, beta, phi = 0.99,
   offset <- newdata$offset                          # offset
   Z <- newdata$Z; if(!is.null(Z)) Z <- as.matrix(Z) # linear covariates
   ncz <- if(is.null(Z)) 0 else NCOL(Z)
-  
+
   # 3. Weights
   # Prepare expression to dynamically extract 'weights', if available
   wn <- match("weights", names(save), 0L)
@@ -369,7 +369,7 @@ GGeDS <- function(formula, family = gaussian(), data, weights, beta, phi = 0.99,
   if(is.null(weights)) weights = rep(1,NROW(X))
   weights <- as.numeric(weights)
   if (any(weights < 0))  stop("Negative weights not allowed")
-  
+
   # 4. Family
   if (is.character(family))
     family <- get(family, mode = "function", envir = parent.frame())
@@ -379,7 +379,7 @@ GGeDS <- function(formula, family = gaussian(), data, weights, beta, phi = 0.99,
     print(family)
     stop("'family' not recognized")
   }
-  
+
   # 5. Check arguments passed
   # 5.1. Check if Y, X, Z and weights lengths match
   if(is.null(Z)) {
@@ -419,13 +419,13 @@ GGeDS <- function(formula, family = gaussian(), data, weights, beta, phi = 0.99,
 
   # 5.4. extr
   if(!is.null(Xextr) && length(Xextr) != 2) stop("'Xextr' must have length 2")
-  
+
   # 5.5. NA checks
   if (anyNA(X) || anyNA(Y) || anyNA(weights) || !is.null(Z) && anyNA(Z) || anyNA(offset)) {
-    
-    warning(if (!is.null(Z)) "NAs deleted from 'X', 'Y', 'Z', 'offset' and 'weights'" 
+
+    warning(if (!is.null(Z)) "NAs deleted from 'X', 'Y', 'Z', 'offset' and 'weights'"
             else "NAs deleted from 'X', 'Y', 'offset' and 'weights'")
-    
+
     # Locate NAs
     tmp <- if (is.matrix(X) || is.data.frame(X)) apply(X, 1, anyNA) else is.na(X)
     tmp <- tmp | is.na(Y) | is.na(weights) | is.na(offset)
@@ -438,12 +438,12 @@ GGeDS <- function(formula, family = gaussian(), data, weights, beta, phi = 0.99,
     weights <- weights[!tmp]
     offset <- offset[!tmp]
   }
-  
+
   #####################
   ## UNIVARIATE GeDS ##
   #####################
   if(ncol(X)==1) {
-    
+
     # Order inputs
     idx <- order(X)
     X <- X[idx]
@@ -451,9 +451,9 @@ GGeDS <- function(formula, family = gaussian(), data, weights, beta, phi = 0.99,
     weights <- weights[idx]
     offset <- offset[idx]
     if (!is.null(Z)) Z <- Z[idx, ]
-    
+
     Xextr <- if (is.null(Xextr)) range(X) else as.numeric(Xextr)
-    
+
     out <- GenUnivariateFitter(X = X, Y = Y, Z = Z, offset = offset, weights = weights,
                                family = family, beta = beta, phi = phi,
                                min.intknots = min.intknots, max.intknots = max.intknots,
@@ -473,11 +473,11 @@ GGeDS <- function(formula, family = gaussian(), data, weights, beta, phi = 0.99,
                               min.intknots = min.intknots, max.intknots = max.intknots,
                               q = q, Xextr = Xextr, Yextr = Yextr, show.iters = show.iters,
                               family = family, stoptype = stoptype, higher_order = higher_order)
-    
+
     } else {
       stop("Incorrect number of columns of the independent variable")
     }
-  
+
     out$formula <- formula
     out$extcall <- save
     out$terms <- newdata$terms

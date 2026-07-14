@@ -18,11 +18,11 @@
 \item{...}{Further arguments (ignored).}
 }
 \value{
-An object of class \code{\link[stats]{family}} describing the 
+An object of class \code{\link[stats]{family}} describing the
 distribution and link function used in the GeDS fit.
 }
 \description{
-Method for \code{\link[stats]{family}} that returns the error distribution 
+Method for \code{\link[stats]{family}} that returns the error distribution
 family used in the fitted GeDS model.
 }
 \seealso{

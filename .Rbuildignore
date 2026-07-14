@@ -5,3 +5,5 @@
 ^dev$
 ^\.positai$
 ^\.claude$
+^doc$
+^cran-comments\.md$

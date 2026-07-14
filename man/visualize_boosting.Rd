@@ -24,7 +24,7 @@ single univariate base-learner.
 }
 \examples{
 # Load packages
-library(GeDS)
+library("GeDS")
 
 # Generate a data sample for the response variable
 # Y and the single covariate X

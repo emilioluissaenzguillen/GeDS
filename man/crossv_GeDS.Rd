@@ -24,12 +24,16 @@ are:
 \item \code{phi_grid = c(0.9, 0.95, 0.99)} and
 \item \code{q_grid = c(2, 3))}.
 }}
+
+\item{n_cores}{Integer specifying the number of cores to use for parallel
+cross-validation. If \code{NULL}, the function uses one fewer than the number
+of detected cores, subject to CRAN check limits.}
 }
 \value{
 Two data frames, \code{best_params} and \code{results}.
 \code{best_params} contains the best combination of parameters according to
-the cross-validated MSE. \code{results} presents the cross-validated MSE and 
-the average number of internal knots across the folds for each possible 
+the cross-validated MSE. \code{results} presents the cross-validated MSE and
+the average number of internal knots across the folds for each possible
 combination of parameters, given the input \code{parameters}. In the case of
 \code{model_fun = NGeDSboost}, it also provides the cross-validated number of
 boosting iterations.

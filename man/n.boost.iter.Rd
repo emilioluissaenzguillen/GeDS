@@ -16,6 +16,6 @@
 An integer indicating the total number of boosting iterations.
 }
 \description{
-Method for \code{N.boost.iter} that returns the number of boosting iterations 
+Method for \code{N.boost.iter} that returns the number of boosting iterations
 used in fitting a \code{"GeDSboost"} class object.
 }

@@ -3,12 +3,12 @@ tensorProd_R <- function(Xmat, Ymat) {
   ib <- nrow(Xmat)
   jx <- ncol(Xmat)
   jy <- ncol(Ymat)
-  
+
   # Initialize the result matrix with the appropriate size
   ris <- matrix(0, nrow = ib, ncol = jx * jy)
   # Index kk to keep track of the column in the result matrix
   kk <- 1
-  
+
   # Loop through columns of Xmat and Ymat
   for (jjx in 1:jx) {
     for (jjy in 1:jy) {
@@ -20,7 +20,7 @@ tensorProd_R <- function(Xmat, Ymat) {
       kk <- kk + 1
     }
   }
-  
+
   return(ris)
 }
 
@@ -30,10 +30,10 @@ recoverXmat <- function(ris, Ymat, Xmat) {
   jxjy <- ncol(ris)
   jy <- ncol(Ymat)
   jx <- jxjy / jy
-  
+
   # Initialize the matrix to store the recovered Xmat
   Xmat <- matrix(0, nrow = ib, ncol = jx)
-  
+
   # Recover Xmat by reversing the tensor product
   kk <- 1
   for (jjx in 1:jx) {
@@ -46,6 +46,6 @@ recoverXmat <- function(ris, Ymat, Xmat) {
       kk <- kk + 1
     }
   }
-  
+
   return(Xmat)
 }

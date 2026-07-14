@@ -156,8 +156,7 @@ NumericVector Knotnew(NumericVector weights, NumericVector residuals, NumericVec
       
       for (j = 0; j < data_size; ++j) {
         valid_interval = valid_interval || 
-          ((sortedknots[i] - tol < x[j]) && (sortedknots[i + support_order] + tol > x[j])); 
-        
+          ((sortedknots[i] + tol < x[j]) && (x[j] < sortedknots[i + support_order] - tol));
         if (valid_interval) break;
       }     
       

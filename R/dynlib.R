@@ -30,16 +30,16 @@ NULL
 #' @name CrystalData
 #' @aliases CrystalData10k CrystalData300k
 #' @description
-#' This dataset contains crystallographic measurements obtained from a particle 
-#' accelerator experiment. The measurements correspond to the function \eqn{F(Q)} 
-#' at various \eqn{Q} values, which are used to analyze the scattering properties 
-#' of an unknown crystalline material. The dataset is available in two versions 
+#' This dataset contains crystallographic measurements obtained from a particle
+#' accelerator experiment. The measurements correspond to the function \eqn{F(Q)}
+#' at various \eqn{Q} values, which are used to analyze the scattering properties
+#' of an unknown crystalline material. The dataset is available in two versions
 #' based on the precision of the measurements:
 #' \itemize{
 #'   \item \code{CrystalData10k} (lower precision);
 #'   \item \code{CrystalData300k} (higher precision);
 #' }
-#' The goal of the experiment is to estimate \eqn{F(Q)} from noisy data using 
+#' The goal of the experiment is to estimate \eqn{F(Q)} from noisy data using
 #' a GeDS model, and subsequently compute its Fourier transform to gain some valuable
 #' insights into the structure of the material.
 #'
@@ -48,23 +48,23 @@ NULL
 #'   \item{\code{Q}}: The scattering vector, measured in inverse angstroms, \eqn{\text{Å}^{-1}};
 #'   \item{\code{FQ}}: The measured function \eqn{F(Q)}, given in arbitrary units (a.u.).
 #' }
-#' @usage data(CrystalData10k) 
+#' @usage data(CrystalData10k)
 #' @usage data(CrystalData300k)
 #' @source Unpublished data from a controlled particle accelerator experiment.
 #' @examples \dontrun{
 #' # Load the dataset (choose 10k or 300k version)
 #' data('CrystalData10k')
-#' 
+#'
 #' # Fit a GeDS/GeDSboost model and compare how well the intensity peaks are captured
 #' Gmod <- NGeDS(F_Q ~ f(Q), data = CrystalData10k, phi = 0.999, q = 3)
 #' # for CrystalData300k set int.knots_init = 1, phi = 0.999, q = 4, instead
-#' Gmodboost <- NGeDSboost(F_Q ~ f(Q), data = CrystalData10k, phi = 0.9975, q = 4) 
-#' 
+#' Gmodboost <- NGeDSboost(F_Q ~ f(Q), data = CrystalData10k, phi = 0.9975, q = 4)
+#'
 #' par(mfrow = c(1,2))
 #' plot(Gmod, n = 2)
-#' plot(Gmodboost, n = 2) 
+#' plot(Gmodboost, n = 2)
 #' }
-#' 
+#'
 #' @docType data
 NULL
 
@@ -82,7 +82,7 @@ NULL
 #' Kimber et al. (2009) and used in Kaishev et al. (2016). The neutron
 #' diffraction intensity was measured at 1,151 different dispersion angles in
 #' order to model the diffraction profile.
-#' 
+#'
 #' @format A \code{data.frame} with 1151 cases and 2 variables:
 #' \itemize{
 #'   \item \code{angle}: the dispersion angle, viewed as the independent variable.
@@ -113,7 +113,7 @@ NULL
 #'                q = 3, show.iters = T))
 #' plot(Gmod)
 #' }
-#' 
+#'
 #' @docType data
 NULL
 
@@ -129,7 +129,7 @@ NULL
 #' A dataset with 112 entries containing annual numbers of accidents due to
 #' disasters in British coal mines for years from 1850 to 1962, considered in
 #' Carlin et al. (1992) and also in Eilers and Marx (1996).
-#' 
+#'
 #' @format A \code{data.frame} with 112 entries, corresponding to the
 #' years from 1850 to 1962. Each entry has:
 #' \itemize{
@@ -145,7 +145,7 @@ NULL
 #'
 #' Eilers, P.H.C. and Marx, B.D. (1996). Flexible Smoothing with B-splines
 #' and Penalties. \emph{Statistical Science}, \strong{11}(2), 89--121.
-#' 
+#'
 #' @docType data
 NULL
 

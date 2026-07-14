@@ -83,12 +83,12 @@ for (i in 1:3) {
 if (i == 2) {
   position <- "topleft"
 } else if (i == 3) {
-  position <- "topright" 
+  position <- "topright"
 } else {
   position <- "bottom"
-}  
+}
   legend(position, legend = c("NGeDSgam quad.", paste0("f(x", i-1, ")")),
-         col = c("seagreen", "darkgray"),
+         col = c("seagreen", "black"),
          lwd = c(2, 2),
          bty = "n",
          cex = 1.5)

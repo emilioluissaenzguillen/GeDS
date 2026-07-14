@@ -49,7 +49,7 @@
 #' and a parametric component (see the functions \code{\link{f}},
 #' \code{\link[=formula.GeDS]{formula}}, \code{\link{NGeDS}} and
 #' \code{\link{GGeDS}} for details).
-#' 
+#'
 #' Dimitrova et al. (2025) have recently made significant enhancements to the
 #' \pkg{GeDS} methodology, by incorporating generalized additive models (GAM-GeDS)
 #' and functional gradient boosting (FGB-GeDS). On the one hand, generalized additive
@@ -70,7 +70,7 @@
 #' and \code{\link{NGeDSboost}} functions are\code{"GeDSgam"} class and
 #' \code{"GeDSboost"} class objects, respectively. \code{"GeDS"} class,
 #' \code{"GeDSgam"} class and \code{"GeDSboost"} class objects contain
-#' second, third and fourth order spline fits. As described in 
+#' second, third and fourth order spline fits. As described in
 #' Kaishev et al. (2016), Dimitrova et al. (2023) and  Dimitrova et al. (2025),
 #' the "final" GeDS fit is the one minimizing the empirical deviance. Nevertheless,
 #' the user can choose to use any of the available fits.
@@ -92,13 +92,13 @@
 #' Geometrically designed, variable knot regression splines.
 #' \emph{Computational Statistics}, \strong{31}, 1079--1105. \cr
 #' DOI: \doi{10.1007/s00180-015-0621-7}
-#' 
+#'
 #' Dimitrova, D. S., Kaishev, V. K., Lattuada, A. and Verrall, R. J.  (2023).
 #' Geometrically designed variable knot splines in generalized (non-)linear
 #' models.
 #' \emph{Applied Mathematics and Computation}, \strong{436}. \cr
 #' DOI: \doi{10.1016/j.amc.2022.127493}
-#' 
+#'
 #' Dimitrova, D. S., Kaishev, V. K. and Saenz Guillen, E. L. (2025).
 #' \pkg{GeDS}: An \proglang{R} Package for Regression, Generalized Additive
 #' Models and Functional Gradient Boosting, based on Geometrically Designed
@@ -107,13 +107,13 @@
 #' @keywords package
 #' @aliases GeDS
 #'
-#' @author  Dimitrina S. Dimitrova <D.Dimitrova@citystgeorges.ac.uk>,\cr 
+#' @author  Dimitrina S. Dimitrova <D.Dimitrova@citystgeorges.ac.uk>,\cr
 #' Vladimir K. Kaishev <V.Kaishev@citystgeorges.ac.uk>,\cr
 #' Andrea Lattuada <Andrea.Lattuada@hotmail.com>,\cr
 #' Emilio L. Sáenz Guillén <Emilio.Saenz-Guillen@citystgeorges.ac.uk> and\cr
 #' Richard J. Verrall <R.J.Verrall@citystgeorges.ac.uk>
 #'
-#' 
+#'
 "_PACKAGE"
 NULL
 

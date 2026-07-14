@@ -22,7 +22,7 @@
 #' its corresponding regression coefficient. In case more than one covariate is
 #' fixed, the user should sum the corresponding coordinates of the fixed
 #' covariates to produce one common \eqn{N}-vector of coordinates. The
-#' \code{offset} argument is particularly useful when using 
+#' \code{offset} argument is particularly useful when using
 #' \code{GenUnivariateFitter} if the link function used is not the identity.
 #' @param weights An optional vector of size \eqn{N} of `prior weights' to be
 #' put on the observations in the fitting process in case the user requires
@@ -47,7 +47,7 @@
 #' @param extr Numeric vector of 2 elements representing the left-most and
 #' right-most limits of the interval embedding the sample values of \code{X}. By
 #' default equal correspondingly to the smallest and largest values of \code{X}.
-#' @param show.iters Logical variable indicating whether or not to print 
+#' @param show.iters Logical variable indicating whether or not to print
 #' information at each step. By default equal to \code{FALSE}.
 #' @param tol Numeric value indicating the tolerance to be used in the knot
 #' placement steps in stage A. By default equal to \code{1e-12}. See Details below.
@@ -70,19 +70,19 @@
 #' \code{\link[stats]{gaussian}}) or the result of a call to a family function
 #' (e.g. \code{gaussian()}). See \link[stats]{family} for details on family
 #' functions.
-#' 
+#'
 #' @return A \code{"GeDS"} class object, but without the \code{formula},
 #' \code{extcall}, \code{terms} and \code{znames} slots.
-#' 
+#'
 #' @details
 #' The functions \code{UnivariateFitter} and \code{GenUnivariateFitter} are in
 #' general not intended to be used directly, they should be called through
 #' \code{\link{NGeDS}} and \code{\link{GGeDS}}. However, in case there is a need
 #' for multiple GeDS fitting (as may be the case e.g. in Monte Carlo simulations)
 #' it may be efficient to use the fitters outside the main functions.
-#' 
+#'
 #' The argument \code{tol} is used in the knot placement procedure of stage A of
-#' the GeDS algorithm in order to check whether the current knot \eqn{\delta^*} 
+#' the GeDS algorithm in order to check whether the current knot \eqn{\delta^*}
 #' is set at an acceptable location or not. If there exists a knot \eqn{\delta_i}
 #' such that \eqn{|\delta^* - \delta_i| < }\code{tol}, \eqn{\delta^*}, then the
 #' new knot is considered to be coalescent with an existing one, it is discarded
@@ -161,7 +161,7 @@ UnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0,NROW(Y)),
   args <- list("X" = X, "Y" = Y, "Z" = Z, "offset" = offset, "weights" = weights,
                "beta" = beta, "phi" = phi, "min.intknots" = min.intknots,
                "max.intknots" = max.intknots, "q" = q, "extr" = extr, "tol" = tol)
-  
+
   # Initialize intknots, rss and phis
   intknots <- if (!is.null(fit_init)) fit_init$intknots else intknots_init
   n_starting_intknots <- length(intknots)
@@ -169,12 +169,15 @@ UnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0,NROW(Y)),
   phis <- NULL
   # Initialize \hat{\phi}_\kappa, \hat{\gamma}_0 and \hat{\gamma}_\1 (stoptype = "SR"; see eq. 9 in Dimitrova et al. (2023))
   phis_star <- NULL; oldintc <- NULL; oldslp <- NULL
-  
+
   # Stop type, Indicator, distinctX
   stoptype <- match.arg(stoptype)
-  Indicator <- table(X)
-  distinctX <- unique(X)
-  
+  # NGeDS/GGeDS sort X before calling the fitter; rle() relies on this ordering.
+  xr <- rle(X)
+  Indicator <- xr$lengths
+  distinctX <- xr$values
+  has_repeated_x <- any(Indicator > 1L)
+
   # Initialize knots and coefficients matrices and internal knots
   previous <- matrix(nrow = max.intknots + 1,     # maximum number of GeDS iterations (if max.intknots + 1 =< length(Y) - 2, max j = max.intknots + 1
                                                   #                                    o.w. max j = length(Y) - 2 < max.intknots + 1 )
@@ -182,42 +185,42 @@ UnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0,NROW(Y)),
   nz <- if(!is.null(Z)) NCOL(Z) else 0            # number of linear covariates
   oldcoef <- matrix(nrow = max.intknots + 1,
                     ncol = max.intknots + 2 + nz) # number of B-splines is p = l + 2
-  
+
   # GeDS iterations start by j = n_starting_intknots + 1
   init.iter <- if (is.null(intknots)) 1 else  n_starting_intknots + 1
-  
-  
+
+
   ##############################################################################
   ################################## STAGE A ###################################
   ##############################################################################
   for(j in init.iter:min(max.intknots + 1, length(Y) - 2)) {
-    
-    
+
+
     if(is.null(fit_init) || j > (n_starting_intknots + 1) ) {
       #############################################################
       ## STEP 1/STEP 8: Find the least squares linear spline fit ##
       #############################################################
-      first.deg <- SplineReg_fast_weighted_zed(X = X, Y = Y, Z = Z, weights = weights, offset = offset,
-                                               extr = extr, InterKnots = intknots, n = 2) #first regression
+      first.deg <- SplineReg_LM(X = X, Y = Y, Z = Z, weights = weights, offset = offset,
+                                extr = extr, InterKnots = intknots, n = 2, fast = TRUE) #first regression
       # Store knots and coefficients
       previous[j, 1:(j+3)] <- sort(c(intknots, rep(extr, 2)))
       oldcoef[j, 1:(j+1+nz)] <- first.deg$theta
-      
+
       #####################################
       ## STEP 9: Store residuals and rss ##
       ####################################
       res.tmp <- first.deg$residuals
       rssnew <- c(rssnew, first.deg$rss)
-      
+
     } else {
       # Store knots and coefficients
       previous[j, 1:(j+3)] <- sort(c(intknots, rep(extr, 2)))
       # oldcoef[j, 1:(j+1+nz)] <- first.deg$theta # we don't need the coef for anything
-      
+
       res.tmp <- Y - fit_init$pred
       rssnew <- c(rssnew, sum((res.tmp)^2))
     }
-    
+
     ############################
     ## STEP 10: Stopping Rule ##
     ############################
@@ -225,69 +228,83 @@ UnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0,NROW(Y)),
                          rssnew = rssnew, phis = phis, stoptype = stoptype,
                          intknots = intknots, min.intknots = min.intknots, phi = phi,
                          phis_star = phis_star, oldintc = oldintc, oldslp = oldslp)
-    
+
     phis    <- res$phis; phis_star <- res$phis_star
     oldintc <- res$oldintc; oldslp <- res$oldslp
     prnt    <- res$prnt
-    
+
     if (res$should_break) break
-    
+
     ############
     ## STEP 2 ##
     ############
-    d <- numeric()
-    if(any(Indicator > 1)){
+    # d <- numeric()
+    # if(any(Indicator > 1)){
+    #   # Average res.tmp*weights for repeated values of X
+    #   res.weighted <- makeNewRes(resold = res.tmp*weights, recurr = as.numeric(Indicator)) # already fast - useless to do in C++
+    # } else {
+    #   res.weighted <- res.tmp*weights
+    # }
+    # # Avoid spurious sign changes due to floating-point noise near zero
+    # sign_tol <- 1e-14
+    # res.weighted[abs(res.weighted) <= sign_tol] <- 0
+    # Group the consecutive residuals into clusters by their sign
+    # signs <- sign(res.weighted)
+    # for(i in 1:length(distinctX)) {
+    #   # If all residual values have the same sign, count the entire set as one cluster
+    #   if (all(signs == signs[1])) {
+    #     d[i] <- length(signs)
+    #     break
+    #   } else {
+    #     # If signs change, identify the first change to split the cluster
+    #     d[i] <- min(which(signs!=signs[1])) - 1 # number of consecutive residuals with same sign
+    #     # Update signs to exclude the identified cluster
+    #     signs <- signs[-(1:d[i])]               # extract cluster from signs
+    #   }
+    # }
+    if (has_repeated_x) {
       # Average res.tmp*weights for repeated values of X
       res.weighted <- makeNewRes(resold = res.tmp*weights, recurr = as.numeric(Indicator)) # already fast - useless to do in C++
     } else {
       res.weighted <- res.tmp*weights
     }
-    # Avoid spurious sign changes due to floating-point noise near zero
-    sign_tol <- 1e-14
-    res.weighted[abs(res.weighted) <= sign_tol] <- 0
-    # Group the consecutive residuals into clusters by their sign
-    signs <- sign(res.weighted)
-    for(i in 1:length(distinctX)) {
-      # If all residual values have the same sign, count the entire set as one cluster
-      if (all(signs == signs[1])) {
-        d[i] <- length(signs)
-        break
-      } else {
-        # If signs change, identify the first change to split the cluster
-        d[i] <- min(which(signs!=signs[1])) - 1 # number of consecutive residuals with same sign
-        # Update signs to exclude the identified cluster
-        signs <- signs[-(1:d[i])]               # extract cluster from signs
-      }
-    }
-    
+    # Group consecutive residuals into same-sign clusters (run-length encoding)
+    d <- rle(sign(res.weighted))$lengths
     ####################################################################
     ## STEP 3: within residual cluster means +  within-cluster ranges ##
     ####################################################################
-    u <-length(d)
+    # u <-length(d)
+    # dcum <- cumsum(d)
+    # # initialize means and wc.range
+    # means <- wc.range <- numeric(u)
+    # means[1] <- abs(mean(res.weighted[1:dcum[1]]))
+    # wc.range[1] <- distinctX[dcum[1]] - X[1]
+    # if (u >= 2) {
+    #   for (i in 2:u) {
+    #     means[i] <- abs(mean((res.weighted[(dcum[i-1] + 1):dcum[i]])))
+    #     wc.range[i] <- distinctX[dcum[i]] - distinctX[dcum[i-1] + 1]
+    #   }
+    # }
+
+    u    <- length(d)
     dcum <- cumsum(d)
-    # initialize means and wc.range
-    means <- wc.range <- numeric(u)
-    means[1] <- abs(mean(res.weighted[1:dcum[1]]))
-    wc.range[1] <- distinctX[dcum[1]] - X[1]
-    if (u >= 2) {
-      for (i in 2:u) {
-        means[i] <- abs(mean((res.weighted[(dcum[i-1] + 1):dcum[i]])))
-        wc.range[i] <- distinctX[dcum[i]] - distinctX[dcum[i-1] + 1]
-      }
-    }
-    
+    cs   <- cumsum(res.weighted)
+    means    <- abs((cs[dcum] - c(0, cs[dcum[-u]])) / d)        # cluster means
+    left_idx <- c(1, dcum[-u] + 1)
+    wc.range <- distinctX[dcum] - distinctX[left_idx]            # cluster x-ranges
+
     ######################################################################
     ## STEP 4: calculate the normalized within-cluster means and ranges ##
     ######################################################################
     means <- means/max(means)
     # If the residual clusters are all singletons then all the wc.ranges will equal 0, and we cannot divide by 0
-    if (max(wc.range) != 0) wc.range <- wc.range/max(wc.range) 
-    
+    if (max(wc.range) != 0) wc.range <- wc.range/max(wc.range)
+
     ###########################################
     ## STEP 5: calculate the cluster weights ##
     ###########################################
     w <- beta*means + (1 - beta)*wc.range
-    
+
     ###############
     ## STEPS 6/7 ##
     ###############
@@ -295,7 +312,7 @@ UnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0,NROW(Y)),
     newknot <- Knotnew(weights = w, residuals = res.weighted, x = distinctX,
                        dcum = dcum, oldknots = c(rep(extr, support_order), intknots),
                        tol = tol, support_order = support_order)[1]
-    
+
     # newknot2 <- Knotnew_R_clean(wht = w, restmp = res.weighted, x = distinctX,
     #                            dcm = dcum, oldknots = sort(c(intknots, rep(extr, support_order))),
     #                            tol = tol, support_order = support_order)$newknot
@@ -305,11 +322,11 @@ UnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0,NROW(Y)),
     #                             tol = tol)[1]
 
     # print( abs(newknot - newknot2) < 1e-6 )
-    
+
     if (isTRUE(all.equal(newknot, extr[1])) || isTRUE(all.equal(newknot, extr[2])) || is.na(newknot)) break
-    
+
     intknots <- c(intknots, newknot)
-    
+
     # Print iteration
     if(show.iters) {
       indent <- rep(" ", nchar(options()$prompt))
@@ -323,9 +340,9 @@ UnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0,NROW(Y)),
       }
       cat(toprint)
     }
-    
+
   }
-  
+
   ##############################################################################
   ################################## STAGE B ###################################
   ##############################################################################
@@ -339,7 +356,7 @@ UnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0,NROW(Y)),
       # Eliminate NAs in oldcoef
       oldcoef  <- oldcoef[-((j+1):(max.intknots+1)), , drop = FALSE]  # eliminate all the NA rows
       oldcoef  <- oldcoef[ , 1:(j+1+nz), drop = FALSE]                # p = n + k = j + 1  B-splines
-      
+
       # If stage A breaks due to NA, w take the jth fit as the final fit
       # Also, if intknots_init was set, the first length(intknots_init) rows of previous
       # will be empty
@@ -349,7 +366,7 @@ UnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0,NROW(Y)),
           iter <- j - q
         }
     }
-  
+
   # 1. LINEAR
   if (iter < 2) {
     warning("Too few internal knots found: Linear spline will be computed with NULL internal knots. Try to set a different value for 'q' or a different treshold")
@@ -372,28 +389,32 @@ UnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0,NROW(Y)),
     if (iter < 3) {
       warning("Too few internal knots found: Quadratic spline will be computed with NULL internal knots. Try to set a different value for 'q' or a different treshold")
       qq <- NULL
-      squ <- SplineReg_LM(X = X, Y = Y, Z = Z, offset = offset, weights = weights, extr = extr, InterKnots = qq, n = 3)
+      squ <- SplineReg_LM(X = X, Y = Y, Z = Z, offset = offset, weights = weights,
+                          extr = extr, InterKnots = qq, n = 3, only_pred = only_pred)
       } else {
         # Stage B.1 (averaging knot location)
         qq <- makenewknots(ik, 3)
         # Stage B.2
-        squ <- SplineReg_LM(X = X, Y = Y, Z = Z, offset = offset, weights = weights, extr = extr, InterKnots = qq, n = 3)
+        squ <- SplineReg_LM(X = X, Y = Y, Z = Z, offset = offset, weights = weights,
+                            extr = extr, InterKnots = qq, n = 3, only_pred = only_pred)
         }
     # 3. CUBIC
     if (iter < 4) {
       warning("Too few internal knots found: Cubic spline will be computed with NULL internal knots. Try to set a different value for 'q' or a different treshold")
       cc <- NULL
-      cub <- SplineReg_LM(X = X, Y = Y, Z = Z, offset = offset, weights = weights, extr = extr, InterKnots = cc, n = 4)
+      cub <- SplineReg_LM(X = X, Y = Y, Z = Z, offset = offset, weights = weights,
+                          extr = extr, InterKnots = cc, n = 4, only_pred = only_pred)
       } else {
         # Stage B.1 (averaging knot location)
         cc <- makenewknots(ik, 4)
         # Stage B.2
-        cub <- SplineReg_LM(X = X, Y = Y, Z = Z, offset = offset, weights = weights, extr = extr, InterKnots = cc, n = 4)
+        cub <- SplineReg_LM(X = X, Y = Y, Z = Z, offset = offset, weights = weights,
+                            extr = extr, InterKnots = cc, n = 4, only_pred = only_pred)
       }
     } else {
       qq <- squ <- cc <- cub <- NULL
     }
-  
+
   out <- list("type" = "LM - Univ", "linear.intknots" = ll, "quadratic.intknots" = qq, "cubic.intknots" = cc,
               "dev.linear" = lin$rss, "dev.quadratic" = squ$rss, "dev.cubic" = cub$rss,
               "rss" = rssnew, "linear.fit" = lin, "quadratic.fit" = squ, "cubic.fit" = cub, "stored" = previous,
@@ -425,18 +446,21 @@ GenUnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)),
   args <- list("X" = X, "Y" = Y, "Z" = Z, "offset" = offset, "weights"=weights,
                "beta" = beta, "phi" = phi, "family"=family, "min.intknots" = min.intknots,
                "max.intknots" = max.intknots, "q" = q, "extr" = extr)
-  
+
   # Initialize rss and phis
   rssnew <- numeric()
   phis <- NULL
   # Initialize \hat{\phi}_\kappa, \hat{\gamma}_0 and \hat{\gamma}_\1 (stoptype = "SR"; see eq. 9 in Dimitrova et al. (2023))
   phis_star <- NULL; oldintc <- NULL; oldslp <- NULL
-  
+
   # Stop type, Indicator, distinctX
   stoptype <- match.arg(stoptype)
-  Indicator <- table(X)
-  distinctX <- unique(X)
-  
+  # NGeDS/GGeDS sort X before calling the fitter; rle() relies on this ordering.
+  xr <- rle(X)
+  Indicator <- xr$lengths
+  distinctX <- xr$values
+  has_repeated_x <- any(Indicator > 1L)
+
   # Initialize knots and coefficients matrices and internal knots
   previous <- matrix(nrow = max.intknots + 1,     # maximum number of GeDS iterations (if max.intknots + 1 =< length(Y) - 2, max j = max.intknots + 1
                                                   # o.w. max j = length(Y) - 2 < max.intknots + 1 )
@@ -448,19 +472,19 @@ GenUnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)),
   # Initial values for the coefficients used at each iteration of stage A in order to estimate the spline coefficients
   oldguess <- matrix(nrow = max.intknots + 1,
                      ncol = max.intknots + 2)    # number of B-splines is p = l + 2 (max number of coef)
-  
+
   # Accumulated number of IRLS iterations
   irlsAccumIterCount <- NULL
   # Control basis matrix singularity
   flag <- FALSE
-  
+
   ##############################################################################
   ################################## STAGE A ###################################
   ##############################################################################
   for(j in 1:min(max.intknots + 1, length(Y) - 2)) {
-    
+
     if (flag) j <- j - 2 # adjusting iteration count after removing a knot
-    
+
     # Sort internal knots and update the oldguess matrix; create new guess vector
     if (j > 1) {
       intknots <- sort(intknots)
@@ -469,21 +493,21 @@ GenUnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)),
     } else if (j == 1) {
       guess <- NULL
     }
-    
+
     #############################################
     ## STEP 1: Find the IRLS linear spline fit ##
     #############################################
     # Linear spline regression using specified parameters
     first.deg <- SplineReg_GLM(X = X, Y = Y, Z = Z, offset = offset, weights = weights,
                                InterKnots = intknots, n = 2, extr = extr,
-                               family = family, inits = guess)
-    
+                               family = family, inits = guess, fast = TRUE)
+
     # 1. Check for NA values in the theta vector to handle potential singularities
     if(anyNA(first.deg$theta)) {
       # Calculate the rank of the basis matrix and check for singularities
       rank.basis <- rankMatrix(first.deg$basis)
       cols <- NCOL(first.deg$basis)
-      
+
       # (i) Handle the case when the basis matrix is singular
       if(rank.basis < cols) {
         # (a) If basis was singular for second consecutive time, break loop
@@ -497,43 +521,43 @@ GenUnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)),
         guess <- guess[1:length(first.deg$theta)][-check]
         toprint <- paste0("basis Matrix singular, deleting one knot")
         print(toprint)
-        flag  <- TRUE 
+        flag  <- TRUE
         # (c) Check if the number of knots equals the number of unique X values and issue a warning if true
         if(cols == length(distinctX)) {
           warning("Number of knots equal to number of unique Xs. Breaking the loop.")
           break
           } else {
             # Continue to the next iteration otherwise
-            next  
+            next
           }
-        
+
       # (ii) NA values in the theta vector, but basis matrix is not singular (i.e. other issues)
         } else {
           stop("NA(s) in the coefficients")
         }
-      
+
     # 2. If no NAs, update guess (coefficients initial value in the next iteration)
     } else {
       guess <- first.deg$theta[1:(j+1)]
     }
-    
+
     # Accumulated number of IRLS iterations at each GeDS iteration
     if (flag) irlsAccumIterCount <- irlsAccumIterCount[1:(j-1)]
     irlsAccumIterCount <- c(irlsAccumIterCount, first.deg$temporary$iter)
-    
+
     # Store knots and coefficients
     previous[j,1:(j+3)] <- sort(c(intknots,rep(extr,2)))
     oldcoef[j,1:(j+1+nz)] <- first.deg$theta
     guess_z <- if(nz > 0) first.deg$theta[(j+2):(j+1+nz)] else NULL
-    
-    # Store residuals and deviance 
+
+    # Store residuals and deviance
     res.tmp <- first.deg$residuals
     rss.tmp <- first.deg$temporary$deviance
     if (flag) rssnew <- rssnew[1:(j-1)]
     rssnew <- c(rssnew, rss.tmp)
     # Working weights (weights in the final iteration of the IRLS fit)
-    working.weights <- first.deg$temporary$weights  
-    
+    working.weights <- first.deg$temporary$weights
+
     ############################
     ## STEP 10: Stopping Rule ##
     ############################
@@ -541,64 +565,78 @@ GenUnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)),
                          rssnew = rssnew, phis = phis, stoptype = stoptype,
                          intknots = intknots, min.intknots = min.intknots, phi = phi,
                          phis_star = phis_star, oldintc = oldintc, oldslp = oldslp)
-    
+
     phis    <- res$phis; phis_star <- res$phis_star
     oldintc <- res$oldintc; oldslp <- res$oldslp
     prnt    <- res$prnt
-    
+
     if (res$should_break) break
-    
+
     ###############################################
     ## STEPS 3-8 (i.e. steps 2-7 of Normal GeDS) ##
     ###############################################
-    d <- numeric()
-    if(any(Indicator > 1)) {
+    # d <- numeric()
+    # if(any(Indicator > 1)) {
+    #   # Average res.tmp*weights for repeated values of X
+    #   res.weighted <- makeNewRes2(resold = res.tmp, weights = weights*working.weights, recurr = as.numeric(Indicator)) #already fast - useless to do in c++
+    # } else {
+    #   res.weighted <- res.tmp*weights*working.weights
+    # }
+    # # Avoid spurious sign changes due to floating-point noise near zero
+    # res.weighted[abs(res.weighted) <= tol] <- 0
+    # # Group the consecutive residuals into clusters by their sign
+    # signs <- sign(res.weighted)
+    # for (i in 1:length(distinctX)) {
+    #   # If all residual values have the same sign, count the entire set as one cluster
+    #   if (all(signs==signs[1])) {
+    #     d[i]<-length(signs)
+    #     break
+    #   } else {
+    #     # If signs change, identify the first change to split the cluster
+    #     d[i] <- min(which(signs!=signs[1]) - 1) # number of consecutive residuals with same sign
+    #     # Update signs to exclude the identified cluster
+    #     signs <- signs[-(1:d[i])]               # extract cluster from signs
+    #   }
+    # }
+    if (has_repeated_x) {
       # Average res.tmp*weights for repeated values of X
       res.weighted <- makeNewRes2(resold = res.tmp, weights = weights*working.weights, recurr = as.numeric(Indicator)) #already fast - useless to do in c++
     } else {
       res.weighted <- res.tmp*weights*working.weights
     }
-    # Avoid spurious sign changes due to floating-point noise near zero
-    res.weighted[abs(res.weighted) <= tol] <- 0
-    # Group the consecutive residuals into clusters by their sign
-    signs <- sign(res.weighted)
-    for (i in 1:length(distinctX)) {
-      # If all residual values have the same sign, count the entire set as one cluster
-      if (all(signs==signs[1])) {
-        d[i]<-length(signs)
-        break
-      } else {
-        # If signs change, identify the first change to split the cluster
-        d[i] <- min(which(signs!=signs[1]) - 1) # number of consecutive residuals with same sign
-        # Update signs to exclude the identified cluster
-        signs <- signs[-(1:d[i])]               # extract cluster from signs
-      }
-    }
+    # Group consecutive residuals into same-sign clusters (run-length encoding)
+    d <- rle(sign(res.weighted))$lengths
     ####################################################################
     ## STEP 4: within residual cluster means +  within-cluster ranges ##
     ####################################################################
-    u <- length(d)
+    # u <- length(d)
+    # dcum <- cumsum(d)
+    # # initialize means and wc.range
+    # means <- wc.range <- numeric(u)
+    # means[1] <- abs(mean(res.weighted[1:dcum[1]]))
+    # wc.range[1] <- distinctX[dcum[1]]-X[1]
+    # for (i in 2:u) { # embed in C++ useless
+    #   means[i] <- abs(mean((res.weighted[(dcum[i-1]+1):dcum[i]])))
+    #   wc.range[i] <- distinctX[dcum[i]]-distinctX[dcum[i-1]+1]
+    # }
+    u    <- length(d)
     dcum <- cumsum(d)
-    # initialize means and wc.range
-    means <- wc.range <- numeric(u)
-    means[1] <- abs(mean(res.weighted[1:dcum[1]]))
-    wc.range[1] <- distinctX[dcum[1]]-X[1]
-    for (i in 2:u) { # embed in C++ useless
-      means[i] <- abs(mean((res.weighted[(dcum[i-1]+1):dcum[i]])))
-      wc.range[i] <- distinctX[dcum[i]]-distinctX[dcum[i-1]+1]
-    }
+    cs   <- cumsum(res.weighted)
+    means    <- abs((cs[dcum] - c(0, cs[dcum[-u]])) / d)   # |cluster means|
+    left_idx <- c(1, dcum[-u] + 1)
+    wc.range <- distinctX[dcum] - distinctX[left_idx]      # cluster x-ranges
     ######################################################################
     ## STEP 5: calculate the normalized within-cluster means and ranges ##
     ######################################################################
     means <- means/max(means)
     # If the residual clusters are all singletons then all the wc.ranges will equal 0, and we cannot divide by 0
     if (max(wc.range) != 0) wc.range <- wc.range/max(wc.range)
-    
+
     ###########################################
     ## STEP 6: calculate the cluster weights ##
     ###########################################
     w <- beta*means + (1 - beta)*wc.range
-    
+
     ###############
     ## STEPS 7/8 ##
     ###############
@@ -607,19 +645,19 @@ GenUnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)),
     newknot <- Knotnew(weights = w, residuals = res.weighted, x = distinctX,
                        dcum = dcum, oldknots = c(rep(extr, support_order), intknots),
                        tol = tol, support_order = support_order)[1]
-    
+
     # newknot2 <- Knotnew_R_clean(wht = w, restmp = res.weighted, x = distinctX,
     #                             dcm = dcum, oldknots = sort(c(intknots, rep(extr, support_order))),
     #                             tol = tol, support_order = support_order)$newknot
-    # 
+    #
     # print( abs(newknot - newknot2) < 1e-6 )
-    
+
     # ii. Calculate guess-coefficient for newknot
     guess <- newknot.guess(intknots, extr, guess, newknot)
-    
+
     # iii. Update internal knots vector
     intknots <- c(intknots, newknot)
-    
+
     # Print iteration
     if (show.iters) {
       indent <- rep(" ", nchar(options()$prompt))
@@ -633,9 +671,9 @@ GenUnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)),
       }
       cat(toprint)
     }
-    
+
   }
-  
+
   ##############################################################################
   ################################## STAGE B ###################################
   ##############################################################################
@@ -651,14 +689,14 @@ GenUnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)),
     oldcoef  <- oldcoef[ ,1:(j+1+nz), drop = FALSE]                 # p = n + k = j + 1  B-splines
     iter <- j - q
   }
-  
+
   # If model selected is from first iteration
   if (iter == 1) {
     mustart <- NULL
   } else {
     mustart <- oldguess[iter, 1:(iter+1)]
   }
-  
+
   # 1. LINEAR
   if (iter < 2) {
     warning("Too few internal knots found: Linear spline will be computed with NULL internal knots. Try to set a different value for 'q' or a different treshold")
@@ -712,14 +750,14 @@ GenUnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)),
     } else {
       qq <- squ <- cc <- cub <- NULL
     }
-  
+
   out <- list("type" = "GLM - Univ", "linear.intknots" = ll, "quadratic.intknots" = qq, "cubic.intknots" = cc,
               "dev.linear" = lin$rss, "dev.quadratic" = squ$rss, "dev.cubic" = cub$rss,
               "rss" = rssnew, "linear.fit" = lin, "quadratic.fit" = squ, "cubic.fit" = cub, "stored" = previous,
               "args" = args, "call" = save, "Nintknots" = iter - 1, "iters" = j, "guesses" = oldguess,
               "coefficients" = oldcoef, "iterIrls" = irlsAccumIterCount,
               stopinfo = list("phis" = phis, "phis_star" = phis_star, "oldintc" = oldintc, "oldslp" = oldslp))
-  
+
   class(out) <- "GeDS"
   return(out)
 }

@@ -64,7 +64,7 @@ covariate to be included in the predictor model avoiding the estimation of
 its corresponding regression coefficient. In case more than one covariate is
 fixed, the user should sum the corresponding coordinates of the fixed
 covariates to produce one common \eqn{N}-vector of coordinates. The
-\code{offset} argument is particularly useful when using 
+\code{offset} argument is particularly useful when using
 \code{GenUnivariateFitter} if the link function used is not the identity.}
 
 \item{weights}{An optional vector of size \eqn{N} of `prior weights' to be
@@ -97,7 +97,7 @@ stage A of GeDS, by default equal to 2. See Details in the description of
 right-most limits of the interval embedding the sample values of \code{X}. By
 default equal correspondingly to the smallest and largest values of \code{X}.}
 
-\item{show.iters}{Logical variable indicating whether or not to print 
+\item{show.iters}{Logical variable indicating whether or not to print
 information at each step. By default equal to \code{FALSE}.}
 
 \item{tol}{Numeric value indicating the tolerance to be used in the knot
@@ -144,7 +144,7 @@ for multiple GeDS fitting (as may be the case e.g. in Monte Carlo simulations)
 it may be efficient to use the fitters outside the main functions.
 
 The argument \code{tol} is used in the knot placement procedure of stage A of
-the GeDS algorithm in order to check whether the current knot \eqn{\delta^*} 
+the GeDS algorithm in order to check whether the current knot \eqn{\delta^*}
 is set at an acceptable location or not. If there exists a knot \eqn{\delta_i}
 such that \eqn{|\delta^* - \delta_i| < }\code{tol}, \eqn{\delta^*}, then the
 new knot is considered to be coalescent with an existing one, it is discarded

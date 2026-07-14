@@ -39,13 +39,13 @@
 #' @param Yextr Numeric vector of 2 elements representing the left-most and
 #' right-most limits of the interval embedding the observations of the second
 #' independent variable (if bivariate GeDS is run). See Details.
-#' @param show.iters Logical variable indicating whether or not to print 
+#' @param show.iters Logical variable indicating whether or not to print
 #' information about the fitting at each step.
 #' @param stoptype A character string indicating the type of GeDS stopping rule
-#' to be used. It should be either one of \code{"SR"}, \code{"RD"} or 
+#' to be used. It should be either one of \code{"SR"}, \code{"RD"} or
 #' \code{"LR"}, partial match allowed. See Details.
 #' @param higher_order Logical. If \code{TRUE}, after completing stage A, the
-#' function proceeds to stage B and fits higher-order models (quadratic and cubic). 
+#' function proceeds to stage B and fits higher-order models (quadratic and cubic).
 #' Default is \code{TRUE}.
 #' @param intknots_init A vector of initial internal knots for stage A. The default
 #' is \code{NULL}, in which case stage A starts with a straight-line fit (i.e.,
@@ -55,7 +55,7 @@
 #' representing the initial fit from which to begin stage A GeDS iteration (i.e.
 #' departing from step 2). See Details.
 #' @param only_pred Logical. If \code{TRUE} only predictions are computed.
-#' 
+#'
 #' @details
 #' The  \code{NGeDS} function implements the GeDS methodology, developed by
 #' Kaishev et al. (2016) and extended in the \code{\link{GGeDS}} function for
@@ -69,7 +69,7 @@
 #' diminishing spline approximation to the fit from stage A is constructed, thus
 #' simultaneously producing spline fits of order 2, 3 and 4, all of which are
 #' included in the output (an object of class \code{"GeDS"}).
-#' 
+#'
 #' As noted in \code{\link[=formula.GeDS]{formula}}, the argument \code{formula}
 #' allows the user to specify models with two components, a spline regression
 #' (non-parametric) component involving part of the independent variables
@@ -80,12 +80,12 @@
 #' specify the independent variable for the  spline regression component through
 #' the function \code{f} will return an error. See
 #' \code{\link[=formula.GeDS]{formula}}.
-#' 
+#'
 #' Within the argument \code{formula}, similarly as in other \R functions, it is
 #' possible to specify one or more offset variables, i.e. known terms with fixed
 #' regression coefficients equal to 1. These terms should be identified via the
 #' function \code{\link[stats]{offset}}.
-#' 
+#'
 #' The parameter \code{beta} tunes the placement of a new knot in stage A of the
 #' algorithm. Once a current second-order  spline is fitted to the data the
 #' regression residuals are computed and grouped by their sign. A new knot is
@@ -97,7 +97,7 @@
 #' is, the more weight is put to the mean of the residuals and the less to the
 #' range of their corresponding x-values. The default value of \code{beta} is
 #' \code{0.5}.
-#' 
+#'
 #' The argument \code{stoptype} allows to choose between three alternative
 #' stopping rules for the knot selection in stage A of GeDS: \code{"RD"},
 #' that stands for \emph{Ratio of Deviances}, \code{"SR"}, that stands for
@@ -108,7 +108,7 @@
 #' at each iteration of the knot placement. In each of these cases the
 #' corresponding stopping criterion is compared with a threshold value
 #' \code{phi}.
-#' 
+#'
 #' The argument \code{phi} provides a threshold value required for the stopping
 #' rule to exit the knot placement in stage A of GeDS. The higher the value of
 #' \code{phi}, the more knots are added under the \code{"RD"} and \code{"SR"}
@@ -116,7 +116,7 @@
 #' the lower \code{phi} is, more knots are included in the spline regression.
 #' Further details for each of the three alternative stopping rules can be found
 #' in Dimitrova et al. (2023).
-#' 
+#'
 #' The argument \code{q} is an input parameter that allows to fine-tune the
 #' stopping rule in stage A. It identifies the number of consecutive iterations
 #' over which the deviance should exhibit stable convergence so that the knot
@@ -125,7 +125,7 @@
 #' iteration is compared to the deviance computed \code{q} iterations before,
 #' i.e., before selecting the last \code{q} knots. Setting a higher \code{q}
 #' will lead to more knots being added before exiting stage A of GeDS.
-#' 
+#'
 #' @return An object of class \code{"GeDS"} (a named list) with components:
 #' \describe{
 #' \item{type}{Character string indicating the type of regression performed.
@@ -159,10 +159,10 @@
 #' \item{Nintknots}{The final number of internal knots of the second order GeD
 #' spline fit produced in stage A.}
 #' \item{iters}{Number of iterations performed during stage A of the GeDS fitting
-#' procedure.}   
+#' procedure.}
 #' \item{coefficients}{Matrix containing the fitted coefficients of the GeD
 #' spline regression component and the parametric component at each iteration
-#' of stage A.}   
+#' of stage A.}
 #' \item{stopinfo}{List of values providing information related to the stopping
 #' rule of stage A of GeDS. The sub-slots of \code{stopinfo} are \code{phis},
 #' \code{phis_star}, \code{oldintc} and \code{oldslp}. The sub-slot \code{phis}
@@ -177,20 +177,20 @@
 #' \item{extcall}{\code{call} to the \code{\link{NGeDS}} functions.}
 #' \item{terms}{\code{terms} object containing information on the model frame.}
 #' }
-#' 
+#'
 #' @references
 #' Kaishev, V.K., Dimitrova, D.S., Haberman, S. and Verrall, R.J. (2016).
 #' Geometrically designed, variable knot regression splines.
 #' \emph{Computational Statistics}, \strong{31}, 1079--1105. \cr
 #' DOI: \doi{10.1007/s00180-015-0621-7}
-#' 
+#'
 #' Dimitrova, D. S., Kaishev, V. K., Lattuada, A. and Verrall, R. J.  (2023).
 #' Geometrically designed variable knot splines in generalized (non-)linear
 #' models.
 #' \emph{Applied Mathematics and Computation}, \strong{436}. \cr
 #' DOI: \doi{10.1016/j.amc.2022.127493}
-#' 
-#' @examples 
+#'
+#' @examples
 #' ###################################################
 #' # Generate a data sample for the response variable
 #' # Y and the single covariate X
@@ -253,18 +253,18 @@
 #' Z <- Z+rnorm(400, 0, sd = 0.1)
 #' # Fit a two dimensional GeDS model using NGeDS
 #'(BivGeDS <- NGeDS(Z ~ f(X, Y), phi = 0.9))
-#' 
+#'
 #' # Extract quadratic coefficients/knots/deviance
 #' coef(BivGeDS, n = 3)
 #' confint(BivGeDS, n = 3)
 #' knots(BivGeDS, n = 3)
 #' deviance(BivGeDS, n = 3)
-#' 
+#'
 #' # Surface plot of the generating function (doublesin)
 #' plot(BivGeDS, f = doublesin)
 #' # Surface plot of the fitted model
 #' plot(BivGeDS)
-#' 
+#'
 #' @seealso \link{GGeDS}; S3 methods such as \code{\link{coef.GeDS}},
 #' \code{\link{confint.GeDS}}, \code{\link{deviance.GeDS}}, \code{\link{family}},
 #' \code{\link{formula}}, \code{\link{knots.GeDS}}, \code{\link{lines.GeDS}},
@@ -282,7 +282,7 @@ NGeDS <- function(formula, data, weights, beta = 0.5, phi = 0.99, min.intknots,
   # 1. Capture current function call and use formula's environment if 'data' is missing
   save <- match.call()
   if (missing(data)) data <- environment(formula)
-  
+
   # 2. formula
   newdata <- read.formula(formula, data)
   X <- newdata$X                                    # GeDS covariates
@@ -290,7 +290,7 @@ NGeDS <- function(formula, data, weights, beta = 0.5, phi = 0.99, min.intknots,
   offset <- newdata$offset                          # offset
   Z <- newdata$Z; if(!is.null(Z)) Z <- as.matrix(Z) # linear covariates
   ncz <- if(is.null(Z)) 0 else NCOL(Z)
-  
+
   # 3. Weights
   # Prepare expression to dynamically extract 'weights', if available
   wn <- match("weights", names(save), 0L)
@@ -298,11 +298,11 @@ NGeDS <- function(formula, data, weights, beta = 0.5, phi = 0.99, min.intknots,
   wn[[1L]] <- quote(list)
   # Evaluate expression in 'data' environment to retrieve 'weights'
   weights <- eval(wn, data, parent.frame())$weights
-  # If no "weights" were provided 
+  # If no "weights" were provided
   if(is.null(weights)) weights = rep(1,NROW(X))
   weights <- as.numeric(weights)
   if (any(weights < 0))  stop("Negative weights not allowed")
-  
+
   # 4. Check arguments passed
   # 4.1. Check if Y, X, Z and weights lengths match
   if(is.null(Z)) {
@@ -310,10 +310,10 @@ NGeDS <- function(formula, data, weights, beta = 0.5, phi = 0.99, min.intknots,
   } else {
     if(NROW(X) != length(Y) || NROW(X) != NROW(Z) || NROW(X) != length(weights)) stop("length of 'X', 'Y', 'Z' and 'weights' must match")
   }
-  
+
   # 4.2. Check if X and Y are NULL
   if(is.null(X) || is.null(Y)) stop("Null arguments cannot be passed to this function")
-  
+
   # 4.3. Check beta, phi, max.intknots, q, show.iters
   # beta
   beta <- as.numeric(beta)
@@ -330,21 +330,21 @@ NGeDS <- function(formula, data, weights, beta = 0.5, phi = 0.99, min.intknots,
   q <- as.integer(q)
   # show.iters
   show.iters <- as.logical(show.iters)
-  
+
   if(length(phi) != 1 || length(beta) != 1 || length(min.intknots) != 1 ||
      length(max.intknots) != 1 || length(q) != 1 || length(show.iters) != 1)
     stop("'phi', 'beta',  'max.intknots', 'q' and 'show.iters' must have length 1")
-  
+
   # 4.4. Xextr and Yextr
   if(!is.null(Xextr) && length(Xextr) != 2) stop("'Xextr' must have length 2")
   if(!is.null(Yextr) && length(Yextr) != 2) stop("'Yextr' must have length 2")
-  
+
   # 4.5. NA checks
   if (anyNA(X) || anyNA(Y) || anyNA(weights) || !is.null(Z) && anyNA(Z) || anyNA(offset)) {
-    
-    warning(if (!is.null(Z)) "NAs deleted from 'X', 'Y', 'Z', 'offset' and 'weights'" 
+
+    warning(if (!is.null(Z)) "NAs deleted from 'X', 'Y', 'Z', 'offset' and 'weights'"
             else "NAs deleted from 'X', 'Y', 'offset' and 'weights'")
-    
+
     # Locate NAs
     tmp <- if (is.matrix(X) || is.data.frame(X)) apply(X, 1, anyNA) else is.na(X)
     tmp <- tmp | is.na(Y) | is.na(weights) | is.na(offset)
@@ -357,12 +357,12 @@ NGeDS <- function(formula, data, weights, beta = 0.5, phi = 0.99, min.intknots,
     weights <- weights[!tmp]
     offset <- offset[!tmp]
   }
-  
+
   #####################
   ## UNIVARIATE GeDS ##
   #####################
   if(ncol(X) == 1) {
-    
+
     # Order inputs
     idx <- order(X)
     X <- X[idx]
@@ -370,9 +370,9 @@ NGeDS <- function(formula, data, weights, beta = 0.5, phi = 0.99, min.intknots,
     weights <- weights[idx]
     offset <- offset[idx]
     if (!is.null(Z)) Z <- Z[idx, ]
-    
+
     Xextr <- if (is.null(Xextr)) range(X) else as.numeric(Xextr)
-    
+
     out <- UnivariateFitter(X = X, Y = Y, Z = Z, offset = offset, weights = weights,
                             beta = beta, phi = phi, min.intknots = min.intknots,
                             max.intknots = max.intknots, q = q, extr = Xextr,
@@ -383,24 +383,24 @@ NGeDS <- function(formula, data, weights, beta = 0.5, phi = 0.99, min.intknots,
   ## BIVARIATE GeDS ##
   ####################
   } else if (ncol(X) == 2) {
-    
-    indicator <- if(any(duplicated(X))) table(X[,1], X[,2]) else NULL 
+
+    indicator <- if(any(duplicated(X))) table(X[,1], X[,2]) else NULL
     Xextr     <- if (is.null(Xextr)) range(X[,1]) else as.numeric(Xextr)
     Yextr     <- if (is.null(Yextr)) range(X[,2]) else as.numeric(Yextr)
     Xintknots <- intknots_init$ikX
     Yintknots <- intknots_init$ikY
-    
+
     out <- BivariateFitter(X = X[,1], Y = X[,2], W = Z, Z = Y, weights = weights,
                            indicator = indicator, beta = beta, phi = phi,
                            min.intknots = min.intknots, max.intknots = max.intknots,
                            q = q, Xextr = Xextr, Yextr = Yextr, show.iters = show.iters,
                            stoptype = stoptype, higher_order = higher_order,
                            Xintknots = Xintknots, Yintknots = Yintknots)
-    
+
   } else {
     stop("Incorrect number of columns of the independent variable")
   }
-  
+
   out$formula <- formula
   out$extcall <- save
   out$terms <- newdata$terms

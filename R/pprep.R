@@ -14,7 +14,7 @@
 #' \eqn{+ 1}) of the GeDS fit which should be converted to a piecewise
 #' polynomial form. By default equal to \code{3L}. Non-integer values will be
 #' passed to the function \code{\link{as.integer}}.
-#' 
+#'
 #' @details
 #' This function converts a selected GeDS fit—stored as an object of class
 #' \code{"GeDS"} and represented using B-splines—into an equivalent representation
@@ -24,11 +24,11 @@
 #' \code{"GeDS"} objects as input. This provides a convenient bridge between the
 #' \pkg{GeDS} and \pkg{splines} packages, allowing users to leverage the
 #' functionality available in \pkg{splines}.
-#' 
+#'
 #' @return An object that inherits from classes  \code{"spline"} and
 #' \code{"polySpline"}. It is a list whose arguments are:
 #' \describe{
-#' \item{knots}{ a vector of size  \eqn{k + 2} containing the complete set of 
+#' \item{knots}{ a vector of size  \eqn{k + 2} containing the complete set of
 #' knots (internal knots plus the limits of the interval) of the GeDS fit.}
 #' \item{coefficients}{ a \eqn{(k + 2) \times n} matrix containing the
 #' coefficients of the  polynomials in the required piecewise polynomial
@@ -74,11 +74,11 @@
 #'         add = TRUE, col = cols[i])
 #'   abline(v = knt[i])
 #' }
-#' 
+#'
 #' @importFrom splines polySpline
 #' @importFrom stats as.formula
 #' @export
-#' 
+#'
 #' @note Let us note that the first \eqn{k+1} rows of the matrix contain the
 #' \code{n} coefficients of the \eqn{k+1} consecutive pieces of the piecewise
 #' polynomial representation. The last \eqn{(k+2)}-th row is extraneous and it

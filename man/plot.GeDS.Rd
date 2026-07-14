@@ -87,7 +87,7 @@ button.
 
 Note that, in order to ensure stability, if the object was produced by the
 function \code{\link{GGeDS}}, plotting intermediate fits of stage A is
-allowed  only if \code{n = 2}, in contrast to objects produced by 
+allowed  only if \code{n = 2}, in contrast to objects produced by
 \code{\link{NGeDS}} for which plotting intermediate results is allowed also
 for \code{n = }2 or 3 results.
 

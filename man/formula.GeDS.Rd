@@ -64,7 +64,7 @@ function \code{\link[stats]{offset}}.
 
 For \code{\link{NGeDSgam}} and \code{\link{NGeDSboost}}, more than one GeD spline
 component can be included in the formula, e.g., \code{y ~ f(x1) + f(x2,x3) + x4},
-where \code{f()} denotes GeD spline-based (univariate or bivariate) regression smoothing 
+where \code{f()} denotes GeD spline-based (univariate or bivariate) regression smoothing
 functions/base-learners, and \code{x4} is included as a linear term in the
 predictor model. Offset terms are not supported by \code{\link{NGeDSboost}} and
 will be ignored if included in the formula. Known additive components can

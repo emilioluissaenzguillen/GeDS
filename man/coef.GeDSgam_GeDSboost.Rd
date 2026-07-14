@@ -18,7 +18,7 @@ extracted.}
 
 \item{n}{Integer value (2, 3 or 4) specifying the order (\eqn{=} degree
 \eqn{ + 1}) of the FGB-GeDS/GAM-GeDS fit whose coefficients should be
-extracted. 
+extracted.
 \itemize{
  \item If \code{n = 2L}: the piecewise polynomial coefficients of the univariate
  GeDS base-learners and linear base-learners are provided (the B-spline coefficients

@@ -5,7 +5,7 @@ lm.wfit.light <- function (x, y, w, tol = 1e-07) {
   zero.weights <- any(w == 0)
   save.r <- y
   save.f <- x
-  
+
   if (zero.weights) {
     save.w <- w
     ok <- w != 0
@@ -61,7 +61,7 @@ makeNewRes2 <- function(resold, recurr, weights){
   ids<- c(0,ids)
   newres <- numeric((length(ids)-1))
   newweights <- numeric((length(ids)-1))
-  
+
   for(i in 1:(length(ids)-1)){
     newres[i] <- sum(resold[(ids[i]+1):ids[i+1]])/recurr[i]
     newweights[i] <- sum(weights[(ids[i]+1):ids[i+1]])
@@ -70,88 +70,19 @@ makeNewRes2 <- function(resold, recurr, weights){
   return(newres)
 }
 
-################################################################################
-#' @importFrom splines splineDesign
-#' @importFrom stats coef .lm.fit
-SplineReg_fast_weighted_zed <- function(X, Y, Z, offset,
-                                        weights = rep(1, length(X)), InterKnots,
-                                        n, extr = range(X))
-{
-  basisMatrix <- splineDesign(knots = sort(c(InterKnots, rep(extr,n))),
-                          derivs = rep(0,length(X)), x = X, ord = n, outer.ok = TRUE)
-  basisMatrix2 <- cbind(basisMatrix,Z)
-  
-  Y0 <- Y-offset
-  tmp <-  if(all(weights==1)) .lm.fit(basisMatrix2, Y0) else lm.wfit.light(basisMatrix2, Y0, weights)
-  theta <- coef(tmp)
-  predicted <- basisMatrix2 %*% theta + offset
-  resid <- Y - predicted
-  out <- list("theta" = theta, "predicted" = predicted,
-              "residuals" = resid, "rss" = as.numeric(crossprod(resid)),
-              "basis" = basisMatrix2,
-              "temporary" = tmp)
-  return(out)
-}
-
-################################################################################
-#' @importFrom splines splineDesign
-#' @importFrom stats .lm.fit lm.fit lm.wfit residuals coef
-SplineReg_fast_biv <- function(X, Y, Z, W=NULL, weights = rep(1, length(X)),
-                               InterKnotsX, InterKnotsY, n, Xextr = range(X),
-                               Yextr = range(Y), flag=TRUE, 
-                               center = c(sum(Xextr)/2,sum(Yextr)/2))
-  {
-  basisMatrixX <- splineDesign(knots = sort(c(InterKnotsX, rep(Xextr,n))), derivs = rep(0,length(X)),
-                           x = X, ord = n, outer.ok = TRUE)
-  basisMatrixY <- splineDesign(knots = sort(c(InterKnotsY, rep(Yextr,n))), derivs = rep(0,length(Y)),
-                           x = Y, ord = n, outer.ok = T)
-  basisMatrixbiv <- tensorProd(basisMatrixX, basisMatrixY)
-  basisMatrixbiv2 <- cbind(basisMatrixbiv, W)
-  
-  
-  #fff <- !rankMatrix(basisMatrixbiv)==8
-  #  Xknots<-makenewknots(sort(c(InterKnotsX,rep(Xextr,n-1))),deg=n)
-  #  Yknots<-makenewknots(sort(c(InterKnotsY,rep(Yextr,n-1))),deg=n)
-  if(all(weights==1)){
-    tmp <- .lm.fit(basisMatrixbiv2, Z)
-    if (tmp$rank<ncol(basisMatrixbiv2)){
-      tmp <- lm.fit(basisMatrixbiv2, Z)
-    }
-    resid <- residuals(tmp)
-  } else {
-    tmp <- lm.wfit.light(basisMatrixbiv2, Z, weights) #ccc<-lm(Z ~ -1+basisMatrixbiv) #
-    resid <- tmp$residuals
-    
-    
-    if (tmp$rank<ncol(basisMatrixbiv2)){
-      tmp <- lm.wfit(basisMatrixbiv2, Z, weights)
-      resid <- residuals(tmp)
-      
-    }
-  }
-  theta <- as.numeric(coef(tmp))
-  #  theta[is.na(theta)] <- 0
-  out <- list("theta" = theta, "predicted" = basisMatrixbiv2 %*% theta,
-              "residuals" = resid, "rss" = as.numeric(crossprod(resid)),
-              "Xbasis" = basisMatrixX, "Ybasis" = basisMatrixY, # "poly" = poly,
-              "temporary" = tmp)
-  return(out)
-}
-
-################################################################################
 #' @importFrom splines splineDesign
 newknot.guess <- function(intknots, extr, guess, newknot) {
   # i. Determine the position of the new knot relative to existing internal knots
   newknot.position <- sum(intknots < as.numeric(newknot))
-  
+
   # ii. Generate a spline design matrix for the new knot
   nk.design <- splineDesign(knots=sort(c(intknots, rep(extr,2))), derivs = 0,
                             x = newknot, ord = 2, outer.ok = TRUE)
-  
+
   # iii. Calculate a new guess value (coefficient) for the spline at the new knot position
   pr.value <- sum(nk.design * guess)
   newguess <- pr.value
-  
+
   # iv. Update the guess-coefficient vector based on the position of the new internal knot
   # (keep in mind the number of B-splines is p = k + 2, where k is the number of internal knots)
   if(newknot.position == 0) {
@@ -164,26 +95,26 @@ newknot.guess <- function(intknots, extr, guess, newknot) {
     # Otherwise, insert the new guess in its appropriate position
     guess <- c(guess[1:(newknot.position+1)], newguess, guess[-(1:(newknot.position+1))])
   }
-  
+
   return(guess)
 }
 
 # newknot.guess_biv <- function(Dim, FixedDim, Dim.intknots, FixedDim.intknots, Dim.extr, FixedDim.extr, guess, Dim.newknot) {
 #   # i. Determine the position of the new knot relative to existing internal knots
 #   Dim.newknot_position <- sum(Dim.intknots < as.numeric(Dim.newknot))
-#   
+#
 #   # ii. Generate a spline design matrix for the new knot
 #   Dim.nk.design <- splineDesign(knots = sort(c(Dim.intknots,rep(Dim.extr, 2))), derivs = 0,
 #                                 x = Dim.newknot, ord = 2, outer.ok = TRUE)
 #   FixedDim.design <- splineDesign(knots = sort(c(FixedDim.intknots,rep(FixedDim.extr, 2))), derivs = rep(0,length(FixedDim)),
 #                                   x = FixedDim, ord = 2, outer.ok = TRUE)
-#   
+#
 #   nk.design <- tensorProd(Dim.nk.design, FixedDim.design)
-#   
+#
 #   # iii. Calculate a new guess value (coefficient) for the spline at the new knot position
 #   pr.value <- sum(nk.design * guess)
 #   newguess <- pr.value
-#   
+#
 #   # iv. Update the guess-coefficient vector based on the position of the new internal knot
 #   # (keep in mind the number of B-splines is p = k + 2, where k is the number of internal knots)
 #   if(newknot.position == 0) {
@@ -196,32 +127,34 @@ newknot.guess <- function(intknots, extr, guess, newknot) {
 #     # Otherwise, insert the new guess in its appropriate position
 #     guess <- c(guess[1:(newknot.position+1)], newguess, guess[-(1:(newknot.position+1))])
 #   }
-#   
+#
 #   return(guess)
 # }
 
 ################################################################################
 #' @importFrom MASS ginv
 #' @importFrom Matrix rankMatrix
-#' @importFrom stats qt qnorm
+#' @importFrom stats hat qt qnorm
 ci <- function(tmp, resid, prob = 0.95, basisMatrix, basisMatrix2, predicted,
                n_obs = NROW(basisMatrix),
                type = "lm",
                huang = TRUE) {
-  
+
   if (type == "lm") {
     # Residual standard error
     df <- if(!is.null(tmp)) tmp$df.residual else as.numeric(nrow(basisMatrix2) - rankMatrix(basisMatrix2)) # residual degrees of freedom
-    sigma_hat <- sqrt(sum(resid^2)/df)
+    # Saturated fit (df <= 0): t-based bands are undefined; avoid spurious "NaNs produced".
+    valid_df <- is.finite(df) && df > 0
+    sigma_hat <- if (valid_df) sqrt(sum(resid^2)/df) else NA_real_
     # Adjust probability for two-tailed test
     prob <- 1-.5*(1-prob)
     # Diagonal of the hat matrix
-    H_diag <- stats::hat(basisMatrix2, intercept = FALSE) # or influence(tmp)$hat
+    H_diag <- hat(basisMatrix2, intercept = FALSE) # or influence(tmp)$hat
     # CI_j =\hat{y_j} ± t_{α/2,df}*\hat{σ}*\sqrt{H_{jj}}; H = X(X'X)^{-1}X'
-    band <- qt(prob,df) * sigma_hat * H_diag^.5
-    
+    band <- if (valid_df) qt(prob, df) * sigma_hat * H_diag^.5 else rep(NA_real_, length(predicted))
+
     nci = list("Upp" = predicted + band, "Low" = predicted - band)
-    
+
     # Huang (2003) method for confidence band width (see Theorem 6.1)
     band_width_huang <- aci <- NULL; dim_threshold = 1500
     if (huang && n_obs < dim_threshold && NCOL(basisMatrix) != 0) {
@@ -242,55 +175,57 @@ ci <- function(tmp, resid, prob = 0.95, basisMatrix, basisMatrix2, predicted,
       S <- basisMatrix %*% matcbinv
       conditionalVariance <- (sigma_hat^2 / n_obs) * rowSums(S * basisMatrix)
       # iii. ± z_{1-α/2} * Var(\hat{f} | X)
-      band_width_huang <- qnorm(prob) * sqrt(conditionalVariance)
-      
+      # A variance is non-negative; clamp numerical noise (e.g. from ginv on an
+      # ill-conditioned basis) to avoid spurious sqrt() NaNs.
+      band_width_huang <- qnorm(prob) * sqrt(pmax(conditionalVariance, 0))
+
       aci = list("Upp" = predicted + band_width_huang,
                  "Low" = predicted - band_width_huang)
     }
-    
-    
-    
+
+
+
   } else if (type == "glm") {
-    
+
     if (is.numeric(tmp$coefficients)) {
       alpha <- 1 - prob
       z_val <- qnorm(1 - alpha / 2)  # For Wald-type CI
-      
+
       # eta_hat <- predict(tmp, type = "link", se.fit = TRUE)
       eta_hat <- tryCatch(
         predict(tmp, type = "link", se.fit = TRUE),
-        
+
         error = function(e) {
-          
+
           eta <- predict(tmp, type = "link")
-          
+
           matcb <- t(basisMatrix2) %*% diag(tmp$weights) %*% basisMatrix2
           Sigma <- summary(tmp)$dispersion * ginv(matcb)
           se_eta   <- sqrt(rowSums((basisMatrix2 %*% Sigma) * basisMatrix2))
-          
+
           list(fit = eta, se.fit = se_eta)
         }
       )
-      
+
       lower_eta <- eta_hat$fit - z_val * eta_hat$se.fit
       upper_eta <- eta_hat$fit + z_val * eta_hat$se.fit
-      
+
       lower <- tmp$family$linkinv(lower_eta)
       upper <- tmp$family$linkinv(upper_eta)
-      
+
       nci = list("Upp" = upper, "Low" = lower)
-      
+
       } else {
         # tmp$coefficients == "When using bivariate base-learners, the 'single spline representation' (in pp form or B-spline form) of the boosted fit is not available."
         nci = NULL
       }
-    
+
     aci = NULL
-    
+
   }
-  
+
   return(list(nci = nci, aci = aci))
-  
+
 }
 
 ################################################################################
@@ -305,12 +240,12 @@ stopping_rule <- function(
     phis_star,                        # numeric vector to append (SR)
     oldintc, oldslp                   # numeric vectors to append (SR)
 ) {
-  
+
   stoptype <- match.arg(stoptype)
-  
+
   if (missing(n_starting_intknots)) n_starting_intknots <- 0
   if (missing(flag)) flag <- FALSE
-  
+
   # Default return (no action)
   out <- list(
     should_break = FALSE,
@@ -320,17 +255,17 @@ stopping_rule <- function(
     oldslp = oldslp,
     prnt = ""
   )
-  
+
   # Guard: only active after enough steps
   if (j <= q + n_starting_intknots) return(out)
-  
+
   # Early check: if ratio > 1 then stop (i.e. rss getting worse when adding more knots)
   ratio_j <- rssnew[j] / rssnew[j - q]
   if (ratio_j > 1) {
     out$should_break <- TRUE
     return(out)
   }
-  
+
   # Adding the current ratio of deviances to the 'phis' vector
   if (flag) phis <- phis[1:(j - q - 1)]
   phis <- if (stoptype == "LR") {
@@ -338,11 +273,11 @@ stopping_rule <- function(
   } else {
     c(phis, ratio_j)
   }
-  
+
   # If not past min.intknots, continue with the iterations
   out$phis <- phis
   if ((j - q) <= min.intknots) return(out)
-  
+
   # (I) Smoothed Ratio of deviances
   if(stoptype == "SR") {
     # \hat{φ}_κ = 1 - exp{\hat{γ}_0 + \hat{γ}_1*κ}
@@ -352,33 +287,33 @@ stopping_rule <- function(
     phismod <- log(1-phis)
     kappa <- length(intknots)
     gamma <- .lm.fit(cbind(1, q:kappa), phismod)$coef
-    
+
     # Calculate \hat{φ}_κ based on the estimated coefficients
     phi_kappa <- 1 - exp(gamma[1])*exp(gamma[2]*kappa)
-    
+
     # Store \hat{φ}_κ and the estimated coefficients \hat{γ}_0 and \hat{γ}_1
     phis_star <- c(phis_star, phi_kappa)
     oldintc <- c(oldintc, gamma[1])
     oldslp <- c(oldslp, gamma[2])
-    
+
     # Creating a print statement that shows the current adjusted phi value
     prnt <- paste0(", phi_hat = ", round(phi_kappa, 3))
-    
+
     out$phis_star <- phis_star
     out$oldintc <- oldintc
     out$oldslp <- oldslp
     out$prnt <- prnt
     # Check if \hat{φ}_κ ≥ φ_{exit}
-    if (phi_kappa >= phi) out$should_break <- TRUE 
+    if (phi_kappa >= phi) out$should_break <- TRUE
     return(out)
-    
+
   # (II) Ratio of Deviances
   } else if (stoptype == "RD") {
     prnt <- paste0(", phi = ", round(ratio_j, 3))
     out$prnt <- prnt
     if (ratio_j >= phi) out$should_break <- TRUE
     return(out)
-    
+
     # (III) Likelihood Ratio
   } else if (stoptype == "LR") {
     # stat = -(rss_j - rss_{j-q}); stop if stat < qchisq(phi, df=q)
@@ -388,7 +323,148 @@ stopping_rule <- function(
     if (stat < qchisq(phi, df = q)) out$should_break <- TRUE
     return(out)
   }
-  
+
   out
 }
 
+################################################################################
+validate_GeDS_order <- function(n) {
+  n <- suppressWarnings(as.integer(n))
+
+  if (length(n) != 1L || is.na(n) || !(n %in% 2L:4L)) {
+    n <- 3L
+    warning("'n' incorrectly specified. Set to 3.", call. = FALSE)
+  }
+
+  n
+}
+
+################################################################################
+make_shape_constraint <- function(knots, n, p,
+                                  shape_constraint = "none",
+                                  eps = 0) {
+  allowed <- c("none", "increasing", "decreasing", "convex", "concave")
+
+  shape_constraint <- match.arg(
+    shape_constraint,
+    choices = allowed,
+    several.ok = TRUE
+  )
+
+  if (length(shape_constraint) == 0 || identical(shape_constraint, "none")) {
+    return(NULL)
+  }
+
+  if (any(!shape_constraint %in% allowed)) {
+    stop("Unknown shape_constraint.", call. = FALSE)
+  }
+
+  if ("none" %in% shape_constraint && length(shape_constraint) > 1) {
+    stop("'none' cannot be combined with other shape constraints.", call. = FALSE)
+  }
+
+  if (all(c("increasing", "decreasing") %in% shape_constraint)) {
+    stop("Cannot impose both increasing and decreasing constraints.", call. = FALSE)
+  }
+
+  if (all(c("convex", "concave") %in% shape_constraint)) {
+    stop("Cannot impose both convex and concave constraints.", call. = FALSE)
+  }
+
+  constraints <- list()
+
+  # First derivative coefficient matrix
+  # f'(x) = sum_i D1_i(theta) N_{i,n-1}(x)
+  D1 <- matrix(0, nrow = p - 1, ncol = p)
+
+  for (i in 2:p) {
+    denom <- knots[i + n - 1] - knots[i]
+
+    if (denom <= 0) {
+      stop("Invalid knot sequence for derivative constraints.", call. = FALSE)
+    }
+
+    D1[i - 1, i]     <-  (n - 1) / denom
+    D1[i - 1, i - 1] <- -(n - 1) / denom
+  }
+
+  if ("increasing" %in% shape_constraint) {
+    constraints[["increasing"]] <- D1
+  }
+
+  if ("decreasing" %in% shape_constraint) {
+    constraints[["decreasing"]] <- -D1
+  }
+
+  # Second derivative coefficient matrix
+  # f''(x) = sum_i D2_i(theta) N_{i,n-2}(x)
+  if (any(c("convex", "concave") %in% shape_constraint)) {
+    if (n < 3) {
+      stop("Convexity/concavity constraints require spline order n >= 3.",
+           call. = FALSE)
+    }
+
+    D2 <- matrix(0, nrow = p - 2, ncol = p)
+
+    for (i in 3:p) {
+      denom <- knots[i + n - 2] - knots[i]
+
+      if (denom <= 0) {
+        stop("Invalid knot sequence for second-derivative constraints.",
+             call. = FALSE)
+      }
+
+      D2[i - 2, ] <- (n - 2) * (D1[i - 1, ] - D1[i - 2, ]) / denom
+    }
+
+    if ("convex" %in% shape_constraint) {
+      constraints[["convex"]] <- D2
+    }
+
+    if ("concave" %in% shape_constraint) {
+      constraints[["concave"]] <- -D2
+    }
+  }
+
+  C <- do.call(rbind, constraints)
+  b <- rep(eps, nrow(C))
+
+  list(C = C, b = b)
+}
+
+constrained_wls <- function(X, y, weights = rep(1, length(y)),
+                            C, b, ridge = 1e-8) {
+
+  if (!requireNamespace("quadprog", quietly = TRUE)) {
+    stop("Package 'quadprog' is required for shape-constrained fitting.",
+         call. = FALSE)
+  }
+
+  w_sqrt <- sqrt(as.numeric(weights))
+  Xw <- X * w_sqrt
+  yw <- y * w_sqrt
+
+  Dmat <- crossprod(Xw)
+  dvec <- as.numeric(crossprod(Xw, yw))
+
+  # Ensure symmetry and numerical positive definiteness
+  Dmat <- (Dmat + t(Dmat)) / 2
+  Dmat <- Dmat + diag(ridge, ncol(Dmat))
+
+  fit <- tryCatch(
+    quadprog::solve.QP(
+      Dmat = Dmat,
+      dvec = dvec,
+      Amat = t(C),
+      bvec = b,
+      meq = 0
+    ),
+    error = function(e) {
+      stop("Shape-constrained weighted least squares failed: ",
+           conditionMessage(e),
+           call. = FALSE)
+    }
+  )
+
+  as.numeric(fit$solution)
+}

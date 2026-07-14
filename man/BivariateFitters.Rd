@@ -115,13 +115,13 @@ partial match allowed. See details of \code{\link{NGeDS}} or
 order fits (quadratic and cubic) after stage A is run. Default is
 \code{TRUE}.}
 
-\item{Xintknots}{A vector of starting internal knots in the \code{X} direction. 
+\item{Xintknots}{A vector of starting internal knots in the \code{X} direction.
 Allows the user to begin Stage A's GeDS algorithm with a linear (least-squares)
 spline fit using a predefined vector of internal \code{X} knots, instead of
 starting with a straight line fit (i.e., with zero internal knots). Note that
 this is not available for \code{GenBivariateFitter}. Default is \code{NULL}.}
 
-\item{Yintknots}{A vector of starting internal knots in the \code{Y} direction. 
+\item{Yintknots}{A vector of starting internal knots in the \code{Y} direction.
 Allows the user to begin Stage A's GeDS algorithm with a linear (least-squares)
 spline fit using a predefined vector of internal \code{Y} knots, instead of
 starting with a straight line fit (i.e., with zero internal knots). Note that

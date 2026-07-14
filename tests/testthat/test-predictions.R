@@ -1,16 +1,16 @@
-library(testthat)
-library(GeDS) 
+library("testthat")
+library("GeDS")
 
 test_that("IRIS - NGeDSgam predictions consistency", {
   # Prepare the iris dataset
   iris_subset <- subset(iris, Species %in% c("setosa", "versicolor"))
   iris_subset$Species <- factor(iris_subset$Species)
-  
+
   # Compute ranges from iris_subset
   ranges <- lapply(iris_subset[, 1:4], range)
-  
+
   # Filter iris for observations within these ranges
-  within_ranges <- with(iris, 
+  within_ranges <- with(iris,
                         Sepal.Length >= ranges$Sepal.Length[1] & Sepal.Length <= ranges$Sepal.Length[2] &
                           Sepal.Width  >= ranges$Sepal.Width[1]  & Sepal.Width  <= ranges$Sepal.Width[2] &
                           Petal.Length >= ranges$Petal.Length[1] & Petal.Length <= ranges$Petal.Length[2] &
@@ -20,7 +20,7 @@ test_that("IRIS - NGeDSgam predictions consistency", {
   combined <- rbind(iris_subset, iris_in_range)
   new_rows <- !duplicated(combined)[(nrow(iris_subset) + 1):nrow(combined)]
   iris_in_range_new <- iris_in_range[new_rows, ]
-  
+
   for (normalize in c(TRUE, FALSE)) {
     # Run NGeDSgam silently
     invisible(capture.output({
@@ -30,26 +30,26 @@ test_that("IRIS - NGeDSgam predictions consistency", {
                  phi_gam_exit = 0.8)
         )
       }))
-    
+
     # Check that prediction differences are essentially zero
     expect_equal(
       predict(Gmodgam, newdata = iris_subset, type = "response", n = 2),
       Gmodgam$predictions$pred_linear,
       tolerance = 1e-6
     )
-    
+
     expect_equal(
       predict(Gmodgam, newdata = iris_subset, type = "response", n = 3),
       Gmodgam$predictions$pred_quadratic,
       tolerance = 1e-6
     )
-    
+
     expect_equal(
       predict(Gmodgam, newdata = iris_subset, type = "response", n = 4),
       Gmodgam$predictions$pred_cubic,
       tolerance = 1e-6
     )
-    
+
     for (ord in 2:4) {
       expect_equal(
         predict(Gmodgam, newdata = iris_subset, type = "response", n = ord),
@@ -64,12 +64,12 @@ test_that("IRIS - NGeDSboost predictions consistency", {
   # Prepare the iris dataset
   iris_subset <- subset(iris, Species %in% c("setosa", "versicolor"))
   iris_subset$Species <- factor(iris_subset$Species)
-  
+
   # Compute ranges from iris_subset
   ranges <- lapply(iris_subset[, 1:4], range)
-  
+
   # Filter iris for observations within these ranges
-  within_ranges <- with(iris, 
+  within_ranges <- with(iris,
                         Sepal.Length >= ranges$Sepal.Length[1] & Sepal.Length <= ranges$Sepal.Length[2] &
                           Sepal.Width  >= ranges$Sepal.Width[1]  & Sepal.Width  <= ranges$Sepal.Width[2] &
                           Petal.Length >= ranges$Petal.Length[1] & Petal.Length <= ranges$Petal.Length[2] &
@@ -79,10 +79,10 @@ test_that("IRIS - NGeDSboost predictions consistency", {
   combined <- rbind(iris_subset, iris_in_range)
   new_rows <- !duplicated(combined)[(nrow(iris_subset) + 1):nrow(combined)]
   iris_in_range_new <- iris_in_range[new_rows, ]
-  
+
   for (normalize in c(TRUE, FALSE)) {
     for (init_learner in c(TRUE, FALSE)) {
-      
+
       # Run NGeDSboost silently
       invisible(capture.output({
         Gmodboost <- suppressWarnings(
@@ -92,26 +92,26 @@ test_that("IRIS - NGeDSboost predictions consistency", {
                      phi_boost_exit = 0.8)
           )
         }))
-      
+
       # Check that prediction differences are essentially zero
       expect_equal(
         predict(Gmodboost, newdata = iris_subset, type = "response", n = 2),
         Gmodboost$predictions$pred_linear,
         tolerance = 1e-6
       )
-      
+
       expect_equal(
         predict(Gmodboost, newdata = iris_subset, type = "response", n = 3),
         Gmodboost$predictions$pred_quadratic,
         tolerance = 1e-6
       )
-      
+
       expect_equal(
         predict(Gmodboost, newdata = iris_subset, type = "response", n = 4),
         Gmodboost$predictions$pred_cubic,
         tolerance = 1e-6
       )
-      
+
       for (ord in 2:4) {
         expect_equal(
           predict(Gmodboost, newdata = iris_subset, type = "response", n = ord),
@@ -119,7 +119,7 @@ test_that("IRIS - NGeDSboost predictions consistency", {
           tolerance = 1e-6
         )
       }
-      
+
     }
   }
 })
@@ -243,14 +243,14 @@ test_that("MTCARS - NGeDSboost predictions consistency", {
         }
 
         sum <- pred1+pred2+pred3+pred4+pred5+pred6+pred7+pred8+pred9
-        
+
         if (ord == 2) {
           b0 <- unname(Gmodboost$final_model$linear.fit$theta["b0"])
           if (is.na(b0)) b0 <- 0
         } else {
           b0 <- 0
         }
-        
+
         if (!Gmodboost$args$initial_learner && ord == 2) {
           pred0 <- mean(mtcars$mpg)
           if (Gmodboost$args$normalize_data) {
@@ -259,13 +259,13 @@ test_that("MTCARS - NGeDSboost predictions consistency", {
         } else {
           pred0 <- 0
         }
-        
+
         sum <- pred0 + b0 + sum
-        
+
         if (Gmodboost$args$normalize_data && ord == 2) {
           sum <- sum * Gmodboost$args$Y_sd + Gmodboost$args$Y_mean
         }
-        
+
         expect_equal(
           sum,
           predict(Gmodboost, newdata = mtcars, type = "response", n = ord),

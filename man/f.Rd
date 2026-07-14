@@ -28,7 +28,7 @@ component.
 
 The function \code{f} is to be used in the
 \code{\link[=formula.GeDS]{formula}} argument of \code{\link{NGeDS}},
-\code{\link{GGeDS}}, \code{\link{NGeDSgam}} or \code{\link{NGeDSboost}} in 
+\code{\link{GGeDS}}, \code{\link{NGeDSgam}} or \code{\link{NGeDSboost}} in
 order to specify which independent variables (covariates) should be included
 in the GeD spline regression component of the predictor model.
 }

@@ -48,7 +48,7 @@ predictor model may be multivariate and it may include a (univariate or
 bivariate) GeD spline component, plus a parametric component involving the
 remaining variables. If the \code{onlySpline} argument is set to
 \code{TRUE} (the default value), only the coefficients corresponding to the
-GeD spline component of order \code{n} of the multivariate predictor model 
+GeD spline component of order \code{n} of the multivariate predictor model
 are extracted.
 }
 \examples{

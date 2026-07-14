@@ -14,10 +14,10 @@ provided, the \code{knots} and \code{coef} parameters will be automatically
 extracted from the \code{GeDS} object. If \code{object} is \code{NULL}, the
 user must provide the \code{knots} and \code{coef} vectors explicitly.}
 
-\item{knots}{A numeric vector of knots. This is required if \code{object} is 
+\item{knots}{A numeric vector of knots. This is required if \code{object} is
 \code{NULL}. If a \code{GeDS} object is provided, this parameter is ignored.}
 
-\item{coef}{A numeric vector of coefficients. This is required if \code{object} is 
+\item{coef}{A numeric vector of coefficients. This is required if \code{object} is
 \code{NULL}. If a \code{GeDS} object is provided, this parameter is ignored}
 
 \item{from}{Optional numeric vector containing the lower limit(s) of

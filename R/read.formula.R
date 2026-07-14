@@ -26,16 +26,16 @@ read.formula <- function(formula, data, weights, offset)
     if(!missing(...)) stop("Algorithm supports at most two variables in 'f'")
     cbind(x,xx)
   }
-  
+
   # Locate f(X)/f(X,Y) in model terms
   spec <- attr(mt,"specials")$f
   if(length(spec)!= 1) stop("Formula incorrectly specified. Read documentation for further information.")
-  
+
   # Generate a model matrix based on the model terms and data
   mm <- model.matrix(mt, data)
   # Create a model frame based on the model terms and data, omitting rows with NAs
   mf <- model.frame(mt, data, na.action = na.omit)
-  
+
   # Extract response variable
   if (is.factor(model.response(mf))) {
     # encode factor response to 0/1
@@ -53,7 +53,24 @@ read.formula <- function(formula, data, weights, offset)
   } else {
     Z <- NULL
   }
-  
+
+  # Guard against a parametric term collinear with the spline component:
+  # a GeD spline basis already reproduces constant + linear functions, so a
+  # bare linear term in the spline variable is not separately identifiable.
+  if (!is.null(Z)) {
+    spline_vars  <- all.vars(attr(mt, "variables")[[spec + 1]])      # var(s) inside f()
+    f_idx        <- grep("^f\\(", attr(mt, "term.labels"))
+    param_labels <- attr(mt, "term.labels")[-f_idx]
+    param_vars   <- unique(unlist(lapply(param_labels,
+                                         function(l) all.vars(parse(text = l)[[1]]))))
+    clash <- intersect(spline_vars, param_vars)
+    if (length(clash)) {
+      stop(sprintf(
+        "Variable '%s' enters both the spline component f(%s) and the parametric part.\n  The linear term is collinear with the GeD spline basis, so the two are not separately identifiable.\n  Fit 'Y ~ f(%s)' instead.",
+        clash[1], spline_vars[1], spline_vars[1]), call. = FALSE)
+    }
+  }
+
   # Check if formula variables make sense
   if (ncol(X) == 1) {
     if (all(Y == X) || (!is.null(Z) && all(Y == Z))) stop("Response variable cannot be equal to a covariate.")
@@ -61,7 +78,7 @@ read.formula <- function(formula, data, weights, offset)
       if (all(Y == X[,1]) || all(Y == X[,2]) || (!is.null(Z) && all(Y == Z))) stop("Response variable cannot be equal to a covariate.")
       if (all(X[,1] == X[,2])) stop("Covariates are the same in bivariate GeDS function.")
     }
-  
+
   # Initialize an offset vector with zeros
   offset <- rep(0, nrow(X))
   # Sum up offset variables included in model terms
@@ -89,8 +106,8 @@ get_terms <- function(expr) {
 #' @importFrom stats reformulate setNames
 read.formula.gam <- read.formula.boost <- function(formula, data,
                                                    type = c("gam", "boost")){
-  
-  
+
+
   # Collect raw terms
   terms_raw <- get_terms(formula[[3]])
   # Detect duplicates
@@ -98,35 +115,35 @@ read.formula.gam <- read.formula.boost <- function(formula, data,
   if (length(dups) > 0) {
     stop(paste("Duplicate learner(s) detected:", paste(unique(dups), collapse = ", ")))
   }
-  
+
   formula <- as.formula(formula)
-  
+
   # Check for offset
   offset_index <- attr(terms(formula, data = data), "offset")
-  
+
   if (!is.null(offset_index)) {
     # Extract offset variable name
     offset_var <- as.character(attr(terms(formula), "variables")[[offset_index + 1]])[2]
     offset <- data[[offset_var]]
-    
+
     # Inform the user
     if (type == "boost") {
       message("Note: An offset term ('", offset_var, "') was detected in the formula and will be ignored. ",
               "If needed, consider adjusting the response variable manually.")
-    } 
-    
+    }
+
     # Remove offset from formula
     formula <- reformulate(attr(terms(formula), "term.labels"),
                            response = as.character(formula[[2]]))
   } else {
     offset <- NULL
   }
-  
+
   # Parse formula
   terms <- all.vars(formula)
   response <- terms[1]
   predictors <- terms[-1]
-  
+
   # Split the formula into LHS and RHS
   formula_string <- paste(deparse(formula), collapse = " ")
   parts <- strsplit(formula_string, " ~ ")[[1]]
@@ -147,7 +164,7 @@ read.formula.gam <- read.formula.boost <- function(formula, data,
   if (!all_parts_valid) {
     stop("Formula incorrectly specified. Read documentation for further information.")
   }
-  
+
   # Predictors terms
   bl_part <- parts[2]
   bl_elements <- unlist(strsplit(bl_part, "\\+"))
@@ -160,8 +177,8 @@ read.formula.gam <- read.formula.boost <- function(formula, data,
     bl_elements <- bl_elements[bl_elements != "."]
     rest_bl_elements <- gsub("(x\\.\\d+)", "f(\\1)", rest_predictors)
     bl_elements <- c(bl_elements, rest_bl_elements)
-  } 
-  
+  }
+
   # Extract predictor variable names from each base-learner element
   base_learners <- setNames(lapply(bl_elements, function(bl) {
     # Determine the type of the base learner
@@ -175,12 +192,12 @@ read.formula.gam <- read.formula.boost <- function(formula, data,
     # Return a list containing variable names and the type
     return(list(variables = variables, type = type))
   }), bl_elements)
-  
+
   # Check if response coincides with any of the covariates
   for (learner in base_learners) {
     if (response %in% learner$variables) stop("The response variable cannot be used as part of the predictors in the base learners.")
     }
-  
+
   return(list(terms = terms, response = response, predictors = predictors,
               base_learners = base_learners, offset = offset))
 }
@@ -196,7 +213,7 @@ read.formula.gam <- read.formula.boost <- function(formula, data,
 #'
 #' The function \code{f} is to be used in the
 #' \code{\link[=formula.GeDS]{formula}} argument of \code{\link{NGeDS}},
-#' \code{\link{GGeDS}}, \code{\link{NGeDSgam}} or \code{\link{NGeDSboost}} in 
+#' \code{\link{GGeDS}}, \code{\link{NGeDSgam}} or \code{\link{NGeDSboost}} in
 #' order to specify which independent variables (covariates) should be included
 #' in the GeD spline regression component of the predictor model.
 #' @param x Numeric vector containing \eqn{N} sample values of the covariate
@@ -238,7 +255,7 @@ read.formula.gam <- read.formula.boost <- function(formula, data,
 #'
 #' @seealso \code{\link[=formula.GeDS]{formula}}; \link{NGeDS}; \link{GGeDS};
 #' \link{NGeDSgam}; \link{NGeDSboost}
-#' 
+#'
 #' @note This function is intended to be used only as part of the
 #' \code{\link[=formula.GeDS]{formula}} in a GeDS model via
 #' \code{\link{NGeDS}}, \code{\link{GGeDS}}, \code{\link{NGeDSgam}} or

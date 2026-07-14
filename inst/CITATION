@@ -1,15 +1,22 @@
 # Encoding: UTF-8
 
-meta <- packageDescription("GeDS")
+year <- if (!is.null(meta$Date) && !is.na(meta$Date)) {
+  sub("-.*", "", meta$Date)
+} else {
+  format(Sys.Date(), "%Y")
+}
 
-year <- sub(".*(2[[:digit:]]{3})-.*", "\\1", meta$Date)
-vers <- meta$Version
+vers <- if (!is.null(meta$Version) && !is.na(meta$Version)) {
+  meta$Version
+} else {
+  "unknown"
+}
 
 bibentry(
   bibtype = "Manual",
   title = "GeDS: Geometrically Designed Spline Regression",
   author = c(
-    person("Dimitrina S.", "Dimitrova"),    
+    person("Dimitrina S.", "Dimitrova"),
     person("Vladimir K.", "Kaishev"),
     person("Andrea", "Lattuada"),
     person("Emilio L.", "Sáenz Guillén"),
@@ -17,6 +24,7 @@ bibentry(
   ),
   year = year,
   note = paste("R package version", vers),
+  doi = "10.32614/CRAN.package.GeDS",
   url = "https://CRAN.R-project.org/package=GeDS",
   header = "To cite the package 'GeDS' in publications, please use:",
   textVersion = paste(

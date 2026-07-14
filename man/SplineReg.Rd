@@ -17,7 +17,8 @@ SplineReg_LM(
   extr = range(X),
   prob = 0.95,
   coefficients = NULL,
-  only_pred = FALSE
+  only_pred = FALSE,
+  fast = FALSE
 )
 
 SplineReg_GLM(
@@ -32,7 +33,8 @@ SplineReg_GLM(
   family,
   mustart,
   inits = NULL,
-  etastart = NULL
+  etastart = NULL,
+  fast = FALSE
 )
 }
 \arguments{
@@ -79,6 +81,11 @@ and right-most limits of the interval embedding the sample values of
 
 \item{only_pred}{Logical, if \code{TRUE} only \code{theta},
 \code{predicted}, \code{residuals} and \code{rss} will be computed.}
+
+\item{fast}{Logical. If \code{TRUE} a fast
+fitting path is used (\code{\link[stats]{glm.fit}} without computing
+confidence intervals or the control polygon), intended for internal use in
+the stage A loop of GeDS boosting. By default \code{FALSE}.}
 
 \item{family}{A description of the error distribution and link function to be
 used in the model. This can be a character string naming a family function, a
@@ -163,7 +170,7 @@ algorithm implemented in \code{\link{GGeDS}} and in order to make it as fast
 as possible input data validation is mild. Hence it is expected that the user
 checks carefully the input parameters before using \code{SplineReg_GLM}. The
 \code{"residuals"} in the output of this function are similar to the so
-called "working residuals" in the \code{\link[stats]{glm}} function. 
+called "working residuals" in the \code{\link[stats]{glm}} function.
 \code{"residuals"}  are the residuals \eqn{r_i} used in the knot placement
 procedure, i.e. \deqn{r_i= (y_i - \hat{\mu}_i){d \mu_i \over d \eta_i },} but
 in contrast to \code{\link[stats]{glm}} "working residuals", they are

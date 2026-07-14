@@ -36,7 +36,7 @@ including \code{plot}, \code{print} and \code{as.data.frame}.
 See \code{\link[mboost]{varimp}} for details.
 }
 \examples{
-library(GeDS)
+library("GeDS")
 library(TH.data)
 
 data("bodyfat", package = "TH.data")

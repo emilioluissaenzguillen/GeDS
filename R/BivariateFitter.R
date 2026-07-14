@@ -9,7 +9,7 @@
 #' @description
 #' These are computing engines called by \code{\link{NGeDS}} and
 #' \code{\link{GGeDS}}, needed for the underlying fitting procedures.
-#' 
+#'
 #' @param X A numeric vector containing \eqn{N} sample values of the first
 #' independent variable chosen to enter the spline regression component of the
 #' predictor model.
@@ -64,29 +64,29 @@
 #' @param higher_order A logical defining whether to compute the higher
 #' order fits (quadratic and cubic) after stage A is run. Default is
 #' \code{TRUE}.
-#' @param Xintknots A vector of starting internal knots in the \code{X} direction. 
+#' @param Xintknots A vector of starting internal knots in the \code{X} direction.
 #' Allows the user to begin Stage A's GeDS algorithm with a linear (least-squares)
 #' spline fit using a predefined vector of internal \code{X} knots, instead of
 #' starting with a straight line fit (i.e., with zero internal knots). Note that
 #' this is not available for \code{GenBivariateFitter}. Default is \code{NULL}.
-#' @param Yintknots A vector of starting internal knots in the \code{Y} direction. 
+#' @param Yintknots A vector of starting internal knots in the \code{Y} direction.
 #' Allows the user to begin Stage A's GeDS algorithm with a linear (least-squares)
 #' spline fit using a predefined vector of internal \code{Y} knots, instead of
 #' starting with a straight line fit (i.e., with zero internal knots). Note that
 #' this is not available for \code{GenBivariateFitter}. Default is \code{NULL}.
-#' 
+#'
 #' @return A \code{"GeDS"} class object, but without the \code{formula},
 #' \code{extcall}, \code{terms} and \code{znames} slots.
-#' 
+#'
 #' @references
 #' Dimitrova, D. S., Kaishev, V. K., Lattuada, A. and Verrall, R. J.  (2023).
 #' Geometrically designed variable knot splines in generalized (non-)linear
 #' models.
 #' \emph{Applied Mathematics and Computation}, \strong{436}. \cr
 #' DOI: \doi{10.1016/j.amc.2022.127493}
-#' 
+#'
 #' @seealso \code{\link{NGeDS}}, \code{\link{GGeDS}} and \code{\link{UnivariateFitters}}.
-#' 
+#'
 #' @rdname BivariateFitters
 #' @importFrom stats .lm.fit qchisq pchisq
 #' @export
@@ -104,7 +104,7 @@ BivariateFitter <- function(X, Y, Z, W, weights = rep(1,length(X)), indicator,
   args <- list("X" = X, "Y" = Y, "Z" = Z, "W" = W, "weights" = weights, "beta" = beta,
                "phi" = phi, "min.intknots" = min.intknots, "max.intknots" = max.intknots,
                "q" = q, "Xextr" = Xextr, "Yextr" = Yextr, "tol" = tol)
-  
+
   # Initialize rss and phis
   n_starting_intknots <- length(Xintknots) + length(Yintknots)
   rssnew <- numeric(n_starting_intknots)
@@ -113,7 +113,7 @@ BivariateFitter <- function(X, Y, Z, W, weights = rep(1,length(X)), indicator,
   phis_star <- NULL; oldintc <- NULL; oldslp <- NULL
   # Stop type
   stoptype <- match.arg(stoptype)
-  
+
   # Initialize knots matrix
   previousX <- matrix(nrow = max.intknots + 1, ncol = max.intknots + 4)
   previousY <- matrix(nrow = max.intknots + 1, ncol = max.intknots + 4)
@@ -121,18 +121,18 @@ BivariateFitter <- function(X, Y, Z, W, weights = rep(1,length(X)), indicator,
   nw <- if(!is.null(W)) NCOL(W) else 0
   oldcoef   <- matrix(nrow = max.intknots + 1,
                       ncol = round((max.intknots/2 + 2)^2) + nw) # max number of coef; comes from maximizing f(x) = (x + 2)(max.intknots - x + 2)
-  
+
   # Matrix for X, Y and residuals
   ordX <- order(X, Y); ordY <- order(Y, X)
   matr <- matrix(ncol = 3, nrow = length(Z))
-  
+
   ##################################################################################
   ## STEP 1: Divide the sample space D into M_1/M_2 rectangular strips in X_1/X_2 ##
   ##################################################################################
-  
+
   # Set the number of intervals for dividing the X_1 and X_2 dimensions (M_1 and M_2)
   nintX <- nintY <- as.integer(sqrt(length(Z)))
-  
+
   # D_{1j} = [a_1 + (j - 1)(b_1 - a_1)/M_1, a_1 + j(b_1 - a_1)/M_1] \times [a_2, b_2], j = 1, ..., M_1
   # upperX = a_1 + j(b_1 - a_1)/M_1, i.e., the interval upper bound
   upperX <- seq(from = Xextr[1], to = Xextr[2], length = nintX + 1)[-1]
@@ -149,7 +149,7 @@ BivariateFitter <- function(X, Y, Z, W, weights = rep(1,length(X)), indicator,
   zeroesX <- dX == 0
   # Calculate the cumulative sum of counts for X_1 intervals
   dcumX <- cumsum(dX)
-  
+
   # D_{2j} = [a_1, b_1] \times [a_2 + (j - 1)(b_2 - a_2)/M_2, a_2 + j(b_2 - a_2)/M_2], j = 1, ..., M_2
   # upperY = a_2 + j(b_2 - a_2)/M_2, i.e., the interval upper bound
   upperY <- seq(from = Yextr[1], to = Yextr[2], length = nintY + 1)[-1]
@@ -166,53 +166,53 @@ BivariateFitter <- function(X, Y, Z, W, weights = rep(1,length(X)), indicator,
   zeroesY <- dY == 0
   # Calculate the cumulative sum of counts for X_2 intervals
   dcumY <- cumsum(dY)
-  
+
   # Initialized iter and ncoef
   iter <- ncoef <- NULL
-  
-  # GeDS iterations start by j = n_starting_intknots + 1 
+
+  # GeDS iterations start by j = n_starting_intknots + 1
   init.iter <- if (is.null(Xintknots) && is.null(Yintknots)) 1 else  n_starting_intknots + 1
-  
+
   ##############################################################################
   ################################## STAGE A ###################################
   ##############################################################################
-  
+
   Xctrl <- Yctrl <- FALSE # Initialize control flag indicating a new X/Y knot was added
 
   for (j in init.iter:(max.intknots + 1)) {
-    
+
     if (j > 1) {
       # Sort internal knots vector if new X/Y intknot was added on previous iteration
       if(Xctrl)  Xintknots <- sort(Xintknots)
       if(Yctrl)  Yintknots <- sort(Yintknots)
     }
-    
+
     ########################################################################
     ## STEP 2: Apply the IRLS procedure to find a bivariate ML spline fit ##
     ########################################################################
-    first.deg <- SplineReg_fast_biv(X = X, Y = Y, Z = Z, W = W, weights = weights,
-                                    InterKnotsX = Xintknots, InterKnotsY = Yintknots,
-                                    Xextr = Xextr, Yextr = Yextr, n = 2)
-    
+    first.deg <- SplineReg_biv(X = X, Y = Y, Z = Z, W = W, weights = weights,
+                               InterKnotsX = Xintknots, InterKnotsY = Yintknots,
+                               Xextr = Xextr, Yextr = Yextr, n = 2, fast = TRUE)
+
     # Store knots and coefficients
     previousX[j, 1:(length(Xintknots)+4)] <- sort(c(Xintknots, rep(Xextr,2)))
     previousY[j, 1:(length(Yintknots)+4)] <- sort(c(Yintknots, rep(Yextr,2)))
     lth <- length(first.deg$theta); ncoef <- c(ncoef, lth)
     oldcoef[j, 1:lth] <- first.deg$theta
-    
+
     # Store weighted residuals
     matr <- cbind(X, Y, first.deg$residuals*weights)
     # Store rss
     rss.tmp <- first.deg$rss
     rssnew <- c(rssnew, rss.tmp)
-    
+
     ###########################
     ## STEP 3: Stopping rule ##
     ###########################
     if (j > q + n_starting_intknots) {
-      
+
       if (rssnew[j]/rssnew[j-q] > 1) break
-      
+
       # Adding the current ratio of deviances to the 'phis' vector
       if (stoptype == "LR") {
         phis <- c(phis, rssnew[j-q]-rssnew[j])
@@ -220,15 +220,15 @@ BivariateFitter <- function(X, Y, Z, W, weights = rep(1,length(X)), indicator,
           phnew <- (rssnew[j]/rssnew[j-q])^(1/(ncoef[j]-ncoef[j-q]))
           phis <- c(phis, phnew)
           }
-      
+
       if (j - q > min.intknots) {
-        
+
         # (I) Smoothed Ratio of deviances
         if (stoptype == "SR") {
           # \hat{φ}_κ = 1 - exp{\hat{γ}_0 + \hat{γ}_1*κ}
           # 1-\hat{φ}_κ = exp{\hat{γ}_0 + \hat{γ}_1*κ}
           # ln(1-\hat{φ}_κ) = \hat{γ}_0 + \hat{γ}_1*κ
-          
+
           # Fit a linear model ln(1-φ) ~ \hat{γ}_0 + \hat{γ}_1*κ to the sample {φ_h, h}^κ_{h=q}
           phismod <- log(1-phis); kappa <- length(Xintknots) + length(Yintknots)
           gamma <- .lm.fit(cbind(1,(q+1):j),phismod)$coef
@@ -242,14 +242,14 @@ BivariateFitter <- function(X, Y, Z, W, weights = rep(1,length(X)), indicator,
                               ncoef[j], " coefficients")
           # Check if \hat{φ}_κ ≥ φ_{exit}
           if(phi_kappa >= phi)  break
-          
+
           # (II) Ratio of Deviances
           } else if (stoptype == "RD") {
             prnt <- paste0(", phi = ",round(phnew,3), ", ",
                            ncoef[j]," coefficients")
             # if (rssnew[j]/rssnew[j-q] >= phi^(ncoef[j]-ncoef[j-q])) break
             if (rssnew[j]/rssnew[j-q] >= phi) break
-            
+
             # (III) Likelihood Ratio
             } else if (stoptype == "LR") {
               prnt <- paste0(", p = ",
@@ -259,14 +259,14 @@ BivariateFitter <- function(X, Y, Z, W, weights = rep(1,length(X)), indicator,
             }
       }
     }
-    
+
     ###################################
     ## STEP 4. (i) X knot placement ##
     ##################################
     placeXKnot <- placeKnot(Dim = "X", Dim.intknots = Xintknots, matr = matr, indicator = indicator,
                             FixedDim = Y, ordFixedDim = ordY, nintFixedDim = nintY, zeroesFixedDim = zeroesY,
-                            dcumFixedDim = dcumY, beta = beta) 
-    
+                            dcumFixedDim = dcumY, beta = beta)
+
     Xnewknot = placeXKnot$Dim.newknot; weightX = placeXKnot$weightDim; flagX = placeXKnot$flagDim
 
     ###################################
@@ -274,10 +274,10 @@ BivariateFitter <- function(X, Y, Z, W, weights = rep(1,length(X)), indicator,
     ###################################
     placeYKnot <- placeKnot(Dim = "Y", Dim.intknots = Yintknots, matr = matr, indicator = indicator,
                             FixedDim = X, ordFixedDim = ordX, nintFixedDim = nintX, zeroesFixedDim = zeroesX,
-                            dcumFixedDim = dcumX, beta = beta) 
-    
+                            dcumFixedDim = dcumX, beta = beta)
+
     Ynewknot = placeYKnot$Dim.newknot; weightY = placeYKnot$weightDim; flagY = placeYKnot$flagDim
-    
+
     # Check if both X and Y dimensions have flags indicating no valid knots could be found
     if(flagX && flagY) {
       print("Unable to find other knots satisfying required conditions")
@@ -294,7 +294,7 @@ BivariateFitter <- function(X, Y, Z, W, weights = rep(1,length(X)), indicator,
         }
       }
     }
-    
+
     #############################################################################################
     ## STEP 4. (iii): if \omega_1^* => \omega_2^* a new knot \delta_1^* is added and viceversa ##
     #############################################################################################
@@ -311,7 +311,7 @@ BivariateFitter <- function(X, Y, Z, W, weights = rep(1,length(X)), indicator,
       knottype <- "Y"
       knotValue <- Ynewknot
     }
-    
+
     # Print iteration details if show.iters is TRUE
     if (show.iters) {
       if (j > q) {
@@ -322,31 +322,31 @@ BivariateFitter <- function(X, Y, Z, W, weights = rep(1,length(X)), indicator,
       }
       print(toprint)
     }
-    
+
     # Update knots vectors
     Yintknots <- c(Yintknots, Ynewknot)
     Xintknots <- c(Xintknots, Xnewknot)
-    
+
     # Check if the total number of knots exceeds a threshold based on the length of the response
     if((length(Yintknots)+3)*(length(Xintknots)+3)>=length(Z)) {
       warning("Exiting stage A: Too many knots found")
       break # Exit the loop to avoid adding too many knots (prevent overfitting)
       }
   }
-  
+
   ##############################################################################
   ################################## STAGE B ###################################
   ##############################################################################
-  
+
   # Keep the non-NA columns from the "j"th row
   toBeSaved <- sum(!is.na(previousX[j,]))
   previousX <- previousX[ ,-((toBeSaved + 1):max(max.intknots + 4, toBeSaved + 1)), drop = FALSE]
   toBeSaved <- sum(!is.na(previousY[j,]))
   previousY <- previousY[ ,-((toBeSaved + 1):max(max.intknots + 4, toBeSaved + 1)), drop = FALSE]
-  
+
   # Keep the corresponding (intknotsX + 2) * (intknotsY + 2) coefficients
   oldcoef <- oldcoef[, 1:((NCOL(previousX) - 4 + 2) * (NCOL(previousY) - 4 + 2)), drop = FALSE]
-  
+
   if (j == max.intknots + 1) {
     warning("Maximum number of iterations exceeded")
     lastXknots <- sum(!is.na(previousX[j,]))
@@ -354,15 +354,15 @@ BivariateFitter <- function(X, Y, Z, W, weights = rep(1,length(X)), indicator,
     iter <- j
     } else {
       # Delete from the "j+1th" row until the "max.intknots+1th" row (i.e. keep the j first rows)
-      previousX <- previousX[-((j+1):(max.intknots+1)), , drop = FALSE] 
+      previousX <- previousX[-((j+1):(max.intknots+1)), , drop = FALSE]
       previousY <- previousY[-((j+1):(max.intknots+1)), , drop = FALSE]
       oldcoef   <- oldcoef[-((j+1):(max.intknots+1)), , drop = FALSE]
-      
+
       lastXknots <- sum(!is.na(previousX[j-q, ]))
       lastYknots <- sum(!is.na(previousY[j-q, ]))
       iter <- j - q
     }
-  
+
   # 1. LINEAR
   if (iter < 2) {
     warning("Too few internal knots found: Linear spline will be computed with NULL internal knots. Try to set a different value for 'q' or a different treshold")
@@ -408,7 +408,7 @@ BivariateFitter <- function(X, Y, Z, W, weights = rep(1,length(X)), indicator,
     } else {
       qqX <- qqY <- squ <- ccX <- ccY <- cub <- NULL
     }
-  
+
   out <- list("type" = "LM - Biv", "linear.intknots" = list("Xk" = llX, "Yk" = llY), "quadratic.intknots" = list("Xk" = qqX, "Yk" = qqY),
               "cubic.intknots" = list("Xk" = ccX,"Yk" = ccY),"dev.linear" = lin$rss, "dev.quadratic" = squ$rss, "dev.cubic" = cub$rss,
               "rss" = rssnew, "linear.fit" = lin, "quadratic.fit" = squ, "cubic.fit" = cub, "stored" = list("previousX" = previousX, "previousY" = previousY),
@@ -440,7 +440,7 @@ GenBivariateFitter <- function(X, Y, Z, W, family = family, weights = rep(1,leng
   args <- list("X" = X, "Y" = Y, "Z" = Z, "W" = W, "weights" = weights, "beta" = beta,
                "phi" = phi, "min.intknots" = min.intknots, "max.intknots" = max.intknots,
                "q" = q, "Xextr" = Xextr, "Yextr" = Yextr, "tol" = tol, family = family)
-  
+
   # Initialize rss and phis
   rssnew <- numeric()
   phis <- NULL
@@ -448,7 +448,7 @@ GenBivariateFitter <- function(X, Y, Z, W, family = family, weights = rep(1,leng
   phis_star <- NULL; oldintc <- NULL; oldslp <- NULL
   # Stop type
   stoptype <- match.arg(stoptype)
-  
+
   # Initialize knots matrix
   previousX <- matrix(nrow = max.intknots + 1, ncol = max.intknots + 4)
   previousY <- matrix(nrow = max.intknots + 1, ncol = max.intknots + 4)
@@ -465,14 +465,14 @@ GenBivariateFitter <- function(X, Y, Z, W, family = family, weights = rep(1,leng
   # Matrix for X, Y and residuals
   ordX <- order(X, Y); ordY <- order(Y, X)
   matr <- matrix(ncol = 3, nrow = length(Z))
-  
+
   ##################################################################################
   ## STEP 1: Divide the sample space D into M_1/M_2 rectangular strips in X_1/X_2 ##
   ##################################################################################
-  
+
   # Set the number of intervals for dividing the X_1 and X_2 dimensions (M_1 and M_2)
   nintX <- nintY <- as.integer(sqrt(length(Z)))
-  
+
   # D_{1j} = [a_1 + (j - 1)(b_1 - a_1)/M_1, a_1 + j(b_1 - a_1)/M_1] \times [a_2, b_2], j = 1, ..., M_1
   # upperX = a_1 + j(b_1 - a_1)/M_1, i.e., the interval upper bound
   upperX <- seq(from = Xextr[1], to = Xextr[2], length = nintX + 1)[-1]
@@ -489,7 +489,7 @@ GenBivariateFitter <- function(X, Y, Z, W, family = family, weights = rep(1,leng
   zeroesX <- dX == 0
   # Calculate the cumulative sum of counts for X_1 intervals
   dcumX <- cumsum(dX)
-  
+
   # D_{2j} = [a_1, b_1] \times [a_2 + (j - 1)(b_2 - a_2)/M_2, a_2 + j(b_2 - a_2)/M_2], j = 1, ..., M_2
   # upperY = a_2 + j(b_2 - a_2)/M_2, i.e., the interval upper bound
   upperY <- seq(from = Yextr[1], to = Yextr[2], length = nintY + 1)[-1]
@@ -506,22 +506,22 @@ GenBivariateFitter <- function(X, Y, Z, W, family = family, weights = rep(1,leng
   zeroesY <- dY == 0
   # Calculate the cumulative sum of counts for X_2 intervals
   dcumY <- cumsum(dY)
-  
+
   # Stop type, min.X/Yintknots
   stoptype <- match.arg(stoptype)
   min.Xintknots <- min.intknots
   min.Yintknots <- min.intknots
-  
+
   guess <- irlsAccumIterCount <- ncoef <- NULL
-  
+
   ##############################################################################
   ################################## STAGE A ###################################
   ##############################################################################
-  
+
   Xctrl <- Yctrl <- FALSE # Initialize control flag indicating a new X/Y knot was added
-  
+
   for (j in 1:(max.intknots + 1)) {
-    
+
     if (j > 1)  {
       # Sort internal knots if new intknot was added on previous iteration and update the oldguess matrix
       if(Xctrl)  Xintknots <- sort(Xintknots)
@@ -530,20 +530,23 @@ GenBivariateFitter <- function(X, Y, Z, W, family = family, weights = rep(1,leng
       # oldguess[j, 1:(lth-nw)] <- guess
       # guess <- c(guess, guess_w)
     }
-    
-    
+
+
     ########################################################################
     ## STEP 2: Apply the IRLS procedure to find a bivariate ML spline fit ##
     ########################################################################
     first.deg <- SplineReg_biv_GLM(X = X, Y = Y, Z = Z, W = W, weights = weights,
                                    InterKnotsX = Xintknots, InterKnotsY = Yintknots,
-                                   n = 2, Xextr = Xextr, Yextr = Yextr, 
-                                   family = family, mustart = guess)
-    
+                                   n = 2, Xextr = Xextr, Yextr = Yextr,
+                                   family = family, mustart = guess, fast = TRUE)
+
     # 1. Check for NA values in the theta vector to handle potential singularities
     if (anyNA(first.deg$theta)) {
-      rank.basis <- rankMatrix(first.deg$Basisbiv)
-      cols <- NCOL(first.deg$Basisbiv)
+      basis.biv <- tensorProd(first.deg$Xbasis, first.deg$Ybasis)
+      basis.full <- cbind(basis.biv, W)
+
+      rank.basis <- rankMatrix(basis.full)
+      cols <- NCOL(basis.full)
       # (i) Handle the case when the basis matrix is singular
       if(rank.basis < cols) {
         warning("Matrix singular for the second time. Breaking the loop.")
@@ -552,39 +555,39 @@ GenBivariateFitter <- function(X, Y, Z, W, family = family, weights = rep(1,leng
         } else {
           stop("NA(s) in the coefficients")
         }
-      
+
     # 2. If no NAs, update guess (=mustart in the next iteration)
     } else {
       guess <- first.deg$predicted
     }
-    
+
     # Accumulated number of IRLS iterations at each GeDS iteration
     irlsAccumIterCount <- c(irlsAccumIterCount, first.deg$temporary$iter)
-    
-    
+
+
     # Store knots and coefficients
     previousX[j, 1:(length(Xintknots)+4)] <- sort(c(Xintknots, rep(Xextr,2)))
     previousY[j, 1:(length(Yintknots)+4)] <- sort(c(Yintknots, rep(Yextr,2)))
     lth <- length(first.deg$theta); ncoef <- c(ncoef, lth)
     oldcoef[j, 1:lth] <- first.deg$theta
     # guess_w <- if(nw > 0) first.deg$theta[-(1:(lth-nw))] else NULL
-    
-    # Store residuals and deviance 
+
+    # Store residuals and deviance
     res.tmp <- first.deg$residuals
     rss.tmp <- first.deg$rss
     rssnew <- c(rssnew, rss.tmp)
     # Working weights (weights in the final iteration of the IRLS fit)
-    working.weights <- first.deg$temporary$weights  
+    working.weights <- first.deg$temporary$weights
     # Store weighted residuals
     matr <- cbind(X, Y, first.deg$residuals*working.weights*weights)
-    
+
     ###########################
     ## STEP 2: Stopping Rule ##
     ###########################
     if (j > q) {
-      
+
       if (rssnew[j]/rssnew[j-q] > 1) break
-      
+
       # Adding the current ratio of deviances to the 'phis' vector
       if (stoptype == "LR") {
         phis <- c(phis, rssnew[j-q]-rssnew[j])
@@ -592,14 +595,14 @@ GenBivariateFitter <- function(X, Y, Z, W, family = family, weights = rep(1,leng
         phnew <- (rssnew[j]/rssnew[j-q])^(1/(ncoef[j]-ncoef[j-q]))
         phis <- c(phis, phnew)
       }
-      
+
       if (j - q > min.intknots) {
         # (I) Smoothed Ratio of deviances
         if (stoptype == "SR") {
           # \hat{φ}_κ = 1 - exp{\hat{γ}_0 + \hat{γ}_1*κ}
           # 1-\hat{φ}_κ = exp{\hat{γ}_0 + \hat{γ}_1*κ}
           # ln(1-\hat{φ}_κ) = \hat{γ}_0 + \hat{γ}_1*κ
-          
+
           # Fit a linear model ln(1-φ) ~ \hat{γ}_0 + \hat{γ}_1*κ to the sample {φ_h, h}^κ_{h=q}
           phismod <- log(1-phis); kappa <- kappa <- length(Xintknots) + length(Yintknots)
           gamma <- .lm.fit(cbind(1,(q+1):j),phismod)$coef
@@ -627,26 +630,26 @@ GenBivariateFitter <- function(X, Y, Z, W, family = family, weights = rep(1,leng
         }
       }
     }
-    
+
     ###################################
     ## STEP 4. (i) X knot placement ##
     ##################################
     placeXKnot <- placeKnot(Dim = "X", Dim.intknots = Xintknots, matr = matr, indicator = indicator,
                             FixedDim = Y, ordFixedDim = ordY, nintFixedDim = nintY, zeroesFixedDim = zeroesY,
-                            dcumFixedDim = dcumY, beta = beta) 
-    
+                            dcumFixedDim = dcumY, beta = beta)
+
     Xnewknot = placeXKnot$Dim.newknot; weightX = placeXKnot$weightDim; flagX = placeXKnot$flagDim
-    
+
     ###################################
     ## STEP 4. (ii) Y knot placement ##
     ###################################
     placeYKnot <- placeKnot(Dim = "Y", Dim.intknots = Yintknots, matr = matr, indicator = indicator,
                             FixedDim = X, ordFixedDim = ordX, nintFixedDim = nintX, zeroesFixedDim = zeroesX,
-                            dcumFixedDim = dcumX, beta = beta) 
-    
+                            dcumFixedDim = dcumX, beta = beta)
+
     Ynewknot = placeYKnot$Dim.newknot; weightY = placeYKnot$weightDim; flagY = placeYKnot$flagDim
-    
-    
+
+
     # Check if both X and Y dimensions have flags indicating no valid knots could be found
     if(flagX && flagY) {
       print("Unable to find other knots satisfying required conditions")
@@ -663,7 +666,7 @@ GenBivariateFitter <- function(X, Y, Z, W, family = family, weights = rep(1,leng
         }
       }
     }
-    
+
     #############################################################################################
     ## STEP 4. (iii): if \omega_1^* => \omega_2^* a new knot \delta_1^* is added and viceversa ##
     #############################################################################################
@@ -680,7 +683,7 @@ GenBivariateFitter <- function(X, Y, Z, W, family = family, weights = rep(1,leng
       knottype <- "Y"
       knotValue <- Ynewknot
     }
-    
+
     # Print iteration details if show.iters is TRUE
     if (show.iters) {
       if (j > q) {
@@ -691,34 +694,34 @@ GenBivariateFitter <- function(X, Y, Z, W, family = family, weights = rep(1,leng
       }
       print(toprint)
     }
-    
+
     # Calculate guess-coefficients for newknot
     # guess <- newknot.guess_biv(X, Y, Xintknots, Yintknots, Xextr, Yextr, guess, Xnewknot)
-    
+
     # Update knots vectors
     Yintknots <- c(Yintknots,Ynewknot)
     Xintknots <- c(Xintknots,Xnewknot)
-    
+
     # Check if the total number of knots exceeds a threshold based on the length of the response
     if((length(Yintknots)+3)*(length(Xintknots)+3)>=length(Z)) {
       warning("Exiting stage A: Too many knots found")
       break # Exit the loop to avoid adding too many knots (prevent overfitting)
     }
   }
-  
+
   ##############################################################################
   ################################## STAGE B ###################################
   ##############################################################################
-  
+
   # Keep the non-NA columns from the "j"th row
   toBeSaved <- sum(!is.na(previousX[j,]))
   previousX <- previousX[ ,-((toBeSaved + 1):max(max.intknots + 4, toBeSaved + 1)), drop = FALSE]
   toBeSaved <- sum(!is.na(previousY[j,]))
   previousY <- previousY[ ,-((toBeSaved + 1):max(max.intknots + 4, toBeSaved + 1)), drop = FALSE]
-  
+
   # Keep the corresponding (intknotsX + 2) * (intknotsY + 2) coefficients
   oldcoef <- oldcoef[, 1:((NCOL(previousX) - 4 + 2) * (NCOL(previousY) - 4 + 2)), drop = FALSE]
-  
+
   if (j == max.intknots + 1) {
     warning("Maximum number of iterations exceeded")
     lastXknots <- sum(!is.na(previousX[j,]))
@@ -726,22 +729,22 @@ GenBivariateFitter <- function(X, Y, Z, W, family = family, weights = rep(1,leng
     iter <- j
   } else {
     # Delete from the "j+1th" row until the "max.intknots+1th" row (i.e. keep the j first rows)
-    previousX <- previousX[-((j+1):(max.intknots+1)), , drop = FALSE] 
+    previousX <- previousX[-((j+1):(max.intknots+1)), , drop = FALSE]
     previousY <- previousY[-((j+1):(max.intknots+1)), , drop = FALSE]
     oldcoef   <- oldcoef[-((j+1):(max.intknots+1)), , drop = FALSE]
-    
+
     lastXknots <- sum(!is.na(previousX[j-q, ]))
     lastYknots <- sum(!is.na(previousY[j-q, ]))
     iter <- j - q
   }
-  
+
   # If model selected is from first iteration
   if (iter == 1) {
     mustart <- NULL
     } else {
       mustart <- oldguess[iter,]
     }
-  
+
   # 1. LINEAR
   if(iter < 2) {
     warning("Too few internal knots found: Linear spline will be computed with NULL internal knots. Try to set a different value for 'q' or a different treshold")
@@ -788,7 +791,7 @@ GenBivariateFitter <- function(X, Y, Z, W, family = family, weights = rep(1,leng
       } else {
         # Stage B.1 (averaging knot location)
         ccX <- if (length(ikX) < 3) NULL else makenewknots(ikX, 4)
-        ccY <- if (length(ikY) < 3) NULL else makenewknots(ikX, 4)
+        ccY <- if (length(ikY) < 3) NULL else makenewknots(ikY, 4)
         # Stage B.2
         guess_sq <- squ$predicted
         cub <- SplineReg_biv_GLM(X = X, Y = Y, Z = Z, InterKnotsX = ccX, InterKnotsY = ccY, Xextr = Xextr, Yextr = Yextr,
@@ -797,7 +800,7 @@ GenBivariateFitter <- function(X, Y, Z, W, family = family, weights = rep(1,leng
     } else {
       qqX <- qqY <- squ <- ccX <- ccY <- cub <- NULL
       }
-  
+
   out <- list("type" = "GLM - Biv", "linear.intknots" = list("Xk" = llX, "Yk" = llY), "quadratic.intknots" = list("Xk" = qqX, "Yk" = qqY),
               "cubic.intknots" = list("Xk" = ccX, "Yk" = ccY), "dev.linear" = lin$rss, "dev.quadratic" = squ$rss, "dev.cubic" = cub$rss,
               "rss" = rssnew, "linear.fit" = lin, "quadratic.fit" = squ, "cubic.fit" = cub, "stored" = list("previousX" = previousX, "previousY" = previousY),
@@ -820,23 +823,23 @@ placeKnot <- function(Dim, Dim.intknots, matr, indicator, FixedDim, ordFixedDim,
     Dim.index <- 2
     by.row <- FALSE
   }
-  
+
   # # Order matrFixedDim as (FixedDim, Dim)
   # matrFixedDim <- matr[ordFixedDim,]
   # # Clean matrFixedDim in case there are repeated observations
   # matrFixedDim <- makeNewMatr(matrFixedDim, indicator, by.row = by.row)
-  
+
   # Order matrFixedDim as (FixedDim, Dim)
   matrFixedDim <- matr[ordFixedDim,]
   # Clean matrFixedDim in case there are repeated observations
   matrFixedDim <- makeNewMatrCPP(matrFixedDim, indicator, by.row)
 
   # print(paste0(all( (matrFixedDim - matrFixedDimCPP) < 1e-6), "CPP!"))
-  
-  
+
+
   # Initialize empty vectors for storing mean Dim values, Dim interval widths, and distances for cluster formation
   Dim.mean <- Dim.width <- dFixedDim.Dim <- numeric()
-  
+
   ## 1) Sort rows within each FixedDim strip by the Dim column.
   # FixedDim strip ID for each observation
   strip <- rep.int(seq_len(nintFixedDim), diff(c(0L, dcumFixedDim)))
@@ -846,7 +849,7 @@ placeKnot <- function(Dim, Dim.intknots, matr, indicator, FixedDim, ordFixedDim,
   # sort within strip by Dim value
   ord_idx <- idx[order(strip[idx], matrFixedDim[idx, Dim.index], method = "radix")]
   matrFixedDim[idx, ] <- matrFixedDim[ord_idx, , drop = FALSE]
-  
+
   # 2) Form consecutive clusters of residuals by sign, restarting at each strip boundary
   st <- strip[idx]                   # strip id per kept row
   s  <- sign(matrFixedDim[idx, 3])   # residual sign per kept row (0 kept as its own class)
@@ -858,8 +861,8 @@ placeKnot <- function(Dim, Dim.intknots, matr, indicator, FixedDim, ordFixedDim,
   # 3) Store cluster lengths in dFixedDim.Dim.
   lens <- diff(c(which(breaks), length(s) + 1L))
   dFixedDim.Dim[seq_along(lens)] <- lens
-  
-  # (Step 3 - UnivariateFitter) Within residual cluster means +  within-cluster ranges 
+
+  # (Step 3 - UnivariateFitter) Within residual cluster means +  within-cluster ranges
   dcumFixedDim.Dim <- cumsum(dFixedDim.Dim)
   Dim.mean  <- Dim.width <- numeric(length(dFixedDim.Dim))
   # Calculate the mean absolute residual and Dim-width for the first cluster
@@ -870,20 +873,20 @@ placeKnot <- function(Dim, Dim.intknots, matr, indicator, FixedDim, ordFixedDim,
     Dim.mean[i]  <- abs(mean(matrFixedDim[(dcumFixedDim.Dim[i - 1] + 1):dcumFixedDim.Dim[i], 3]))
     Dim.width[i] <- diff(range(matrFixedDim[(dcumFixedDim.Dim[i - 1] + 1):dcumFixedDim.Dim[i], Dim.index]))
   }
-  # (Step 4 - UnivariateFitter) Calculate the normalized within-cluster means and ranges 
+  # (Step 4 - UnivariateFitter) Calculate the normalized within-cluster means and ranges
   Dim.mean  <- Dim.mean/max(Dim.mean)
   # If the residual clusters are all singletons then all the Dim.widths will equal 0, and we cannot divide by 0
   if (max(Dim.width) != 0) Dim.width <- Dim.width/max(Dim.width)
   # Calculate the cluster weights (Step 5 - UnivariateFitter)
   Dim.weights <- beta*Dim.mean + (1 - beta)*Dim.width
-  
+
   # (Step 7 - UnivariateFitter) Compute the new Dim knot as a weighted average of Dim values
   x <- findNewDimKnot_R(dcumFixedDim.Dim, Dim.weights, sort(c(Dim.intknots, range(matr[,Dim]))), matrFixedDim, Dim.index)
   if (is.null(Dim.intknots)) Dim.intknots <- NA_real_
   xx <- findNewDimKnot(dcumFixedDim.Dim, Dim.weights, sort(c(Dim.intknots, range(matr[,Dim]))), matrFixedDim, Dim.index)
-  
+
   # if (x$Dim.newknot == xx$Dim.newknot) print("Both equal!")
-  
+
   # Return the new Dim knot and its weight, along with the flag indicating if a valid knot was found
   return(list(Dim.newknot = as.numeric(xx$Dim.newknot), weightDim = as.numeric(xx$weightDim), flagDim = xx$flagDim))
 }

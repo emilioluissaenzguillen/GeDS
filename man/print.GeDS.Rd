@@ -13,7 +13,7 @@
 \method{print}{GeDSboost}(x, digits = max(3L, getOption("digits") - 3L), ...)
 }
 \arguments{
-\item{x}{The \code{"GeDS"}, \code{"GeDSgam"} or \code{"GeDSboost"} class 
+\item{x}{The \code{"GeDS"}, \code{"GeDSgam"} or \code{"GeDSboost"} class
 object for which the main information should be printed on screen.}
 
 \item{digits}{Number of digits to be printed.}

@@ -50,7 +50,7 @@ A list containing:
 \describe{
 \item{coefficients}{A named vector containing the estimated regression
 coefficients.}
-\item{residuals}{The working residuals, which are the residuals from the 
+\item{residuals}{The working residuals, which are the residuals from the
 final iteration of the IRLS fit. Cases with zero weights are omitted, and
 their working residuals are \code{NA}.}
 \item{res2}{The working residuals after the final IRLS iteration. They are

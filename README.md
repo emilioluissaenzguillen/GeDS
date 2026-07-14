@@ -15,8 +15,8 @@ To install the stable version on R CRAN:
 To install the latest development version:
 
 ``` r
-    install.packages("devtools")
-    devtools::install_github("emilioluissaenzguillen/GeDS")
+    install.packages("pak")
+    pak::pak("emilioluissaenzguillen/GeDS")
 ```
 
 License:

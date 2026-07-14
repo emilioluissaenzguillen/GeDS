@@ -6,31 +6,27 @@ coef.GeDSgam_GeDSboost <- function(object, n = 3L, ...)
   {
   # Handle additional arguments
   if(!missing(...)) warning("Only 'object', 'n' and 'onlySpline' arguments will be considered")
-  
+
   # Check if object is of class "GeDSboost" or "GeDSgam"
   if (!inherits(object, "GeDSboost") && !inherits(object, "GeDSgam")) {
     stop("The input 'object' must be of class 'GeDSboost' or 'GeDSgam'")
   }
-  
-  # Check if order was wrongly set
-  n <- as.integer(n)
-  if(!(n %in% 2L:4L)) {
-    n <- 3L
-    warning("'n' incorrectly specified. Set to 3.")
-  }
-  
+
+  # Validate order
+  n <- validate_GeDS_order(n)
+
   model <- object$final_model
   base_learners <- object$args$base_learners[names(object$final_model$base_learners)]
-  
+
   if(n == 2L){
-    
+
     # Piecewise Polynomial coefficients of univariate learners
     univariate_bl <- Filter(function(bl) length(bl$variables) == 1, base_learners)
     univ_coeff <- lapply(model$base_learners[names(univariate_bl)],
                          function(bl) bl$coefficients)
     names(univ_coeff) <- names(univariate_bl)
-    
-    
+
+
     # B-spline coefficients of bivariate learners
     bivariate_bl <- Filter(function(bl) length(bl$variables) == 2, base_learners)
     if (inherits(object, "GeDSboost")) {
@@ -41,7 +37,7 @@ coef.GeDSgam_GeDSboost <- function(object, n = 3L, ...)
         biv_coeff <- lapply(model$base_learners[names(bivariate_bl)],
                             function(bl) bl$coefficients)
       }
-    
+
     coefficients <- c(univ_coeff, biv_coeff)
   }
   if(n == 3L){
@@ -50,7 +46,7 @@ coef.GeDSgam_GeDSboost <- function(object, n = 3L, ...)
   if(n == 4L){
     coefficients <- model$cubic.fit$theta
   }
-  
+
   return(coefficients)
 }
 
@@ -65,7 +61,7 @@ coef.GeDSgam_GeDSboost <- function(object, n = 3L, ...)
 #' extracted.
 #' @param n Integer value (2, 3 or 4) specifying the order (\eqn{=} degree
 #' \eqn{ + 1}) of the FGB-GeDS/GAM-GeDS fit whose coefficients should be
-#' extracted. 
+#' extracted.
 #' \itemize{
 #'  \item If \code{n = 2L}: the piecewise polynomial coefficients of the univariate
 #'  GeDS base-learners and linear base-learners are provided (the B-spline coefficients
@@ -81,39 +77,39 @@ coef.GeDSgam_GeDSboost <- function(object, n = 3L, ...)
 #' to the function \code{\link{as.integer}}.
 #' @param ... Potentially further arguments (required by the definition of the
 #' generic function). These will be ignored, but with a warning.
-#' 
+#'
 #' @return
 #' A named vector containing the required coefficients of the fitted
 #' multivariate predictor model.
-#' 
+#'
 #' @seealso \code{\link[stats]{coef}} for the standard definition;
 #' \code{\link{NGeDSgam}} and \code{\link{NGeDSboost}} for examples.
-#' 
+#'
 #' @examples
 #' data(mtcars)
 #' # Convert specified variables to factors
 #' categorical_vars <- c("cyl", "vs", "am", "gear", "carb")
 #' mtcars[categorical_vars] <- lapply(mtcars[categorical_vars], factor)
-#' 
+#'
 #' Gmodgam <- NGeDSgam(mpg ~ f(disp, hp) + f(qsec) + carb,
 #'                     data = mtcars, family = gaussian, phi = 0.7)
-#' 
+#'
 #' # Piecewise polynomial coefficients of the (univariate) GeDS and linear learners
 #' coef(Gmodgam, n = 2)$`f(qsec)`
 #' coef(Gmodgam, n = 2)$carb
 #' # B-spline coefficients of the bivariate learner
 #' coef(Gmodgam, n = 2)$`f(disp, hp)`
-#' 
+#'
 #' Gmodboost <- NGeDSboost(mpg ~ f(disp, hp) + f(qsec) + carb,
 #'                         data = mtcars, family = mboost::Gaussian(), shrinkage = 0.7)
-#' 
+#'
 #' # Piecewise polynomial coefficients of the (univariate) GeDS and linear learners
 #' coef(Gmodboost, n = 2)$`f(qsec)`
 #' coef(Gmodboost, n = 2)$carb
 #' # B-spline coefficients of the bivariate learner at each boosting iteration
 #' # this was selected
 #' coef(Gmodboost, n = 2)$`f(disp, hp)`
-#' 
+#'
 #' @aliases coef.GeDSgam, coef.GeDSboost
 
 #' @export
@@ -136,28 +132,24 @@ confint.GeDSgam <- confint.GeDS
 confint.GeDSboost <- confint.GeDS
 
 ################################################################################
-################################### devIANCE ###################################
+################################### DEVIANCE ###################################
 ################################################################################
 #' @noRd
 deviance.GeDSgam_GeDSboost <- function(object, n = 3L, ...)
   {
   # Handle additional arguments
   if(!missing(...)) warning("Only 'object','newdata', and 'n' arguments will be considered")
-  
+
   # Check if object is of class "GeDSboost" or "GeDSgam"
   if (!inherits(object, "GeDSboost") && !inherits(object, "GeDSgam")) {
     stop("The input 'object' must be of class 'GeDSboost' or 'GeDSgam'")
   }
-  
-  # Check if order was wrongly set
-  n <- as.integer(n)
-  if(!(n %in% 2L:4L)) {
-    n <- 3L
-    warning("'n' incorrectly specified. Set to 3.")
-  }
-  
+
+  # Validate order
+  n <- validate_GeDS_order(n)
+
   model <- object$final_model
-  
+
   if(n == 2L){
     dev <- model$dev
   }
@@ -213,22 +205,18 @@ knots.GeDSgam_GeDSboost <-  function(Fn, n = 3L,
   {
   # Handle additional arguments
   if(!missing(...)) warning("Only 'Fn','n', and 'options' arguments will be considered")
-  
+
   # Check if Fn is of class "GeDSboost" or "GeDSgam"
   if (!inherits(Fn, "GeDSboost") && !inherits(Fn, "GeDSgam")) {
     stop("The input 'Fn' must be of class 'GeDSboost' or 'GeDSgam'")
   }
-  
-  # Check if order was wrongly set
-  n <- as.integer(n)
-  if(!(n %in% 2L:4L)) {
-    n <- 3L
-    warning("'n' incorrectly specified. Set to 3.")
-  }
-  
+
+  # Validate order
+  n <- validate_GeDS_order(n)
+
   # Ensure that the options argument is one of the allowed choices ("all" or "internal")
   options <- match.arg(options)
-  
+
   if(n == 2L){
     kn <- Fn$internal_knots$linear.int.knots
   }
@@ -238,33 +226,33 @@ knots.GeDSgam_GeDSboost <-  function(Fn, n = 3L,
   if(n == 4L){
     kn <- Fn$internal_knots$cubic.int.knots
   }
-  
+
   # Add the n left and right most knots (assumed to be coalescent)
   if(options=="all") {
     base_learners <- Fn$args$base_learners[names(Fn$final_model$base_learners)]
     GeDS_learners <- base_learners[sapply(base_learners, function(x) x$type == "GeDS")]
     GeDS_vars <- unlist(sapply(GeDS_learners, function(bl) bl$variables))
     X_GeDS <- Fn$args$predictors[, GeDS_vars, drop = FALSE]
-    
+
     extr <- rbind(apply(X_GeDS, 2, min), apply(X_GeDS, 2, max))
-    
+
     # Univariate GeDS
     univariate_GeDS_learners <- GeDS_learners[sapply(GeDS_learners, function(bl) length(bl$variables)) == 1]
     for (bl_name in names(univariate_GeDS_learners)) {
       bl <- univariate_GeDS_learners[[bl_name]]
-      variables <- bl$variables 
+      variables <- bl$variables
       kn[[bl_name]] <- sort(c(rep(extr[,variables], n), kn[[bl_name]]))
     }
     # Bivariate GeDS
     bivariate_GeDS_learners  <- GeDS_learners[sapply(GeDS_learners, function(bl) length(bl$variables)) == 2]
     for (bl_name in names(bivariate_GeDS_learners)) {
       bl <- bivariate_GeDS_learners[[bl_name]]
-      variables <- bl$variables 
+      variables <- bl$variables
       kn[[bl_name]]$ikX <- sort(c(rep(extr[,variables[1]], n), kn[[bl_name]]$ikX))
       kn[[bl_name]]$ikY <- sort(c(rep(extr[,variables[2]], n), kn[[bl_name]]$ikY))
     }
   }
-  
+
   return(kn)
 }
 
@@ -293,16 +281,16 @@ logLik.GeDSboost <- logLik.GeDS
 #' @title Extract Number of Boosting Iterations from a GeDSboost Object
 #' @name N.boost.iter
 #' @description
-#' Method for \code{N.boost.iter} that returns the number of boosting iterations 
+#' Method for \code{N.boost.iter} that returns the number of boosting iterations
 #' used in fitting a \code{"GeDSboost"} class object.
 #'
 #' @param object A \code{"GeDSboost"} class object.
 #' @param ... Further arguments (ignored).
 #'
 #' @return An integer indicating the total number of boosting iterations.
-#' 
+#'
 #' @method N.boost.iter GeDSboost
-#' 
+#'
 #' @rdname N.boost.iter
 #' @aliases N.boost.iter N.boost.iter.GeDSboost
 #' @importFrom graphics mtext abline
@@ -338,18 +326,18 @@ predict.GeDSgam_GeDSboost <- function(object, newdata, n = 3L,
   if (!missing(...)) {
     warning("Only 'object', 'newdata', 'n', 'base_learner', and 'type' arguments will be considered")
   }
-  
+
   # Check if object is of class "GeDSboost" or "GeDSgam"
   if (!inherits(object, "GeDSboost") && !inherits(object, "GeDSgam")) {
     stop("The input 'object' must be of class 'GeDSboost' or 'GeDSgam'")
   }
-  
-  # Validate and match the 'type' argument 
+
+  # Validate and match the 'type' argument
   type <- match.arg(type, c("response", "link"))
-  
+
   # Select final model
   model <- object$final_model
-  
+
   ## 1. All n ------------------------------------------------------------------
   if (identical(n, "all")) {
     return(
@@ -360,15 +348,10 @@ predict.GeDSgam_GeDSboost <- function(object, newdata, n = 3L,
       )
     )
   }
-  
+
   ## 2. Specific n -------------------------------------------------------------
-  n <- as.integer(n)
-  
-  if (!(n %in% 2L:4L)) {
-    warning(sprintf("'n' incorrectly specified (%s). Set to 3.", n))
-    n <- 3L
-  }
-  
+  n <- validate_GeDS_order(n)
+
   # 2.1. Training data ---------------------------------------------------------
   if (missing(newdata)) {
     return(
@@ -380,10 +363,10 @@ predict.GeDSgam_GeDSboost <- function(object, newdata, n = 3L,
       )
     )
   }
-  
+
   # 2.2. New data --------------------------------------------------------------
   newdata <- as.data.frame(newdata)
-  
+
   # 2.2.1. Full model ----------------------------------------------------------
   if (is.null(base_learner)) {
     return(
@@ -396,7 +379,7 @@ predict.GeDSgam_GeDSboost <- function(object, newdata, n = 3L,
       )
     )
   }
-  
+
   # 2.2.2. Single base learner -------------------------------------------------
   predict_newdata_base_learner(
     object = object,
@@ -415,17 +398,17 @@ predict.GeDSgam_GeDSboost <- function(object, newdata, n = 3L,
 # {
 #   # Handle additional arguments
 #   if(!missing(...)) warning("Only 'object','newdata', and 'n' arguments will be considered")
-#   
+#
 #   # Check if object is of class "GeDSboost" or "GeDSgam"
 #   if (!inherits(object, "GeDSboost") && !inherits(object, "GeDSgam")) {
 #     stop("The input 'object' must be of class 'GeDSboost' or 'GeDSgam'")
 #   }
-#   # Validate and match the 'type' argument 
+#   # Validate and match the 'type' argument
 #   type <- match.arg(type, c("response", "link"))
 #   # Select final model
 #   model <- object$final_model
-#   
-#   # ─────────── n = "all" ─────────── #
+#
+#   # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ n = "all" â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ #
 #   if (identical(n, "all")) {
 #     if (missing(newdata)) {
 #       if (type == "response") {
@@ -437,7 +420,7 @@ predict.GeDSgam_GeDSboost <- function(object, newdata, n = 3L,
 #           pred_cubic     = extract_link_pred(model$cubic.fit$temporary)
 #         ))
 #       }
-#       
+#
 #     } else {
 #       orders <- 2L:4L
 #       names <- c("pred_linear", "pred_quadratic", "pred_cubic")
@@ -445,14 +428,14 @@ predict.GeDSgam_GeDSboost <- function(object, newdata, n = 3L,
 #       return(setNames(preds, names))
 #     }
 #   }
-#   
-#   # ─────────── Specific n ─────────── #
+#
+#   # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Specific n â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ #
 #   n <- as.integer(n)
 #   if (!(n %in% 2L:4L)) {
 #     warning(sprintf("'n' incorrectly specified (%s). Set to 3.", n))
 #     n <- 3L
 #   }
-#   
+#
 #   if (missing(newdata)) {
 #     if (type == "response") {
 #       key <- switch(as.character(n),
@@ -468,7 +451,7 @@ predict.GeDSgam_GeDSboost <- function(object, newdata, n = 3L,
 #                     "3" = "quadratic.fit",
 #                     "4" = "cubic.fit")
 #       Fit <- object$final_model[[key]]$temporary
-#       
+#
 #       if (inherits(Fit, "glm")) {
 #         return(as.numeric(Fit$linear.predictors))
 #         } else if (inherits(Fit, "lm")) {
@@ -476,26 +459,26 @@ predict.GeDSgam_GeDSboost <- function(object, newdata, n = 3L,
 #         }
 #     }
 #   }
-#   
+#
 #   # Ensure newdata is a data.frame
 #   newdata <- as.data.frame(newdata)
-#   
+#
 #   ###############################################
 #   # I. Compute predictions for all base_leaners #
 #   ###############################################
 #   if (is.null(base_learner)) {
-#     
+#
 #     # Check whether newdata includes all the necessary predictors
 #     if (!all(names(object$args$predictors) %in% colnames(newdata))) {
 #       missing_vars <- setdiff(names(object$args$predictors), colnames(newdata))
 #       stop(paste("The following predictors are missing in newdata:",
 #                  paste(missing_vars, collapse = ", ")))
 #     }
-#     
+#
 #     nobs <- nrow(newdata)
 #     base_learners <- object$args$base_learners
 #     offset <- rep(0, nobs)
-#     
+#
 #     ###############
 #     ## 1. LINEAR ##
 #     ###############
@@ -508,14 +491,14 @@ predict.GeDSgam_GeDSboost <- function(object, newdata, n = 3L,
 #       univariate_bl <- base_learners[sapply(base_learners, function(x) x$type == "GeDS" & length(x$variables) == 1)]
 #       # 1.3 Extract bivariate base learners
 #       bivariate_bl <- base_learners[sapply(base_learners, function(x) x$type == "GeDS" & length(x$variables) == 2)]
-#       
+#
 #       # Family
 #       if (inherits(object, "GeDSboost")) {
-#         family_name <- get_mboost_family(object$args$family@name)$family 
+#         family_name <- get_mboost_family(object$args$family@name)$family
 #         } else {
 #           family_name <- object$args$family$family
 #         }
-#       
+#
 #       # Normalized model
 #       if (object$args$normalize_data) {
 #         # Identify the numeric predictors
@@ -532,22 +515,22 @@ predict.GeDSgam_GeDSboost <- function(object, newdata, n = 3L,
 #           Y_mean <- object$args$Y_mean; Y_sd <- object$args$Y_sd # Normalized non-binary response
 #         }
 #       }
-#       
+#
 #       # Initialize prediction vectors
 #       pred0 <- pred_lin <- pred_univ <- pred_biv <- numeric(nobs)
-#       
+#
 #       ####################
 #       ## 1.1. GeDSboost ##
 #       ####################
 #       if (inherits(object, "GeDSboost")) {
-#         
+#
 #         # shrinkage
 #         shrinkage <- object$args$shrinkage
-#         
+#
 #         # 1.0 Offset initial learner
 #         if (!object$args$initial_learner) {
 #           pred0 <- object$args$family@offset(object$args$response[[1]],  object$args$weights)
-#           pred0 <- rep(pred0, nrow(newdata)); 
+#           pred0 <- rep(pred0, nrow(newdata));
 #           if(object$args$normalize_data && family_name != "binomial") pred0 <- (pred0-Y_mean)/Y_sd
 #         }
 #         # 1.1 Linear base learners
@@ -564,22 +547,22 @@ predict.GeDSgam_GeDSboost <- function(object, newdata, n = 3L,
 #                                                 shrinkage, base_learners = bivariate_bl,
 #                                                 extr = object$args$extr)
 #         }
-#         
+#
 #         if (object$args$normalize_data && family_name != "binomial") {
 #           pred <- (pred0 + pred_lin + pred_univ + pred_biv)*Y_sd + Y_mean
 #         } else {
 #           pred <- pred0 + pred_lin + pred_univ + pred_biv
 #         }
-#         
+#
 #         pred <- if (type == "response") object$args$family@response(pred) else if (type == "link") pred
-#         
+#
 #         return(as.numeric(pred))
-#         
+#
 #         ##################
 #         ## 1.2. GeDSgam ##
 #         ##################
 #       } else if (inherits(object, "GeDSgam")) {
-#         
+#
 #         # 1.0 Initial learner
 #         pred0 <- rep(mean(model$Y_hat$z), nrow(newdata))
 #         # 1.1 Linear base learners
@@ -626,24 +609,24 @@ predict.GeDSgam_GeDSboost <- function(object, newdata, n = 3L,
 #           # alpha_biv <- mean(pred_biv)
 #           pred_biv <- pred_biv - alpha_biv
 #         }
-#         
+#
 #         if(object$args$normalize_data && family_name != "binomial") {
 #           pred <- (pred0 + pred_lin + pred_univ + pred_biv)*Y_sd + Y_mean
 #         } else {
 #           pred <- pred0 + pred_lin + pred_univ + pred_biv
 #         }
-#         
+#
 #         pred <- if (type == "response") object$args$family$linkinv(pred) else if (type == "link") pred
-#         
+#
 #         return(as.numeric(pred))
-#         
+#
 #       }
-#       
+#
 #       #####################
 #       ## 2. Higher Order ##
 #       #####################
 #     } else if (n==3 || n==4) {
-#       
+#
 #       # Extract family from GeDSboost/GeDSgam object
 #       if (inherits(object, "GeDSboost")) {
 #         family <- get_mboost_family(object$args$family@name)
@@ -651,15 +634,15 @@ predict.GeDSgam_GeDSboost <- function(object, newdata, n = 3L,
 #       } else {
 #         family <- object$args$family
 #       }
-#       
+#
 #       GeDS_variables <- lapply(base_learners, function(x) {if(x$type == "GeDS") return(x$variables) else return(NULL)})
 #       GeDS_variables <- unname(unlist(GeDS_variables))
 #       linear_variables <- lapply(base_learners, function(x) {if(x$type == "linear") return(x$variables) else return(NULL)})
 #       linear_variables <- unname(unlist(linear_variables))
-#       
+#
 #       X = newdata[GeDS_variables]
 #       Z = newdata[linear_variables]
-#       
+#
 #       if (n == 3) {
 #         if (is.null(model$quadratic.fit)) {
 #           cat("No Quadratic Fit to compute predictions.\n")
@@ -675,7 +658,7 @@ predict.GeDSgam_GeDSboost <- function(object, newdata, n = 3L,
 #         int.knots <- "cubic.int.knots"
 #         Fit <- "cubic.fit"
 #       }
-#       
+#
 #       # Internal Knots
 #       InterKnotsList <- if (length(object$internal_knots[[int.knots]]) == 0) {
 #         # if averaging knot location was not computed use linear internal knots
@@ -694,7 +677,7 @@ predict.GeDSgam_GeDSboost <- function(object, newdata, n = 3L,
 #         }
 #       }
 #       InterKnotsList_biv <- InterKnotsList[!names(InterKnotsList) %in% names(InterKnotsList_univ)]
-#       
+#
 #       # Select GeDS base-learners
 #       base_learners =  base_learners[sapply(base_learners, function(x) x$type == "GeDS")]
 #       # Univariate
@@ -703,7 +686,7 @@ predict.GeDSgam_GeDSboost <- function(object, newdata, n = 3L,
 #         univariate_learners <- base_learners[sapply(base_learners, function(bl) length(bl$variables)) == 1]
 #         univariate_vars <- sapply(univariate_learners, function(bl) bl$variables)
 #         X_univ <- X[, univariate_vars, drop = FALSE]
-#         
+#
 #         # If new data exceeds boundary knots limits, redefine boundary knots
 #         extrListfit <- lapply(univariate_vars, function(var) range(object$args$predictors[[var]]))
 #         extrListnew <- lapply(X_univ, range)
@@ -712,7 +695,7 @@ predict.GeDSgam_GeDSboost <- function(object, newdata, n = 3L,
 #             warning(sprintf("Input values for variable '%s' exceed original boundary knots; extending boundary knots to cover new data range.", var))
 #           c(min(range1[1], range2[1]), max(range1[2], range2[2]))
 #         }, var = univariate_vars, range1 = extrListfit, range2 = extrListnew, SIMPLIFY = FALSE)
-#         
+#
 #         matrices_univ_list <- vector("list", length = ncol(X_univ))
 #         # Generate design matrices for each predictor
 #         for (j in 1:ncol(X_univ)) {
@@ -727,20 +710,20 @@ predict.GeDSgam_GeDSboost <- function(object, newdata, n = 3L,
 #       if (length(InterKnotsList_biv) != 0) {
 #         bivariate_learners <- base_learners[sapply(base_learners, function(bl) length(bl$variables)) == 2]
 #         matrices_biv_list <- list()
-#         
+#
 #         for (learner_name in names(bivariate_learners)) {
 #           vars <- bivariate_learners[[learner_name]]$variables
 #           X_biv <- X[, vars, drop = FALSE]
 #           Xextr <- range(object$args$predictors[vars[1]])
 #           Yextr <- range(object$args$predictors[vars[2]])
-#           
+#
 #           # If new data exceeds boundary knots limits, redefine boundary knots
 #           if(min(X_biv[,1]) < Xextr[1] || max(X_biv[,1]) > Xextr[2] || min(X_biv[,2]) < Yextr[1] || max(X_biv[,2]) > Yextr[2]) {
 #             Xextr <- range(c(Xextr, X_biv[,1]))
 #             Yextr <- range(c(Yextr, X_biv[,2]))
 #             warning("Input values exceed original boundary knots; extending boundary knots to cover new data range.")
 #           }
-#           
+#
 #           knots <- InterKnotsList_biv[[learner_name]]
 #           basisMatrixX <- splineDesign(knots=sort(c(knots$ikX,rep(Xextr,n))), derivs=rep(0,length(X_biv[,1])),
 #                                    x=X_biv[,1],ord=n,outer.ok = TRUE)
@@ -751,7 +734,7 @@ predict.GeDSgam_GeDSboost <- function(object, newdata, n = 3L,
 #       } else {
 #         matrices_biv_list <- NULL
 #       }
-#       
+#
 #       # Combine all matrices side-by-side
 #       matrices_list <- c(matrices_univ_list, matrices_biv_list)
 #       if (!is.null(matrices_list) && length(matrices_list) > 0) {
@@ -764,25 +747,25 @@ predict.GeDSgam_GeDSboost <- function(object, newdata, n = 3L,
 #         Z <- model.matrix(~ ., data = Z)
 #         Z <-  Z[, colnames(Z) != "(Intercept)", drop = FALSE]
 #       }
-#       
+#
 #       basisMatrix2 <- cbind(full_matrix, as.matrix(Z))
-#       
+#
 #       # # Alternative 1 to compute predictions (required @importFrom stats predict)
 #       # tmp <- model[[Fit]]$temporary
 #       # # Set the environment of the model's terms to the current environment for variable access
 #       # environment(tmp$terms) <- environment()
 #       # pred <- predict(tmp, newdata=data.frame(basisMatrix2), type = "response")
-#       
+#
 #       # Alternative 2 to compute predictions
 #       coefs <- model[[Fit]]$theta
 #       coefs[is.na(coefs)] <- 0
 #       pred <- basisMatrix2 %*% coefs + offset
-#       
+#
 #       pred <- if (type == "response") family$linkinv(pred) else if (type == "link") pred
-#       
+#
 #       return(as.numeric(pred))
 #     }
-#     
+#
 #     ####################################################
 #     # II. Compute predictions for a single base_leaner #
 #     # (at the linear predictor level)                  #
@@ -790,24 +773,24 @@ predict.GeDSgam_GeDSboost <- function(object, newdata, n = 3L,
 #     # This may be simplified but it is useful for checking that the linear B-spline
 #     # representation of the models is correct
 #     } else if (!is.null(base_learner)) {
-#       
+#
 #       # Single base-learner prediction
 #       bl_name <-  gsub(",\\s*", ", ", as.character(base_learner))
 #       bl <- object$args$base_learners[[bl_name]]
 #       if(is.null(bl)) stop(paste0(bl_name, " not found in the model."))
-#       
+#
 #       Y <- object$args$response[[1]]
 #       pred_vars <- object$args$predictors[bl$variables]
 #       X_df <- newdata[, intersect(bl$variables, colnames(newdata)), drop = FALSE]
-#       
+#
 #       if (object$args$normalize_data && n == 2) {
 #         # Family
 #         if (inherits(object, "GeDSboost")) {
-#           family_name <- get_mboost_family(object$args$family@name)$family 
+#           family_name <- get_mboost_family(object$args$family@name)$family
 #         } else {
 #           family_name <- object$args$family$family
 #         }
-#         
+#
 #         # Normalized model
 #         # Identify the numeric predictors
 #         numeric_predictors <- names(X_df)[sapply(X_df, is.numeric)]
@@ -823,16 +806,16 @@ predict.GeDSgam_GeDSboost <- function(object, newdata, n = 3L,
 #           Y_mean <- object$args$Y_mean; Y_sd <- object$args$Y_sd # Normalized non-binary response
 #         }
 #       }
-#       
+#
 #       # Check whether newdata includes all the necessary predictors
 #       if (!all(bl$variables %in% colnames(newdata))) {
 #         missing_vars <- setdiff(bl$variables, colnames(newdata))
 #         stop(paste("The following predictors are missing in newdata:", paste(missing_vars, collapse = ", ")))
 #       }
-#       
+#
 #       # Extract estimated knots and coefficients
 #       if (n == 2) {
-#         
+#
 #         if (inherits(object, "GeDSboost") && is.character(model$linear.fit$theta) ) {
 #           # model$linear.fit == "When using bivariate base-learners, the 'single spline representation' (in pp form or B-spline form) of the boosted fit is not available.") {
 #           object$args$base_learners <- object$args$base_learners[bl_name]
@@ -843,7 +826,7 @@ predict.GeDSgam_GeDSboost <- function(object, newdata, n = 3L,
 #             object$args$X_sd <- object$args$X_sd[names(pred_vars)]
 #           }
 #           object$args$family <- mboost::Gaussian() # to guarantee pred is returned at the linear predictor level
-#           
+#
 #           # Substract the offset initial learner
 #           if (!object$args$initial_learner) {
 #             pred0 <- object$args$family@offset(object$args$response[[1]],  object$args$weights)
@@ -852,16 +835,16 @@ predict.GeDSgam_GeDSboost <- function(object, newdata, n = 3L,
 #               pred0 <- 0
 #             }
 #           pred0 <- rep(pred0, nrow(newdata))
-#           
+#
 #           # Return only the corresponding (normalized) bl-prediction
 #           pred <- predict(object, newdata = newdata, n = n) - pred0
 #           if (object$args$normalize_data) {
 #             pred <- (pred - object$args$Y_mean)/object$args$Y_sd
 #           }
-#           
+#
 #           return(pred)
 #         }
-#         
+#
 #         theta <- model$linear.fit$theta
 #         int.knots <- object$internal_knots$linear.int.knots
 #       } else if (n == 3) {
@@ -871,38 +854,38 @@ predict.GeDSgam_GeDSboost <- function(object, newdata, n = 3L,
 #         theta <- model$cubic.fit$theta
 #         int.knots <- object$internal_knots$cubic.int.knots
 #       }
-#       
+#
 #       int.knt <- int.knots[[bl_name]]
-#       
+#
 #       pattern <- paste0("^", gsub("([()])", "\\\\\\1", bl_name))
 #       theta <- theta[grep(pattern, names(theta))]
 #       # Replace NA values with 0
 #       theta[is.na(theta)] <- 0
-#       
+#
 #       # 1. Univariate learners
 #       if (NCOL(X_df) == 1) {
-#         
+#
 #         if (bl$type == "GeDS") {
-#           
+#
 #           if (n != 2 && object$args$normalize_data) {
 #             extr <- range(pred_vars)
 #           } else {
 #             extr <- object$args$extr[[bl$variables]]
 #           }
-#           
+#
 #           # If new data exceeds boundary knots limits, redefine boundary knots
 #           if(min(X_df) < extr[1] || max(X_df) > extr[2]) {
 #             extr <- range(c(extr, X_df))
 #             warning("Input values exceed original boundary knots; extending boundary knots to cover new data range.")
 #           }
-#           
+#
 #           # Create spline basis matrix using specified knots, evaluation points and order
 #           basisMatrix <- splineDesign(knots = sort(c(int.knt,rep(extr,n))),
 #                                       x = X_df[,1], ord = n, derivs = rep(0,length(X_df[,1])),
 #                                       outer.ok = T)
 #           # To recover backfitting predictions need de_mean
-#           pred <- if (n == 2) basisMatrix %*% theta - mean(basisMatrix %*% theta) else basisMatrix %*% theta 
-#           
+#           pred <- if (n == 2) basisMatrix %*% theta - mean(basisMatrix %*% theta) else basisMatrix %*% theta
+#
 #         } else if (bl$type == "linear") {
 #           # Linear
 #           if (!is.factor(X_df[,1])) {
@@ -914,12 +897,12 @@ predict.GeDSgam_GeDSboost <- function(object, newdata, n = 3L,
 #             pred <- theta[as.character(X_df[,1])]
 #           }
 #         }
-#         
+#
 #         return(as.numeric(pred))
-#         
+#
 #         # 2. Bivariate learners
 #       } else if (NCOL(X_df) == 2) {
-#         
+#
 #         if (n != 2 && object$args$normalize_data) {
 #           Xextr <- range(pred_vars[,1])
 #           Yextr <- range(pred_vars[,2])
@@ -933,7 +916,7 @@ predict.GeDSgam_GeDSboost <- function(object, newdata, n = 3L,
 #           Yextr <- range(c(Yextr, X_df[,2]))
 #           warning("Input values exceed original boundary knots; extending boundary knots to cover new data range.")
 #         }
-#         
+#
 #         # Generate spline basis matrix for X and Y dimensions using object knots and given order
 #         basisMatrixX <- splineDesign(knots = sort(c(int.knt$ikX,rep(Xextr,n))), derivs = rep(0,length(X_df[,1])),
 #                                      x = X_df[,1], ord = n, outer.ok = T)
@@ -943,23 +926,23 @@ predict.GeDSgam_GeDSboost <- function(object, newdata, n = 3L,
 #         basisMatrixbiv <- tensorProd(basisMatrixX, basisMatrixY)
 #         # Multiply the bivariate spline basis by model coefficients to get fitted values
 #         f_hat_XY_val <- basisMatrixbiv %*% theta[1:dim(basisMatrixbiv)[2]]
-#         
+#
 #         return(as.numeric(f_hat_XY_val))
-#         
+#
 #       }
 #   }
 # }
 
 #' @title Predict Method for GeDSgam, GeDSboost
 #' @name predict.GeDSgam,boost
-#' @description 
-#' This method computes predictions from GeDSboost and GeDSgam objects. 
+#' @description
+#' This method computes predictions from GeDSboost and GeDSgam objects.
 #' It is designed to be user-friendly and accommodate different orders of the
 #' GeDSboost or GeDSgam fits.
 #' @param object The \code{"GeDSgam"} class or
 #' \code{"GeDSboost"} class object.
 #' @param newdata An optional \code{data.frame} containing values of the independent
-#' variables at which predictions are to be computed. If omitted, the fitted 
+#' variables at which predictions are to be computed. If omitted, the fitted
 #' values are extracted from the \code{object} itself.
 #' @param type Character string indicating the type of prediction required. By
 #' default it is equal to \code{"response"}, i.e., the result is on the scale of
@@ -972,14 +955,14 @@ predict.GeDSgam_GeDSboost <- function(object, newdata, n = 3L,
 #' the base-learner of the model for which predictions should be computed. Note
 #' that single base-learner predictions are provided on the linear predictor scale.
 #' @param ... Potentially further arguments.
-#' 
+#'
 #' @return Numeric vector (or list) of predictions.
-#' 
+#'
 #' @references
 #' Gu, C. and Wahba, G. (1991).
 #' Minimizing GCV/GML Scores with Multiple Smoothing Parameters via the Newton Method.
 #' \emph{SIAM J. Sci. Comput.}, \strong{12}, 383--398.
-#' 
+#'
 #' @examples
 #' ## Gu and Wahba 4 univariate term example ##
 #' # Generate a data sample for the response variable
@@ -1002,35 +985,35 @@ predict.GeDSgam_GeDSboost <- function(object, newdata, n = 3L,
 #' # Add (Normal) noise to the mean of y
 #' y <- rnorm(N, mean = f, sd = 0.2)
 #' data <- data.frame(y = y, x0 = x0, x1 = x1, x2 = x2, x3 = x3)
-#' 
+#'
 #' # Fit GAM-GeDS model
 #' Gmodgam <- NGeDSgam(y ~ f(x0) + f(x1) + f(x2) + f(x3), data = data)
-# 
+#
 #' # Check that the sum of the individual base-learner predictions equals the final
 #' # model prediction
-#' 
+#'
 #' pred0 <- predict(Gmodgam, n = 2, newdata = data, base_learner = "f(x0)")
 #' pred1 <- predict(Gmodgam, n = 2, newdata = data, base_learner = "f(x2)")
 #' pred2 <- predict(Gmodgam, n = 2, newdata = data, base_learner = "f(x1)")
 #' pred3 <- predict(Gmodgam, n = 2, newdata = data, base_learner = "f(x3)")
-# 
+#
 #' round(predict(Gmodgam, n = 2, newdata = data) -
 #' (mean(predict(Gmodgam, n = 2, newdata = data)) + pred0 + pred1 + pred2 + pred3), 12)
-#' 
+#'
 #' pred0 <- predict(Gmodgam, n = 3, newdata = data, base_learner = "f(x0)")
 #' pred1 <- predict(Gmodgam, n = 3, newdata = data, base_learner = "f(x2)")
 #' pred2 <- predict(Gmodgam, n = 3, newdata = data, base_learner = "f(x1)")
 #' pred3 <- predict(Gmodgam, n = 3, newdata = data, base_learner = "f(x3)")
-#' 
+#'
 #' round(predict(Gmodgam, n = 3, newdata = data) - (pred0 + pred1 + pred2 + pred3), 12)
-#' 
+#'
 #' pred0 <- predict(Gmodgam, n = 4, newdata = data, base_learner = "f(x0)")
 #' pred1 <- predict(Gmodgam, n = 4, newdata = data, base_learner = "f(x2)")
 #' pred2 <- predict(Gmodgam, n = 4, newdata = data, base_learner = "f(x1)")
 #' pred3 <- predict(Gmodgam, n = 4, newdata = data, base_learner = "f(x3)")
-#' 
+#'
 #' round(predict(Gmodgam, n = 4, newdata = data) - (pred0 + pred1 + pred2 + pred3), 12)
-#' 
+#'
 #' # Plot GeDSgam partial fits to f(x0), f(x1), f(x2)
 #' par(mfrow = c(1,3))
 #' for (i in 1:3) {
@@ -1051,7 +1034,7 @@ predict.GeDSgam_GeDSboost <- function(object, newdata, n = 3L,
 #'          bty = "n",
 #'          cex = 1.5)
 #' }
-#' 
+#'
 #' @aliases predict.GeDSboost, predict.GeDSgam
 #' @export
 #' @rdname predict.GeDSgam_GeDSboost
@@ -1064,7 +1047,7 @@ predict.GeDSboost <- predict.GeDSgam_GeDSboost
 ################################################################################
 ##################################### PRINT ####################################
 ################################################################################
-#' @noRd 
+#' @noRd
 print.GeDSgam_GeDSboost <- function(x, digits = max(3L, getOption("digits") - 3L),
                                     ...)
   {
@@ -1073,12 +1056,12 @@ print.GeDSgam_GeDSboost <- function(x, digits = max(3L, getOption("digits") - 3L
   kn <- knots(x,n=2,options="int")
   devs <- numeric(3)
   names(devs) <- c("Order 2","Order 3","Order 4")
-  
+
   # Iterate over each base learner
   for (bl_name in names(x$internal_knots$linear.int.knots)) {
     # Get the linear internal knots
     int.knt <- x$internal_knots$linear.int.knots[[bl_name]]
-    
+
     # 1) No knots or linear base-learner
     if (is.null(int.knt)) {
       cat(paste0("Number of internal knots of the second order (linear) spline for '",
@@ -1092,7 +1075,7 @@ print.GeDSgam_GeDSboost <- function(x, digits = max(3L, getOption("digits") - 3L
                      bl_name, "', ", component_name, ": ", length(component), "\n"))
         }
         # 3) Univariate GeDS
-      } else { 
+      } else {
         cat(paste0("Number of internal knots of the second order (linear) spline for '",
                    bl_name, "': ", length(int.knt), "\n"))
       }
@@ -1107,7 +1090,7 @@ print.GeDSgam_GeDSboost <- function(x, digits = max(3L, getOption("digits") - 3L
                 quote = FALSE)
   cat("\n")
   print <- list("n.knots" = length(kn), "deviances" = devs, "call" = x$extcall)
-  
+
   x$print <- print
   invisible(x)
 }
@@ -1123,25 +1106,25 @@ print.GeDSboost <- print.GeDSgam_GeDSboost
 ################################################################################
 ################################### SUMMARY ####################################
 ################################################################################
-#' @noRd 
+#' @noRd
 summary.GeDSgam_GeDSboost <- function(object, ...)
 {
-  
+
   # 1) Header
   if (inherits(object, "GeDSboost")) {
     cat("\nFGB-GeDS Model\n\n")
   } else if (inherits(object, "GeDSgam")) {
     cat("\nGAM-GeDS Model\n\n")
   }
-  
+
   # 2) Core print
   print.GeDSgam_GeDSboost(object, ...)
-  
+
   # 3) Normalize
   if (object$args$normalize_data) cat("Data was normalized (standardized) before fitting.\n")
 
   # 4) Boosting/GAM details
-  
+
   if (inherits(object, "GeDSboost")) {
     cat("\nBoosting details:\n")
     print(family.GeDSboost(object,...),...)
@@ -1153,7 +1136,7 @@ summary.GeDSgam_GeDSboost <- function(object, ...)
       } else {
         cat("A GGeDS() initial learner was used; ")
       }
-      
+
     } else {
       cat("An offset initial learner was used; ")
     }
@@ -1163,7 +1146,7 @@ summary.GeDSgam_GeDSboost <- function(object, ...)
     print(family.GeDSgam(object,...),...)
     cat("Number of local-scoring iterations:", object$iters$local_scoring, "\n")
   }
-  
+
   invisible(object)
 }
 
@@ -1200,7 +1183,7 @@ split_into_lines <- function(text, max_length)
     }
   }
   lines <- c(lines, paste(current_line, collapse = ", "))
-  
+
   # Add braces
   if (length(lines) == 1) {
     lines[1] <- paste0("{", lines[1])
@@ -1215,7 +1198,7 @@ split_into_lines <- function(text, max_length)
           lines[3] <- paste0(lines[3], ",")
           }
   lines[length(lines)] <- paste0(lines[length(lines)], "}")
-  
+
   lines
 }
 
@@ -1231,12 +1214,12 @@ split_into_lines <- function(text, max_length)
 #' @param object A \code{"GeDSboost"} class object.
 #' @param final_fits Logical indicating whether the final linear, quadratic and
 #' cubic fits should be plotted.
-#' 
+#'
 #' @method visualize_boosting GeDSboost
 #' @examples
 #' # Load packages
-#' library(GeDS)
-#' 
+#' library("GeDS")
+#'
 #' # Generate a data sample for the response variable
 #' # Y and the single covariate X
 #' set.seed(123)
@@ -1250,7 +1233,7 @@ split_into_lines <- function(text, max_length)
 #' Y <- rnorm(N, means, sd = 0.2)
 #' data = data.frame(X, Y)
 #' Gmodboost <- NGeDSboost(Y ~ f(X), data = data, normalize_data = TRUE)
-#' 
+#'
 #' # Plot
 #' plot(X, Y, pch=20, col=c("darkgrey"))
 #' lines(X, sapply(X, f_1), col = "black", lwd = 2)
@@ -1269,10 +1252,10 @@ split_into_lines <- function(text, max_length)
 #' par(mfrow=c(4,2))
 #' visualize_boosting(Gmodboost, iters = 0:3, final_fits = TRUE)
 #' par(mfrow=c(1,1))
-#' 
+#'
 #' @rdname visualize_boosting
 #' @aliases visualize_boosting visualize_boosting.GeDSboost
-#'  
+#'
 #' @importFrom graphics plot lines legend rug points abline mtext
 #' @export
 
@@ -1292,29 +1275,29 @@ visualize_boosting.GeDSboost <- function(object, iters = NULL, final_fits = FALS
   if(any(iters > object$iters)) {
     stop(paste0("iters = ", iters, " but only ", object$iters, " boosting iterations were run."))
   }
-  
+
   Y <- object$args$response[[1]]; X <- object$args$predictors[[1]]
-  
+
   for (M in iters) {
-    
+
     model <- object$models[[paste0("model", M)]]
     Y_hat <- model$Y_hat
     next_model <- object$models[[paste0("model", M+1)]]
-    
+
     # 1. Data plot
     # Plot range
     x_range <- range(X)
     y_range <- range(Y, Y_hat)
     x_range <- c(x_range[1] - diff(x_range) * 0.05, x_range[2] + diff(x_range) * 0.05)
     y_range <- c(y_range[1] - diff(y_range) * 0.05, y_range[2] + diff(y_range) * 0.05)
-    
+
     # Split int knots into lines
     knots <- model$base_learners[[1]]$knots
-    int.knots_round <- round(as.numeric(get_internal_knots(knots)), 2) 
+    int.knots_round <- round(as.numeric(get_internal_knots(knots)), 2)
     int.knots_lines <- split_into_lines(paste(int.knots_round, collapse=", "), 65)
     # Create the title
     title_text_1 <- bquote(atop(bold(Delta)[.(M) * ",2"] == .(int.knots_lines[1])))
-    
+
     # Plot
     plot(X, Y, pch = 20, col = "darkgrey", tck = 0.02, main = "",
          xlim = x_range, ylim = y_range, cex.axis = 1.5, cex.lab = 1.5)
@@ -1324,7 +1307,7 @@ visualize_boosting.GeDSboost <- function(object, iters = NULL, final_fits = FALS
            bty = "n",
            text.font = 2,
            cex = 1.5)
-    
+
     # Trace knots w/vertical lines
     if (length(knots) < 20) {
       for (knot in knots) {
@@ -1333,7 +1316,7 @@ visualize_boosting.GeDSboost <- function(object, iters = NULL, final_fits = FALS
     } else {
       rug(knots)
     }
-    
+
     # Add the title
     if(length(int.knots_lines) == 1) {
       mtext(title_text_1, side = 3, line = -0.5, cex = 1.15)
@@ -1350,28 +1333,28 @@ visualize_boosting.GeDSboost <- function(object, iters = NULL, final_fits = FALS
       mtext(int.knots_lines[3], side = 3, line = 0.9, cex = 0.9)
       mtext(int.knots_lines[4], side = 3, line = 0, cex =0.9)
     }
-    
+
     # 2. Negative gradient plot
     if (M < length(object$models) - 1) {
-      
+
       family <- object$args$family
       family_stats <- get_mboost_family(family@name)
-      
+
       negative_gradient <- family@ngradient(y = Y, f = family_stats$linkfun(Y_hat), w = object$args$weights)
-      
+
       # Plot range
       x_range <- range(X)
       y_range <- range(negative_gradient, next_model$best_bl$pred_linear)
       x_range <- c(x_range[1] - diff(x_range) * 0.05, x_range[2] + diff(x_range) * 0.05)
       y_range <- c(y_range[1] - diff(y_range) * 0.05, y_range[2] + diff(y_range) * 0.05)
-      
+
       # Split int knots into lines
       int.knots <- next_model$best_bl$int.knt
       int.knots_round <- round(as.numeric(next_model$best_bl$int.knt), 2)
-      int.knots_lines <- split_into_lines(paste(int.knots_round, collapse=", "), 65)    
+      int.knots_lines <- split_into_lines(paste(int.knots_round, collapse=", "), 65)
       # Create the title
       title_text_2 <- bquote(atop(bold(delta)[.(M) * ",2"] == .(int.knots_lines[1])))
-      
+
       # Plot
       plot(X, negative_gradient, pch=20, col=c("darkgrey"), tck = 0.02, main = "",
            xlim = x_range, ylim = y_range, cex.axis = 1.5, cex.lab = 1.5)
@@ -1382,7 +1365,7 @@ visualize_boosting.GeDSboost <- function(object, iters = NULL, final_fits = FALS
              bty = "n",
              text.font = 2,
              cex = 1.5)
-      
+
       # Trace knots w/vertical lines
       if (length(int.knots) < 20) {
         for(int.knot in int.knots) {
@@ -1391,7 +1374,7 @@ visualize_boosting.GeDSboost <- function(object, iters = NULL, final_fits = FALS
       } else {
         rug(int.knots)
       }
-      
+
       # Add the title
       if (length(int.knots_lines) == 1) {
         mtext(title_text_2, side = 3, line = -0.5, cex = 1.15)
@@ -1410,10 +1393,10 @@ visualize_boosting.GeDSboost <- function(object, iters = NULL, final_fits = FALS
       }
     }
   }
-  
+
   # Add a final plot with the final fits
   if (final_fits) {
-    
+
     x_range <- range(X)
     y_range <- range(Y, object$predictions$pred_linear, object$predictions$pred_quadratic, object$predictions$pred_cubic)
     x_range <- c(x_range[1] - diff(x_range) * 0.05, x_range[2] + diff(x_range) * 0.05)
@@ -1421,16 +1404,16 @@ visualize_boosting.GeDSboost <- function(object, iters = NULL, final_fits = FALS
     plot(X, Y, pch = 20, col = "darkgrey", tck = 0.02, main = "Final fits",
          xlim = x_range, ylim = y_range, cex.axis = 1.5, cex.lab = 1.5, cex.main = 2)
     lines(X, object$predictions$pred_linear, col = "green4", lwd = 2, lty = 1)
-    lines(X, object$predictions$pred_quadratic, col="red", lwd = 2, lty = 4)
+    lines(X, object$predictions$pred_quadratic, col="indianred", lwd = 2, lty = 4)
     lines(X, object$predictions$pred_cubic, col="purple", lwd = 2, lty = 5)
-    legend("topright",                           
-           legend = c("Order 2 (degree=1)", "Order 3 (degree=2)", "Order 4 (degree=3)"),    
-           col = c("green4", "red", "purple"),
+    legend("topright",
+           legend = c("Order 2 (degree=1)", "Order 3 (degree=2)", "Order 4 (degree=3)"),
+           col = c("green4", "indianred", "purple"),
            lty = c(1, 4, 5),
-           lwd = c(2, 2, 2),                                   
+           lwd = c(2, 2, 2),
            cex = 1.5,
-           bty="n")
-    
+           bty = "n")
+
   }
 }
 
@@ -1455,7 +1438,7 @@ visualize_boosting <- visualize_boosting.GeDSboost
 #' from \code{\link[mboost]{varimp}} and is compatible with the available
 #' \code{\link[mboost]{mboost-package}} methods for \code{\link[mboost]{varimp}},
 #' including \code{plot}, \code{print} and \code{as.data.frame}.
-#' 
+#'
 #' @param object An object of class \code{"GeDSboost"} class.
 #' @param boosting_iter_only Logical value, if \code{TRUE} then base-learner
 #' in-bag risk reduction is only computed across boosting iterations, i.e.,
@@ -1464,18 +1447,18 @@ visualize_boosting <- visualize_boosting.GeDSboost
 #'
 #' @details
 #' See \code{\link[mboost]{varimp}} for details.
-#' 
+#'
 #' @return An object of class \code{varimp} with available \code{plot},
 #' \code{print} and \code{as.data.frame} methods.
-#' 
+#'
 #' @references
 #' Hothorn T., Buehlmann P., Kneib T., Schmid M. and Hofner B. (2022).
 #' mboost: Model-Based Boosting. R package version 2.9-7, \url{https://CRAN.R-project.org/package=mboost}.
-#' 
+#'
 #' @examples
-#' library(GeDS)
+#' library("GeDS")
 #' library(TH.data)
-#' 
+#'
 #' data("bodyfat", package = "TH.data")
 #' N <- nrow(bodyfat); ratio <- 0.8
 #' set.seed(123)
@@ -1483,24 +1466,24 @@ visualize_boosting <- visualize_boosting.GeDSboost
 #' # Subset the data into training and test sets
 #' train <- bodyfat[trainIndex, ]
 #' test <- bodyfat[-trainIndex, ]
-#' 
+#'
 #' Gmodboost <- NGeDSboost(formula = DEXfat ~ f(hipcirc) + f(kneebreadth) + f(anthro3a),
 #'                         data = train, phi = 0.7, initial_learner = FALSE)
 #' MSE_Gmodboost_linear <- mean((test$DEXfat - predict(Gmodboost, newdata = test, n = 2))^2)
 #' MSE_Gmodboost_quadratic <- mean((test$DEXfat - predict(Gmodboost, newdata = test, n = 3))^2)
 #' MSE_Gmodboost_cubic <- mean((test$DEXfat - predict(Gmodboost, newdata = test, n = 4))^2)
-#' 
+#'
 #' # Print MSE
 #' cat("\n", "TEST MEAN SQUARED ERROR", "\n",
 #'     "Linear NGeDSboost:", MSE_Gmodboost_linear, "\n",
 #'     "Quadratic NGeDSboost:", MSE_Gmodboost_quadratic, "\n",
 #'     "Cubic NGeDSboost:", MSE_Gmodboost_cubic, "\n")
-#' 
+#'
 #' # Base Learner Importance
 #' bl_imp <- bl_imp(Gmodboost)
 #' print(bl_imp)
 #' plot(bl_imp)
-#' 
+#'
 #' @rdname bl_imp
 #' @aliases bl_imp bl_imp.GeDSboost
 #' @method bl_imp GeDSboost
@@ -1512,7 +1495,7 @@ bl_imp.GeDSboost <- function(object, boosting_iter_only = FALSE, ...)
   if(!inherits(object, "GeDSboost")) {
     stop("The input 'object' must be of class 'GeDSboost'")
   }
-  
+
   # 1. Variables
   ## Response variable
   response <- names(object$args$response)
@@ -1522,7 +1505,7 @@ bl_imp.GeDSboost <- function(object, boosting_iter_only = FALSE, ...)
   bl_indices <- match(bl_selected, bl_names)
   # Risk function
   risk <- object$args$family@risk
-  
+
   # 2. In-bag risk
   # Calculate initial risk
   initial_risk <- risk(y = object$args$response[[response]],
@@ -1531,7 +1514,7 @@ bl_imp.GeDSboost <- function(object, boosting_iter_only = FALSE, ...)
   model0_risk <- risk(y = object$args$response[[response]],
                       f = object$models[[paste0("model", 0)]]$F_hat, w = object$args$weights)
   first_riskdiff <- initial_risk - model0_risk
-  
+
   # Get the number of models
   n_models <- length(object$models)
   if (!object$args$initial_learner) n_models <- n_models - 1
@@ -1546,21 +1529,21 @@ bl_imp.GeDSboost <- function(object, boosting_iter_only = FALSE, ...)
                            f = F_hat, w = object$args$weights)
   }
   inbag_risks <- c(model0_risk, inbag_risks)
-  
+
   # 3. Calculate differences in inbag risk between consecutive boosting iterations
   riskdiff <- -1 * diff(inbag_risks)
   # Scale these differences by the number of observations
   riskdiff <- riskdiff / length(object$args$response[[response]])
   # Prepend the first risk difference to the riskdiff vector
   riskdiff <- c(first_riskdiff, riskdiff)
-  
+
   # For offset initial-learner bl_imp is just measured within boosting iterations
   if(!object$args$initial_learner || boosting_iter_only){
     riskdiff <- riskdiff[-1]
     bl_selected$model0 <- NULL
     bl_indices <- bl_indices[-1]
   }
-  
+
   # 4. Sum up riskdiffs
   explained <- sapply(seq_along(bl_names), FUN = function(i) {
     sum(riskdiff[which(bl_indices == i)])
@@ -1568,7 +1551,7 @@ bl_imp.GeDSboost <- function(object, boosting_iter_only = FALSE, ...)
   names(explained) <- bl_names
   class(explained) <- "varimp"
   # Calculate the proportion of models where the i-th learner was selected
-  attr(explained, "selfreqs") <- sapply(seq_along(bl_names), 
+  attr(explained, "selfreqs") <- sapply(seq_along(bl_names),
                                         function(i) {
                                           mean(bl_indices == i)
                                         })
@@ -1581,10 +1564,496 @@ bl_imp.GeDSboost <- function(object, boosting_iter_only = FALSE, ...)
     sum(explained[var_names == i])
   }))
   attr(explained, "variable_names") <- ordered(var_names, levels = unique(var_names[var_order]))
-  
+
   return(explained)
 }
 
 #' @export
 bl_imp <- bl_imp.GeDSboost
+
+################################################################################
+############################### SHAPECONSTRAIN ################################
+################################################################################
+
+.shape_additive_constraints <- function(shape_constraint) {
+  shape_constraint <- match.arg(
+    shape_constraint,
+    choices = c("increasing", "decreasing", "convex", "concave"),
+    several.ok = TRUE
+  )
+
+  if (all(c("increasing", "decreasing") %in% shape_constraint)) {
+    stop("Cannot impose both increasing and decreasing constraints.",
+         call. = FALSE)
+  }
+
+  if (all(c("convex", "concave") %in% shape_constraint)) {
+    stop("Cannot impose both convex and concave constraints.",
+         call. = FALSE)
+  }
+
+  shape_constraint
+}
+
+.shape_additive_family_ok <- function(object) {
+  if (inherits(object, "GeDSboost")) {
+    family_name <- object$args$family@name
+    return(grepl("Squared Error", family_name, fixed = TRUE))
+  }
+
+  identical(object$args$family$family, "gaussian") &&
+    identical(object$args$family$link, "identity")
+}
+
+.shape_additive_piecewise_coef <- function(theta, knt) {
+  epsilon <- 1e-10
+  n_intervals <- length(knt) - 1L
+
+  if (length(theta) != length(knt)) {
+    stop("Internal coefficient/knot mismatch while updating the linear fit.",
+         call. = FALSE)
+  }
+
+  b0 <- b1 <- numeric(n_intervals)
+
+  for (int in seq_len(n_intervals)) {
+    b1[int] <- (theta[int + 1L] - theta[int]) /
+      max(knt[int + 1L] - knt[int], epsilon)
+    b0[int] <- theta[int] - b1[int] * knt[int]
+  }
+
+  list(b0 = b0, b1 = b1)
+}
+
+.shape_additive_refit <- function(object, n, base_learner,
+                                  shape_constraint, eps, ridge) {
+  object_label <- if (inherits(object, "GeDSboost")) "GeDSboost" else "GeDSgam"
+
+  if (!.shape_additive_family_ok(object)) {
+    stop("Shape constraints for ", object_label,
+         " objects are currently implemented only for Gaussian identity-link fits.",
+         call. = FALSE)
+  }
+
+  if (isTRUE(object$args$normalize_data)) {
+    stop("Shape constraints for ", object_label,
+         " objects are currently implemented only when normalize_data = FALSE.",
+         call. = FALSE)
+  }
+
+  selected_base_learners <- object$final_model$base_learners
+  selected_names <- names(selected_base_learners)
+
+  if (is.null(selected_names) || length(selected_names) == 0L) {
+    stop("No selected base learner found in the fitted ", object_label,
+         " object.", call. = FALSE)
+  }
+
+  is_univ_geds <- vapply(selected_names, function(bl_name) {
+    bl <- object$args$base_learners[[bl_name]]
+    !is.null(bl) && identical(bl$type, "GeDS") && length(bl$variables) == 1L
+  }, logical(1))
+
+  eligible_names <- selected_names[is_univ_geds]
+
+  if (is.null(base_learner)) {
+    if (length(eligible_names) != 1L) {
+      stop("Please specify one selected univariate GeDS base learner via 'base_learner'.",
+           call. = FALSE)
+    }
+    bl_name <- eligible_names
+  } else {
+    if (length(base_learner) != 1L) {
+      stop("'base_learner' must identify exactly one base learner.",
+           call. = FALSE)
+    }
+    bl_name <- gsub(",\\s*", ", ", as.character(base_learner))
+  }
+
+  if (!bl_name %in% selected_names) {
+    stop("'", bl_name, "' is not a selected base learner in the fitted model.",
+         call. = FALSE)
+  }
+
+  if (!bl_name %in% eligible_names) {
+    stop("Shape constraints for ", object_label,
+         " objects are currently implemented only for selected univariate GeDS base learners.",
+         call. = FALSE)
+  }
+
+  fit_name <- switch(as.character(n),
+                     "2" = "linear.fit",
+                     "3" = "quadratic.fit",
+                     "4" = "cubic.fit")
+
+  pred_name <- switch(as.character(n),
+                      "2" = "pred_linear",
+                      "3" = "pred_quadratic",
+                      "4" = "pred_cubic")
+
+  intknots_name <- switch(as.character(n),
+                          "2" = "linear.int.knots",
+                          "3" = "quadratic.int.knots",
+                          "4" = "cubic.int.knots")
+
+  if (is.null(object$final_model[[fit_name]])) {
+    stop("The requested fit is not available in the ", object_label, " object.",
+         call. = FALSE)
+  }
+
+  theta <- object$final_model[[fit_name]]$theta
+
+  if (is.character(theta)) {
+    stop("The requested additive fit does not contain a single B-spline coefficient vector.",
+         call. = FALSE)
+  }
+
+  theta_names <- names(theta)
+
+  if (is.null(theta_names)) {
+    stop("The requested additive fit does not contain named coefficients.",
+         call. = FALSE)
+  }
+
+  theta_idx <- startsWith(theta_names, bl_name)
+
+  if (!any(theta_idx)) {
+    stop("Could not identify the coefficient block for '", bl_name, "'.",
+         call. = FALSE)
+  }
+
+  bl <- object$args$base_learners[[bl_name]]
+  x_name <- bl$variables[1L]
+  X <- object$args$predictors[[x_name]]
+  Y <- object$args$response[[1L]]
+  weights <- object$args$weights
+
+  if (is.null(weights)) {
+    weights <- rep(1, length(Y))
+  }
+
+  InterKnots <- object$internal_knots[[intknots_name]][[bl_name]]
+  extr <- object$args$extr[[x_name]]
+
+  if (is.null(extr)) {
+    extr <- range(X)
+  }
+
+  full_knots <- sort(c(InterKnots, rep(extr, n)))
+
+  train_data <- as.data.frame(object$args$predictors)
+  old_full <- as.numeric(predict(object, newdata = train_data, n = n,
+                                 type = "response"))
+  old_component <- as.numeric(predict(object, newdata = train_data, n = n,
+                                      base_learner = bl_name,
+                                      type = "response"))
+
+  offset <- old_full - old_component
+
+  refit <- .shape_constrained_refit(
+    X = X,
+    Y = Y,
+    Z = NULL,
+    weights = weights,
+    offset = offset,
+    full_knots = full_knots,
+    n = n,
+    shape_constraint = shape_constraint,
+    eps = eps,
+    ridge = ridge,
+    center_basis = inherits(object, "GeDSgam") && n == 2L
+  )
+
+  component <- refit$predicted - offset
+  theta_component <- refit$theta
+
+  if (sum(theta_idx) != length(theta_component)) {
+    stop("The constrained coefficient block is not conformable with the fitted model.",
+         call. = FALSE)
+  }
+
+  new_pred <- offset + component
+  residuals <- Y - new_pred
+  rss <- as.numeric(crossprod(residuals))
+
+  theta[theta_idx] <- theta_component
+  object$final_model[[fit_name]]$theta <- theta
+  object$final_model[[fit_name]]$predicted <- new_pred
+  object$final_model[[fit_name]]$residuals <- residuals
+  object$final_model[[fit_name]]$rss <- rss
+  object$final_model[[fit_name]]$temporary <- NULL
+  object$final_model[[fit_name]]$nci <- NULL
+  object$final_model[[fit_name]]$aci <- NULL
+
+  if (n == 2L) {
+    knt <- c(extr[1L], InterKnots, extr[2L])
+    object$final_model$base_learners[[bl_name]]$coefficients <-
+      .shape_additive_piecewise_coef(theta_component, knt)
+    object$final_model$base_learners[[bl_name]]$linear.int.knots <- InterKnots
+  }
+
+  object$predictions[[pred_name]] <- new_pred
+
+  if (n == 2L) {
+    if (inherits(object, "GeDSgam") && is.list(object$final_model$Y_hat)) {
+      object$final_model$Y_hat$mu <- new_pred
+      object$final_model$Y_hat$eta <- new_pred
+    } else {
+      object$final_model$Y_hat <- new_pred
+      object$final_model$F_hat <- new_pred
+    }
+    object$final_model$dev <- rss
+  }
+
+  object$shape_constraint <- list(
+    n = n,
+    base_learner = bl_name,
+    constraint = shape_constraint,
+    eps = eps,
+    note = paste0("Base learner refitted under shape constraints conditional on the final ",
+                  object_label, " knots; other components held fixed.")
+  )
+
+  class(object) <- unique(c(paste0("shapeConstrained", object_label), class(object)))
+
+  object
+}
+
+#' @title Apply Shape Constraints to a Fitted GeDSgam Model
+#' @name shapeConstrain.GeDSgam
+#' @description
+#' Method for \code{\link{shapeConstrain}} that imposes monotonicity or
+#' convexity/concavity constraints on one selected univariate smoother of a
+#' fitted \code{"GeDSgam"} model.
+#'
+#' @param object A fitted \code{"GeDSgam"} class object produced by
+#' \code{\link{NGeDSgam}}.
+#' @param n Integer value (2, 3 or 4) specifying the order of the final GeDSgam
+#' fit to be shape-constrained.
+#' @param shape_constraint Character vector specifying the shape constraint to
+#' impose. Possible values are \code{"increasing"}, \code{"decreasing"},
+#' \code{"convex"} and \code{"concave"}. Monotonicity and curvature constraints
+#' may be combined, for example \code{c("increasing", "convex")}.
+#' @param base_learner Character string identifying the selected univariate
+#' GeDS smoother to constrain, for example \code{"f(x)"}. If \code{NULL}, the
+#' method proceeds only when the fitted model has exactly one selected
+#' univariate GeDS smoother.
+#' @param eps Numeric value specifying the lower bound used in the linear
+#' inequality constraints. By default equal to \code{0}.
+#' @param ridge Small positive numeric value added to the diagonal of the
+#' quadratic programming matrix for numerical stability. By default equal to
+#' \code{1e-8}.
+#' @param ... Further arguments. Currently ignored.
+#'
+#' @details
+#' This method currently applies only to Gaussian identity-link
+#' \code{"GeDSgam"} fits with \code{normalize_data = FALSE}. The selected
+#' univariate smoother is re-estimated conditional on its final knots and on
+#' the fitted contribution of all other model components, which are held fixed.
+#'
+#' Bivariate smoothers are not constrained by this method. They may still be
+#' present in the model, provided that \code{base_learner} identifies a selected
+#' univariate GeDS smoother.
+#'
+#' Standard confidence intervals are not computed for the constrained fit, since
+#' the coefficient estimates are obtained from a constrained least-squares
+#' problem.
+#'
+#' @return A \code{"GeDSgam"} object with the selected final fit of order
+#' \code{n} updated after re-estimating the chosen smoother under the requested
+#' shape constraint. The returned object also contains a \code{shape_constraint}
+#' component recording the imposed constraint.
+#'
+#' @seealso \code{\link{shapeConstrain}}, \code{\link{NGeDSgam}},
+#' \code{\link{coef.GeDSgam}}, \code{\link{knots.GeDSgam}},
+#' \code{\link{predict.GeDSgam}}
+#'
+#' @rdname shapeConstrain.GeDSgam
+#' @aliases shapeConstrain.GeDSgam
+#' @method shapeConstrain GeDSgam
+#' @export
+shapeConstrain.GeDSgam <- function(object,
+                                   n = 3L,
+                                   shape_constraint = "increasing",
+                                   base_learner = NULL,
+                                   eps = 0,
+                                   ridge = 1e-8, ...) {
+
+  if (!missing(...)) {
+    warning("Arguments in '...' are currently ignored.")
+  }
+
+  n <- validate_GeDS_order(n)
+  shape_constraint <- .shape_additive_constraints(shape_constraint)
+
+  .shape_additive_refit(
+    object = object,
+    n = n,
+    base_learner = base_learner,
+    shape_constraint = shape_constraint,
+    eps = eps,
+    ridge = ridge
+  )
+}
+
+#' @title Apply Shape Constraints to a Fitted GeDSboost Model
+#' @name shapeConstrain.GeDSboost
+#' @description
+#' Method for \code{\link{shapeConstrain}} that imposes monotonicity or
+#' convexity/concavity constraints on one selected univariate base-learner of a
+#' fitted \code{"GeDSboost"} model.
+#'
+#' @param object A fitted \code{"GeDSboost"} class object produced by
+#' \code{\link{NGeDSboost}}.
+#' @param n Integer value (2, 3 or 4) specifying the order of the final
+#' GeDSboost fit to be shape-constrained.
+#' @param shape_constraint Character vector specifying the shape constraint to
+#' impose. Possible values are \code{"increasing"}, \code{"decreasing"},
+#' \code{"convex"} and \code{"concave"}. Monotonicity and curvature constraints
+#' may be combined, for example \code{c("increasing", "convex")}.
+#' @param base_learner Character string identifying the selected univariate
+#' GeDS base-learner to constrain, for example \code{"f(x)"}. If \code{NULL},
+#' the method proceeds only when the fitted model has exactly one selected
+#' univariate GeDS base-learner.
+#' @param eps Numeric value specifying the lower bound used in the linear
+#' inequality constraints. By default equal to \code{0}.
+#' @param ridge Small positive numeric value added to the diagonal of the
+#' quadratic programming matrix for numerical stability. By default equal to
+#' \code{1e-8}.
+#' @param ... Further arguments. Currently ignored.
+#'
+#' @details
+#' This method currently applies only to Gaussian \code{"GeDSboost"} fits with
+#' \code{normalize_data = FALSE}. The selected univariate base-learner is
+#' re-estimated conditional on its final knots and on the fitted contribution of
+#' all other model components, which are held fixed.
+#'
+#' Bivariate base-learners are not constrained by this method. They may still be
+#' present in the model, provided that \code{base_learner} identifies a selected
+#' univariate GeDS base-learner.
+#'
+#' Standard confidence intervals are not computed for the constrained fit, since
+#' the coefficient estimates are obtained from a constrained least-squares
+#' problem.
+#'
+#' @return A \code{"GeDSboost"} object with the selected final fit of order
+#' \code{n} updated after re-estimating the coefficients under the requested
+#' shape constraint. The returned object also contains a \code{shape_constraint}
+#' component recording the imposed constraint.
+#'
+#' @seealso \code{\link{shapeConstrain}}, \code{\link{NGeDSboost}},
+#' \code{\link{coef.GeDSboost}}, \code{\link{knots.GeDSboost}},
+#' \code{\link{predict.GeDSboost}}
+#'
+#' @rdname shapeConstrain.GeDSboost
+#' @aliases shapeConstrain.GeDSboost
+#' @method shapeConstrain GeDSboost
+#' @export
+shapeConstrain.GeDSboost <- function(object,
+                                     n = 3L,
+                                     shape_constraint = "increasing",
+                                     base_learner = NULL,
+                                     eps = 0,
+                                     ridge = 1e-8, ...) {
+
+  if (!missing(...)) {
+    warning("Arguments in '...' are currently ignored.")
+  }
+
+  n <- validate_GeDS_order(n)
+  shape_constraint <- .shape_additive_constraints(shape_constraint)
+
+  .shape_additive_refit(
+    object = object,
+    n = n,
+    base_learner = base_learner,
+    shape_constraint = shape_constraint,
+    eps = eps,
+    ridge = ridge
+  )
+}
+
+# ###############################################################################
+# ############################### SEPARATE LINEAR ###############################
+# ###############################################################################
+# 
+# # Shared engine: decompose each univariate GeDS base-learner of an additive
+# # (boost/gam) fit. Mirrors predict_newdata_base_learner for knot/coef access.
+# .separate_linear_additive <- function(object, n) {
+#   n <- validate_GeDS_order(n)
+#   if (isTRUE(object$args$normalize_data))
+#     stop("separateLinear() is implemented only for normalize_data = FALSE.",
+#          call. = FALSE)
+# 
+#   fit_name <- switch(as.character(n),
+#                      "2" = "linear.fit", "3" = "quadratic.fit", "4" = "cubic.fit")
+#   ik_name  <- switch(as.character(n),
+#                      "2" = "linear.int.knots", "3" = "quadratic.int.knots",
+#                      "4" = "cubic.int.knots")
+# 
+#   model      <- object$final_model
+#   theta_full <- model[[fit_name]]$theta
+#   if (is.character(theta_full) || is.null(theta_full))
+#     stop("Single-spline representation unavailable (bivariate base-learners ",
+#          "are not supported by separateLinear()).", call. = FALSE)
+# 
+#   if (inherits(object, "GeDSboost")) {
+#     scale <- if (grepl("Squared Error", object$args$family@name, fixed = TRUE))
+#       "response" else "link"
+#   } else {
+#     fam <- object$args$family
+#     fam_name <- if (is.character(fam)) fam else fam$family
+#     fam_link <- if (is.character(fam)) "identity" else fam$link
+#     scale <- if (identical(fam_name, "gaussian") && identical(fam_link, "identity"))
+#       "response" else "link"
+#   }
+# 
+#   w   <- object$args$weights
+#   sel <- object$args$base_learners[names(model$base_learners)]
+#   univ_geds <- Filter(function(bl) bl$type == "GeDS" && length(bl$variables) == 1, sel)
+#   if (length(univ_geds) == 0)
+#     stop("No univariate GeDS base-learner found to decompose.", call. = FALSE)
+# 
+#   out <- list()
+#   for (bl_name in names(univ_geds)) {
+#     xvar <- univ_geds[[bl_name]]$variables[1]
+#     x    <- as.numeric(object$args$predictors[[xvar]])
+#     ww   <- if (is.null(w)) rep(1, length(x)) else w
+# 
+#     pat   <- paste0("^", gsub("([()])", "\\\\\\1", bl_name))   # same as predict
+#     theta <- theta_full[grep(pat, names(theta_full))]
+#     theta[is.na(theta)] <- 0
+# 
+#     int.knt <- object$internal_knots[[ik_name]][[bl_name]]
+#     extr    <- object$args$extr[[xvar]]; if (is.null(extr)) extr <- range(x)
+#     kn      <- sort(c(int.knt, rep(extr, n)))
+# 
+#     B     <- splines::splineDesign(kn, x = x, ord = n,
+#                                    derivs = rep(0, length(x)), outer.ok = TRUE)
+#     eta_j <- as.numeric(B %*% as.numeric(theta))
+# 
+#     dec <- .separate_linear_curve(eta_j, x, ww)
+#     xi  <- .greville(kn, n)
+#     out[[bl_name]] <- list(variable = xvar, beta0 = dec$beta0, beta1 = dec$beta1,
+#                            f = dec$f, theta_f = as.numeric(theta) - dec$beta0 - dec$beta1 * xi,
+#                            knots = kn, n = n)
+#   }
+#   structure(list(learners = out, n = n, scale = scale), class = "separateLinear")
+# }
+# 
+# #' @rdname separateLinear
+# #' @method separateLinear GeDSboost
+# #' @export
+# separateLinear.GeDSboost <- function(object, n = 3L, ...) {
+#   if (!missing(...)) warning("Arguments in '...' are currently ignored.")
+#   .separate_linear_additive(object, n)
+# }
+# 
+# #' @rdname separateLinear
+# #' @method separateLinear GeDSgam
+# #' @export
+# separateLinear.GeDSgam <- function(object, n = 3L, ...) {
+#   if (!missing(...)) warning("Arguments in '...' are currently ignored.")
+#   .separate_linear_additive(object, n)
+# }
 

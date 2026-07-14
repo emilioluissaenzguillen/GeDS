@@ -38,13 +38,13 @@ get_mboost_family <- function(family) {
   if (!is.character(family)) {
     stop("Family must be a character string.")
   }
-  
+
   switch(family,
          # Gaussian
          "Squared Error (Regression)" = stats::gaussian(link = "identity"),
          # Gamma; GammaReg():The implemented loss function is the negative Gamma log-likelihood with logarithmic link function
          "Negative Gamma Likelihood" = stats::Gamma(link = "log"),
-         # Binomial 
+         # Binomial
          "Negative Binomial Likelihood (logit link)" = stats::binomial(link = "logit"),
          "Negative Binomial Likelihood -- probit link" = stats::binomial(link = "probit"),
          "Negative Binomial Likelihood -- cauchit link" = stats::binomial(link = "cauchit"),
@@ -89,10 +89,12 @@ get_internal_knots <- function(knots, depth = 1) {
   # Bivariate
   if (is.list(knots)) {
     # Get internal knots for each component and store them in a list
-    ikX <- extract_knots(knots$Xk)
-    ikY <- extract_knots(knots$Yk)
+    Xk <- if (!is.null(knots$Xk)) knots$Xk else knots$Xknt
+    Yk <- if (!is.null(knots$Yk)) knots$Yk else knots$Yknt
+    ikX <- extract_knots(Xk)
+    ikY <- extract_knots(Yk)
     return(list(ikX = ikX, ikY = ikY))
-  } else { 
+  } else {
     # Univariate
     return(extract_knots(knots))
   }
@@ -103,48 +105,48 @@ get_internal_knots <- function(knots, depth = 1) {
 ###################################################################################
 #' @importFrom stats na.omit
 predict_GeDS_linear <- function(Gmod, X, Y, Z){
-  
+
   terms <- all.vars(Gmod$formula)
   num_predictors <- length(terms[-1])
-  
+
   max.intknots <- Gmod$args$max.intknots
   q <- Gmod$args$q
-  
+
   ## Univariate GeDS
   if (num_predictors == 1) {
-    
+
     X <- as.matrix(X)
     j <- NROW(Gmod$stored) # last_row_with_value(Gmod$stored), last_row_with_value(Gmod$coefficients)
-    
+
     # Knots
     if (j > q && j != max.intknots + 1) {
       knt <- na.omit(Gmod$stored[j - q,]) # an exit from stage A is performed with the spline fit l = k + 1 - q
       } else {
         knt <- na.omit(Gmod$stored[j,])
       }
-    
+
     knt <- knt[-c(1, length(knt))]
     int.knt <- knt[-c(1, length(knt))]
     if (length(knt) == 2) int.knt <- NULL
-    
+
     # coefficients
     if (j > q && j != max.intknots + 1) {
       coeff <- na.omit(Gmod$coefficients[j - q,])
       } else {
         coeff <- na.omit(Gmod$coefficients[j,])
       }
-    
+
     # Initialize output vector
     F_hat <- numeric(nrow(X))
     # Number of intervals
     n_intervals <- length(knt) - 1
     # Add first and last intervals to cover all possible X values
     intervals <- c(-Inf, int.knt, Inf)
-    
+
     # Initialize lists for coefficients
     b0_list <- numeric(n_intervals)
     b1_list <- numeric(n_intervals)
-    
+
     # Calculate predictions for the current predictor
     for (int in 1:n_intervals) {
       # Find X values within current interval
@@ -159,22 +161,22 @@ predict_GeDS_linear <- function(Gmod, X, Y, Z){
       b0_list[int] <- b0
       b1_list[int] <- b1
     }
-    
+
     if (is.null(Gmod$args$family)){
       Y_hat <- F_hat
     } else{
       Y_hat <- Gmod$args$family$linkinv(F_hat)
     }
-    
+
     return(list(Y_hat = Y_hat, knt = knt, int.knt = int.knt, b0 = b0_list, b1 = b1_list, theta = coeff))
-    
+
   ## Bivariate GeDS
   } else if (num_predictors == 2){
-    
+
     X <- as.matrix(X)
     Y <- as.matrix(Y)
     j <- NROW(Gmod$stored$previousX) #last_row_with_value(Gmod$stored$previousX)
-    
+
     # Knots and coefficients
     if (j > q && j != max.intknots + 1) {
       Xknt <- na.omit(Gmod$stored$previousX[j - q,]) # an exit from stage A is performed with the spline fit l = k + 1 - q
@@ -185,15 +187,15 @@ predict_GeDS_linear <- function(Gmod, X, Y, Z){
         Yknt <- na.omit(Gmod$stored$previousY[j,])
         theta <- as.numeric(na.omit(Gmod$coefficients[j,]))
       }
-    
+
     Xknt <- Xknt[-c(1, length(Xknt))]
     Yknt <- Yknt[-c(1, length(Yknt))]
     Xint.knt <- Xknt[-c(1, length(Xknt))]
     Yint.knt <- Yknt[-c(1, length(Yknt))]
-    
+
     if(length(Xknt) == 2) {Xint.knt <- NULL}
     if(length(Yknt) == 2) {Yint.knt <- NULL}
-    
+
     # SplineReg_biv
     if (Gmod$type == "LM - Biv") {
       lin <- SplineReg_biv(X, Y, Z, InterKnotsX = Xint.knt, InterKnotsY = Yint.knt,
@@ -204,10 +206,10 @@ predict_GeDS_linear <- function(Gmod, X, Y, Z){
                                  Xextr = Gmod$args$Xextr, Yextr = Gmod$args$Yextr, n = 2,
                                  family = Gmod$args$family, coefficients = theta)
         }
-    
+
     Y_hat <-lin$predicted
-    
-    return(list(Y_hat = Y_hat, knt = list("Xknt" = Xknt, "Yknt" = Yknt),
+
+    return(list(Y_hat = Y_hat, knt = list("Xk" = Xknt, "Yk" = Yknt),
                 int.knt = list("Xint.knt" = Xint.knt, "Yint.knt" = Yint.knt),
                 "theta" = lin$theta))
     } else {
@@ -220,25 +222,25 @@ predict_GeDS_linear <- function(Gmod, X, Y, Z){
 ############################################################################
 # 7.1
 lin_model <- function(pred_vars, model, lin_bl) {
-  
+
   pred_vars <- as.data.frame(pred_vars)
   nobs <- nrow(pred_vars)
   pred_lin <- numeric(nobs)  # Initialize prediction vector
-  
+
   # Loop over base learners
   for (bl in names(lin_bl)) {
     # Extract coefficients
     coeffs <- model$base_learners[[bl]]$coefficients
-    
+
     # (i) Categorical
     if (is.factor(pred_vars[[bl]])) {
       # Compute fitted values manually
       baseline <- levels(pred_vars[[bl]])[1]
       pred_bl <- numeric(nobs)
-      
+
       # For baseline level
       pred_bl[pred_vars[[bl]] == baseline] <- coeffs[1]
-      
+
       # Loop through all levels except the baseline
       for (i in 2:length(levels(pred_vars[[bl]]))) {
         level <- levels(pred_vars[[bl]])[i]
@@ -249,27 +251,27 @@ lin_model <- function(pred_vars, model, lin_bl) {
     } else {  # (ii) Continuous
       pred_bl <- coeffs$b0 + coeffs$b1 * pred_vars[[bl]]
     }
-    
+
     # Add to overall prediction
     pred_lin <- pred_lin + pred_bl
   }
-  
+
   return(pred_lin)
 }
 
 # 7.2
 piecewise_multivar_linear_model <- function(X, model, base_learners = NULL) {
-  
+
   X <- data.frame(X)
-  
+
   # Initialize output vector
   Y_hat <- numeric(nrow(X))
-  
+
   # To compute the boosted prediction made by specific base learners:
   if(!is.null(base_learners)){
     model$base_learners <- model$base_learners[names(model$base_learners) %in% names(base_learners)]
   }
-  
+
   # For each base learner (and its corresponding model)
   for (base_learner in names(model$base_learners)) {
     # Get the model for the current base learner
@@ -280,7 +282,7 @@ piecewise_multivar_linear_model <- function(X, model, base_learners = NULL) {
     intervals <- c(-Inf, model_bl$linear.int.knots, Inf)
     # Number of intervals
     n_intervals <- length(intervals)-1
-    
+
     # Calculate predictions for the current predictor
     for (int in 1:n_intervals) {
       # Find X values within current interval
@@ -297,29 +299,29 @@ piecewise_multivar_linear_model <- function(X, model, base_learners = NULL) {
 #####################################################
 # 8.1. Univariate base-learners
 univariate_bl_linear_model <- function(pred_vars, model, shrinkage, base_learners = NULL) {
-  
+
   # Initialize output vector
   Y_hat <- numeric(nrow(pred_vars))
-  
+
   # To compute the boosted prediction made by specific base learners:
   if(!is.null(base_learners)){
     model$base_learners <- model$base_learners[names(model$base_learners) %in% names(base_learners)]
   }
-  
+
   # For each base learner (and its corresponding model)
   for (base_learner in names(model$base_learners)) {
-    
+
     X <- pred_vars[, base_learners[[base_learner]][1]]
-    
+
     bl      <- model$base_learners[[base_learner]]
     int.knt <- bl$linear.int.knots
     theta   <- bl$coefficients
-    
+
     lin <- SplineReg_LM(X, InterKnots = int.knt, extr = range(X), n = 2,
                         coefficients = theta)
-    
+
     Y_hat <- Y_hat + lin$predicted
-    
+
   }
   return(Y_hat)
 }
@@ -327,37 +329,37 @@ univariate_bl_linear_model <- function(pred_vars, model, shrinkage, base_learner
 # 8.2. Bivariate base-learners
 bivariate_bl_linear_model <- function(pred_vars, model, shrinkage, base_learners = NULL,
                                       extr, type = "boost") {
-  
+
   # Initialize output vector
   Y_hat <- numeric(nrow(pred_vars))
-  
+
   # To compute the boosted prediction made by specific base learners:
   if(!is.null(base_learners)){
     model$base_learners <- model$base_learners[names(model$base_learners) %in% names(base_learners)]
   }
-  
+
   # For each base learner (and its corresponding model)
   for (base_learner in names(model$base_learners)) {
-    
+
     X <- pred_vars[, base_learners[[base_learner]]$variables[1]]
     Y <- pred_vars[, base_learners[[base_learner]]$variables[2]]
-    
+
     # Boundary knots
     extrX <- extr[[base_learners[[base_learner]]$variables[1]]]
     extrY <- extr[[base_learners[[base_learner]]$variables[2]]]
-    
+
     # If new data exceeds boundary knots limits, redefine boundary knots
     if(min(X) < extrX[1] || max(X) > extrX[2] || min(Y) < extrY[1] || max(Y) > extrY[2]) {
       extrX <- range(c(extrX, X))
       extrY <- range(c(extrY, Y))
-      warning("Input values exceed the model boundary knots; boundary ranges updated to extrX = [", 
+      warning("Input values exceed the model boundary knots; boundary ranges updated to extrX = [",
               paste(extrX, collapse = ", "), "], extrY = [", paste(extrY, collapse = ", "), "].")
     }
-    
+
     bl <- model$base_learners[[base_learner]]
     # (I) Bivariate boosted base learners
     if(type == "boost") {
-      
+
       for (mod in names(bl$iterations)){
         Xint.knt <- bl$iterations[[mod]]$int.knt$Xint.knt
         Yint.knt <- bl$iterations[[mod]]$int.knt$Yint.knt
@@ -365,17 +367,17 @@ bivariate_bl_linear_model <- function(pred_vars, model, shrinkage, base_learners
         lin <- SplineReg_biv(X, Y, InterKnotsX = Xint.knt, InterKnotsY = Yint.knt,
                              Xextr = extrX, Yextr = extrY, n = 2,
                              coefficients = theta)
-        
+
         if (mod=="model0") {
           Y_hat <- Y_hat + lin$predicted # initial learner is added with no shrinking
         } else {
             Y_hat <- Y_hat + shrinkage*lin$predicted
         }
-        
+
       }
     # (II) Bivariate gam
     } else if (type == "gam") {
-      
+
       Xint.knt <- bl$linear.int.knots$ikX
       Yint.knt <- bl$linear.int.knots$ikY
       theta <- bl$coefficients
@@ -401,12 +403,12 @@ compute_avg_int.knots <- function(final_model, base_learners = base_learners, X_
     cat(paste0("No GeDS base-learners found. Returning NULL when computing averaging knot location for n = ", n,". "))
     return(kk_list = NULL)
   }
-  
+
   warning_messages <- c()
-  
+
   kk_list <- lapply(names(base_learners), function(bl) {
     pred_vars <- base_learners[[bl]]$variables
-    
+
     # Univariate case
     if (length(pred_vars) == 1) {
       intknt <- get_internal_knots(final_model$base_learners[[bl]]$knots)
@@ -414,39 +416,39 @@ compute_avg_int.knots <- function(final_model, base_learners = base_learners, X_
         if (!is.null(intknt)) intknt <- intknt * X_sd[[pred_vars[1]]] + X_mean[[pred_vars[1]]]
       }
       if (length(intknt) >= n - 1) return(makenewknots(intknt, n))
-      
+
       warning_messages <<- c(warning_messages, paste0(bl, " has less than ", n - 1, " linear internal knots."))
       return(intknt)
-      
+
       # Bivariate case
     } else if (length(pred_vars) == 2) {
       intknt <- list(
-        X = get_internal_knots(final_model$base_learners[[bl]]$knots$Xk), 
+        X = get_internal_knots(final_model$base_learners[[bl]]$knots$Xk),
         Y = get_internal_knots(final_model$base_learners[[bl]]$knots$Yk)
       )
       if (normalize_data) {
         if (!is.null(intknt$X)) intknt$X <- intknt$X * X_sd[[pred_vars[1]]] + X_mean[[pred_vars[1]]]
         if (!is.null(intknt$Y)) intknt$Y <- intknt$Y * X_sd[[pred_vars[2]]] + X_mean[[pred_vars[2]]]
       }
-      
+
       ikX <- if (length(intknt$X) >= n - 1) {
         makenewknots(intknt$X, n)
       } else {
         warning_messages <<- c(warning_messages, paste0(bl, " has less than ", n - 1, " linear internal knots for ", pred_vars[1], "."))
         intknt$X
       }
-      
+
       ikY <- if (length(intknt$Y) >= n - 1) {
         makenewknots(intknt$Y, n)
       } else {
         warning_messages <<- c(warning_messages, paste0(bl, " has less than ", n - 1, " linear internal knots for ", pred_vars[2], "."))
         intknt$Y
       }
-      
+
       return(list(ikX = ikX, ikY = ikY))
     }
   })
-  
+
   # Print warnings if they are below the threshold
   warning_threshold <- 10
   if (n >= 3 && length(warning_messages) > 0 && length(warning_messages) <= warning_threshold) {
@@ -480,7 +482,7 @@ lin.coef <- function(final_model, linear_variables) {
       slp <- unlist(coef[names(coef) != "b0"])
       names(slp) <- paste0(var, names(slp))
       # Sum up the intercepts
-      intercept <- intercept + int 
+      intercept <- intercept + int
       # Concatenate the slopes
       slopes <- c(slopes, slp)
     }
@@ -497,31 +499,31 @@ bSpline.coef <- function(final_model, univariate_learners)
   names(knots) <- learner_names
   poly_coef <- lapply(learner_names, function(bl) final_model$base_learners[[bl]]$coefficients)
   names(poly_coef) <- learner_names
-  
+
   epsilon <- 1e-10
-  coeff <- setNames(vector("list", length(learner_names)), learner_names) 
-  
+  coeff <- setNames(vector("list", length(learner_names)), learner_names)
+
   # Loop through each learner
   for (bl in learner_names) {
     knt <- knots[[bl]]
     b0 <- poly_coef[[bl]]$b0
     b1 <- poly_coef[[bl]]$b1
-    
+
     # Calculate coefficient
     coeff[[bl]] <- b0 + b1 * knt[-length(knt)]
     # Calculate the last element to append
     last_knot_diff <- max(knt[length(knt)] - knt[length(knt) - 1], epsilon)
-    last_coeff <- coeff[[bl]][length(coeff[[bl]])] + b1[length(b1)] * last_knot_diff 
-    
+    last_coeff <- coeff[[bl]][length(coeff[[bl]])] + b1[length(b1)] * last_knot_diff
+
     # Append the last value to the coefficient vector
     coeff[[bl]] <- c(coeff[[bl]], last_coeff)
-    
+
     # # Check
     # round(b1 - diff(coeff[[bl]]) / pmax(diff(knt), epsilon), 10)
     # round(b0 - ( coeff[[bl]][-length(coeff[[bl]])] - b1 * knt[-length(knt)] ), 10)
   }
-  
-  
+
+
   return(coeff)
 }
 
@@ -531,12 +533,12 @@ biv_bSpline.coef <- function(final_model, bivariate_learners, shrinkage)
   bivbl_names <- names(bivariate_learners)
   biv_models <- lapply(bivbl_names, function(bl) final_model$base_learners[[bl]]$iterations)
   names(biv_models) <- bivbl_names
-  
-  theta_biv <- setNames(vector("list", length(bivbl_names)), bivbl_names) 
+
+  theta_biv <- setNames(vector("list", length(bivbl_names)), bivbl_names)
   for (bl in bivbl_names) {
     bl_models <- biv_models[[bl]]
     theta <- list()
-    
+
     # Loop through each model in the base-learner
     for (model_name in names(bl_models)) {
       # Extract model number
@@ -548,10 +550,10 @@ biv_bSpline.coef <- function(final_model, bivariate_learners, shrinkage)
       # Store coefficients
       theta[[paste0("theta", model_num)]] <- coefs
       }
-    
+
     # Store results for the base learner
     theta_biv[[bl]] <- theta
-    
+
   }
   return(theta_biv)
 }
@@ -563,11 +565,11 @@ biv_bSpline.coef <- function(final_model, bivariate_learners, shrinkage)
 # of the corresponding distribution. This function ensures Y_hat meets those requirements
 validate_Y_hat <- function(Y_hat, family_stats) {
   valid <- family_stats$validmu(Y_hat)
-  
+
   if (all(valid)) {
     return(Y_hat)
   }
-  
+
   if (family_stats$family == "binomial") {
     # Ensure values are between 0 and 1
     Y_hat <- pmax(pmin(Y_hat, 1), 0)
@@ -576,13 +578,13 @@ validate_Y_hat <- function(Y_hat, family_stats) {
     Y_hat <- pmax(Y_hat, .Machine$double.eps)
   }
   # Add more conditions for other families if necessary
-  
+
   valid <- family_stats$validmu(Y_hat)
-  
+
   if (!all(valid)) {
     warning("Some Y_hat values are still invalid after correction.")
   }
-  
+
   return(Y_hat)
 }
 
@@ -593,22 +595,22 @@ validate_Y_hat <- function(Y_hat, family_stats) {
 count_initial_zeroes <- function(x) {
   # Convert the number to a string
   num_str <- as.character(x)
-  
+
   # Split the string at the decimal point
   parts <- strsplit(num_str, split = "\\.")[[1]]
-  
+
   # Check if there's a decimal part
   if (length(parts) < 2) {
     return(0)  # No decimal part means no zeroes after the decimal
   }
-  
+
   # Get the decimal part
   decimal_part <- parts[2]
-  
+
   # Count the number of leading zeroes in the decimal part
   leading_zeroes <- nchar(gsub("^0*", "", decimal_part, perl = TRUE)) - nchar(decimal_part)
   return(-leading_zeroes + 1)
-} 
+}
 
 
 ########################
@@ -616,18 +618,19 @@ count_initial_zeroes <- function(x) {
 ########################
 stageB_fit <- function(n, args, GeDS_variables, linear_variables,
                        response, final_model, normalize_data,
-                       weights = FALSE, offset = FALSE, link = FALSE) {
-  
+                       weights = FALSE, offset = FALSE, link = FALSE,
+                       only_pred = TRUE) {
+
   X_mat <- args$predictors[, GeDS_variables, drop = FALSE]
   Z_mat <- args$predictors[, linear_variables, drop = FALSE]
   Y_vec <- args$response[[response]]
   n_obs <- length(Y_vec)
-  
+
   # Turn boolean flags into actual values (or NULL)
   wts <- if (isTRUE(weights)) args$weights else rep(1, n_obs)
   off <- if (isTRUE(offset))  args$offset  else rep(0, n_obs)
   lnk <- if (isTRUE(link))    args$link    else NULL
-  
+
   # 1) knots
   iklist <- compute_avg_int.knots(
     final_model,
@@ -635,7 +638,7 @@ stageB_fit <- function(n, args, GeDS_variables, linear_variables,
     args$X_sd, args$X_mean, normalize_data,
     n = n
   )
-  
+
   # (IR)LS fit
   fit <- tryCatch(
     suppressMessages(
@@ -643,11 +646,12 @@ stageB_fit <- function(n, args, GeDS_variables, linear_variables,
                          Z = Z_mat, offset = off,
                          weights = wts,
                          base_learners = args$base_learners[names(final_model$base_learners)],
-                         InterKnotsList = iklist, n = n, family = args$family, link = lnk)
+                         InterKnotsList = iklist, n = n, family = args$family,
+                         link = lnk, only_pred = only_pred)
     ),
     error = function(e) { warning(sprintf("Error computing n=%d fit: %s", n, conditionMessage(e))); NULL }
   )
-  
+
   preds <- if (!is.null(fit) && !is.null(fit$predicted)) as.numeric(fit$predicted) else rep(NA_real_, n_obs)
   list(fit = fit, preds = preds, int.knots = iklist)
 }

@@ -3,7 +3,7 @@ title: "Generalized Additive Models (GAM) with GeD Splines"
 author: "Emilio Luis Sáenz Guillén"
 date: "`r Sys.Date()`"
 bibliography: citations.bib
-csl: apa.csl        
+csl: apa.csl
 output: rmarkdown::html_vignette
 vignette: >
   %\VignetteIndexEntry{Generalized Additive Models (GAM) with GeD Splines}
@@ -34,13 +34,13 @@ fits are subsequently built. GeDS was firstly introduced for the
 univariate Normal case by [@Kaishev2016](https://link.springer.com/article/10.1007/s00180-015-0621-7). It was later expanded to the
 broader context of Generalized Non-linear Models (GNM) ---which include
 Generalized Linear Models (GLM) as a special case---, and to the
-bivariate case by [@Dimitrova2023](https://www.sciencedirect.com/science/article/abs/pii/S0096300322005677). More recently, GeDS
+bivariate case by [@Dimitrova2023](https://doi.org/10.1016/j.amc.2022.127493). More recently, GeDS
 methodology has been extended towards the benchmark of Generalized
 Additive Models (GAM) and Functional Gradient Boosting (FGB) by
 [@Dimitrova2025].
 
 GeDS methodology is implemented on the **R** package
-[GeDS](https://cran.r-project.org/web/packages/GeDS/index.html). In this
+[GeDS](https://CRAN.R-project.org/package=GeDS). In this
 post I will focus in introducing the **GAM-GeDS** implementation. If
 interested in the canonical GeDS methodology please check [Geometrically
 Designed Splines:
@@ -217,7 +217,7 @@ estimate $f_j$ within the backfitting algorithm.
 
 ```{r message=FALSE, warning=FALSE}
 # install.packages("GeDS")
-library(GeDS)
+library("GeDS")
 ```
 
 Let us illustrate the GAM-GeDS technique by using the `car.test.frame`
@@ -356,7 +356,7 @@ Gmodgam <- NGeDSgam(Price ~ f(Mileage) + Country + Type + f(Weight) + f(Disp.) +
 
 And we calculate the Gamma deviance on the test set as follows:
 
-```         
+```
 sum(Gamma()$dev(test$Price, predict(Gmodgam, newdata = test, n = 2), wt = 1))
 sum(Gamma()$dev(test$Price, predict(Gmodgam, newdata = test, n = 3), wt = 1))
 sum(Gamma()$dev(test$Price, predict(Gmodgam, newdata = test, n = 4), wt = 1))

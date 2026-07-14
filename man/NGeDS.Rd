@@ -64,15 +64,15 @@ independent variable. See Details.}
 right-most limits of the interval embedding the observations of the second
 independent variable (if bivariate GeDS is run). See Details.}
 
-\item{show.iters}{Logical variable indicating whether or not to print 
+\item{show.iters}{Logical variable indicating whether or not to print
 information about the fitting at each step.}
 
 \item{stoptype}{A character string indicating the type of GeDS stopping rule
-to be used. It should be either one of \code{"SR"}, \code{"RD"} or 
+to be used. It should be either one of \code{"SR"}, \code{"RD"} or
 \code{"LR"}, partial match allowed. See Details.}
 
 \item{higher_order}{Logical. If \code{TRUE}, after completing stage A, the
-function proceeds to stage B and fits higher-order models (quadratic and cubic). 
+function proceeds to stage B and fits higher-order models (quadratic and cubic).
 Default is \code{TRUE}.}
 
 \item{intknots_init}{A vector of initial internal knots for stage A. The default
@@ -120,10 +120,10 @@ of stage A.}
 \item{Nintknots}{The final number of internal knots of the second order GeD
 spline fit produced in stage A.}
 \item{iters}{Number of iterations performed during stage A of the GeDS fitting
-procedure.}   
+procedure.}
 \item{coefficients}{Matrix containing the fitted coefficients of the GeD
 spline regression component and the parametric component at each iteration
-of stage A.}   
+of stage A.}
 \item{stopinfo}{List of values providing information related to the stopping
 rule of stage A of GeDS. The sub-slots of \code{stopinfo} are \code{phis},
 \code{phis_star}, \code{oldintc} and \code{oldslp}. The sub-slot \code{phis}

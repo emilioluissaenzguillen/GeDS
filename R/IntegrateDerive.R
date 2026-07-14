@@ -4,19 +4,19 @@
 ################################################################################
 ################################################################################
 #' @title Defined Integral of GeDS Objects
-#' @name Integrate 
+#' @name Integrate
 #' @description
 #' This function computes defined integrals of a fitted GeDS regression model.
-#' 
+#'
 #' @param object An object of class \code{"GeDS"} containing the  GeDS fit
 #' which should be integrated. It should be the result of fitting a univariate
 #' GeDS regression via \code{\link{NGeDS}} or \code{\link{GGeDS}}. If this is
 #' provided, the \code{knots} and \code{coef} parameters will be automatically
 #' extracted from the \code{GeDS} object. If \code{object} is \code{NULL}, the
 #' user must provide the \code{knots} and \code{coef} vectors explicitly.
-#' @param knots A numeric vector of knots. This is required if \code{object} is 
+#' @param knots A numeric vector of knots. This is required if \code{object} is
 #'   \code{NULL}. If a \code{GeDS} object is provided, this parameter is ignored.
-#' @param coef A numeric vector of coefficients. This is required if \code{object} is 
+#' @param coef A numeric vector of coefficients. This is required if \code{object} is
 #'   \code{NULL}. If a \code{GeDS} object is provided, this parameter is ignored
 #' @param from Optional numeric vector containing the lower limit(s) of
 #' integration. It should be either of size one or of the same size as the
@@ -44,7 +44,7 @@
 #' in the \code{from} and \code{to} vectors as limits of integration.
 #'
 #' @examples
-#' 
+#'
 #' # Generate a data sample for the response variable
 #' # Y and the single covariate X
 #' # see Dimitrova et al. (2023), section 4.1
@@ -67,10 +67,10 @@
 #' # and $\int_{-1}^{1} f(x)dx$
 #' # $f$ being the quadratic fit
 #' Integrate(Gmod, from = c(1,-1), to = c(-1,1), n = 3)
-#' 
+#'
 #' # Compute $\int_{-\infty}^{x} f(s)ds$
 #' Integrate(Gmod, from = rep(-Inf, N), to = X, n = 3)
-#' 
+#'
 #' @export
 #'
 #' @references
@@ -85,7 +85,7 @@ Integrate <- function(object = NULL, knots = NULL, coef = NULL, from, to, n = 3L
     if(!is.null(knots) || !is.null(coef)) {
       warning("object and knots/coefficients were providely simultaneously, integral will be computed from object")
     }
-    
+
     # Extract knots and coefficients from the GeDS object
     kn <- knots(object, n=n, options="all")
     lastkn <- length(kn)
@@ -98,7 +98,7 @@ Integrate <- function(object = NULL, knots = NULL, coef = NULL, from, to, n = 3L
     if ( length(coef) != length(knots)-n ) stop("length(coef) should be equal to length(knots)-n!")
     kn <- knots; lastkn <- length(kn); theta <- coef
   }
-  
+
   n <- as.integer(n)
 
   to <- as.numeric(to)
@@ -107,25 +107,25 @@ Integrate <- function(object = NULL, knots = NULL, coef = NULL, from, to, n = 3L
   } else {
     from <- as.numeric(from)
   }
-  
+
   if (!length(from) %in% c(1,length(to))) stop("length of argument 'from' must be either 1 or length(to)")
-  
+
   # coefficents
   p <- length(theta)
   newtheta <- numeric(p)
   # knots: (t_{k+n} - t_{k})/n
   knnew <- (kn[-(1:n)]-kn[-((lastkn-n+1):lastkn)])/n
-  
+
   # \sum_{j=1}^{s-1}\sum_{k=1}^j\theta_k\frac{\bar{\tau}_{k+n}-\bar{\tau}_{k}}{n} * N_{j,n+1}(x)
   # newtheta[1] <- theta[1]*knnew[1]
   # for(i in 2:p) {
   #   newtheta[i] <- newtheta[i-1] + theta[i]*knnew[i]
   # }
   newtheta <- cumsum(theta * knnew)
-  
+
   resFrom <- sapply(from, gedsint, knts = kn, coefs = newtheta, n = n)
   resTo <- sapply(to, gedsint, knts = kn, coefs = newtheta, n = n)
-  
+
   res <- rowSums(cbind(resTo,-resFrom))
   return(res)
 }
@@ -138,7 +138,7 @@ gedsint <- function(val, knts, coefs, n){
   basisMatrix <- splineDesign(knots = c(knts,max(knts)),
                               derivs = rep(0,length(val)),
                               x = val, ord = n+1, outer.ok = T)
-  
+
   ris <- as.numeric(basisMatrix[,1:(pos-1)]%*%coefs[1:(pos-1)])
   return(ris)
 }
@@ -153,7 +153,7 @@ gedsint <- function(val, knts, coefs, n){
 #' @description
 #' This function computes derivatives of a fitted GeDS regression model.
 #' @param object An object of class \code{"GeDS"} containing the GeDS fit
-#' which should be differentiated. It should be the result of fitting a 
+#' which should be differentiated. It should be the result of fitting a
 #' univariate GeDS regression via \code{\link{NGeDS}} or \code{\link{GGeDS}}.
 #' @param order Integer value indicating the order of differentiation required
 #' (e.g. first, second or higher derivatives). Note that \code{order} should be
@@ -165,20 +165,20 @@ gedsint <- function(val, knts, coefs, n){
 #' \eqn{ + 1}) of the GeDS fit to be differentiated. By default equal to
 #' \code{3L}.
 #' @details
-#' This function relies on the \code{\link[splines]{splineDesign}} function to compute 
-#' the exact derivatives of the GeDS fit. Specifically, it leverages the well-known 
-#' property that the \eqn{m}-th derivative of a spline (for \eqn{m = 1, 2, \ldots}) 
-#' can be obtained by differentiating its B-spline basis functions. This property is 
+#' This function relies on the \code{\link[splines]{splineDesign}} function to compute
+#' the exact derivatives of the GeDS fit. Specifically, it leverages the well-known
+#' property that the \eqn{m}-th derivative of a spline (for \eqn{m = 1, 2, \ldots})
+#' can be obtained by differentiating its B-spline basis functions. This property is
 #' detailed, e.g., in De Boor (2001, Chapter X, formula (15)).
 #'
-#' Note that the GeDS fit is a B-spline representation of the predictor. Consequently, 
-#' the derivative is computed with respect to the predictor scale and not the response 
-#' scale. This implies that, in the GNM(GLM) framework, the function 
-#' does not return derivatives of the conditional mean on the response scale, but rather 
+#' Note that the GeDS fit is a B-spline representation of the predictor. Consequently,
+#' the derivative is computed with respect to the predictor scale and not the response
+#' scale. This implies that, in the GNM(GLM) framework, the function
+#' does not return derivatives of the conditional mean on the response scale, but rather
 #' of the underlying linear predictor scale.
-#' 
+#'
 #' @examples
-#' 
+#'
 #' # Generate a data sample for the response variable
 #' # Y and the covariate X
 #' set.seed(123)

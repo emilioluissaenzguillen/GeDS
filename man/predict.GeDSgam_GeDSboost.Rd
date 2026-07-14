@@ -30,7 +30,7 @@
 \code{"GeDSboost"} class object.}
 
 \item{newdata}{An optional \code{data.frame} containing values of the independent
-variables at which predictions are to be computed. If omitted, the fitted 
+variables at which predictions are to be computed. If omitted, the fitted
 values are extracted from the \code{object} itself.}
 
 \item{n}{The order of the GeDS fit (\code{2L} for linear, \code{3L} for
@@ -52,7 +52,7 @@ predictor scale, it is necessary to set \code{type = "link"}.}
 Numeric vector (or list) of predictions.
 }
 \description{
-This method computes predictions from GeDSboost and GeDSgam objects. 
+This method computes predictions from GeDSboost and GeDSgam objects.
 It is designed to be user-friendly and accommodate different orders of the
 GeDSboost or GeDSgam fits.
 }

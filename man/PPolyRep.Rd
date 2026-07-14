@@ -19,7 +19,7 @@ passed to the function \code{\link{as.integer}}.}
 An object that inherits from classes  \code{"spline"} and
 \code{"polySpline"}. It is a list whose arguments are:
 \describe{
-\item{knots}{ a vector of size  \eqn{k + 2} containing the complete set of 
+\item{knots}{ a vector of size  \eqn{k + 2} containing the complete set of
 knots (internal knots plus the limits of the interval) of the GeDS fit.}
 \item{coefficients}{ a \eqn{(k + 2) \times n} matrix containing the
 coefficients of the  polynomials in the required piecewise polynomial
