@@ -20,7 +20,8 @@ NGeDS(
   higher_order = TRUE,
   intknots_init = NULL,
   fit_init = NULL,
-  only_pred = FALSE
+  only_pred = FALSE,
+  max.coef = 100000L
 )
 }
 \arguments{
@@ -51,7 +52,7 @@ number of internal knots required. By default equal to zero.}
 \item{max.intknots}{Optional parameter allowing the user to set a maximum
 number of internal knots to be added by the GeDS estimation algorithm. By
 default equal to the number of knots for the saturated GeDS model
-(i.e., \eqn{\kappa = N - 2}).}
+(i.e., \eqn{\kappa = N - 2}); experimental multivariate fits use 300.}
 
 \item{q}{Numeric parameter which allows to fine-tune the stopping rule of
 stage A of GeDS, by default equal to \code{2L}. See Details.}
@@ -85,9 +86,17 @@ representing the initial fit from which to begin stage A GeDS iteration (i.e.
 departing from step 2). See Details.}
 
 \item{only_pred}{Logical. If \code{TRUE} only predictions are computed.}
+
+\item{max.coef}{Maximum number of tensor-product spline coefficients allowed
+in an experimental fit with more than two spline covariates. Stage A stops
+before exceeding this value and oversized higher-order Stage B fits are
+omitted with a warning. The default is \code{100000L}. It is ignored for established
+univariate and bivariate fits.}
 }
 \value{
-An object of class \code{"GeDS"} (a named list) with components:
+An object of class \code{"GeDS"} for established univariate and
+bivariate fits, or \code{"GeDSfitND"} for an experimental spline component
+with more than two covariates.
 \describe{
 \item{type}{Character string indicating the type of regression performed.
 This can be \code{"LM - Univ"}/\code{"LM - Biv"} respectively corresponding
@@ -162,9 +171,13 @@ As noted in \code{\link[=formula.GeDS]{formula}}, the argument \code{formula}
 allows the user to specify models with two components, a spline regression
 (non-parametric) component involving part of the independent variables
 identified through the function \code{f} and an optional  parametric
-component involving the remaining independent variables. For \code{NGeDS} one
-or two independent variables are allowed for the spline component and
-arbitrary many independent variables for the parametric component. Failure to
+component involving the remaining independent variables. The established
+\code{NGeDS} implementation allows one or two independent variables in the
+spline component. Experimental Normal tensor-product fits allow more than two
+variables in a single \code{f()} term, currently without parametric covariates,
+offsets, initial knots, or the LR stopping rule. Tensor-basis growth is
+controlled by \code{max.coef}; see the corresponding
+argument for the Stage A stopping and Stage B omission behaviour. Failure to
 specify the independent variable for the  spline regression component through
 the function \code{f} will return an error. See
 \code{\link[=formula.GeDS]{formula}}.
@@ -258,6 +271,25 @@ coef(Gmod2, onlySpline = FALSE, n = 3)
 data('BaFe2As2')
 (Gmod2 <- NGeDS(intensity ~ f(angle), data = BaFe2As2, beta = 0.6, phi = 0.99, q = 3))
 plot(Gmod2)
+
+# Experimental joint three-dimensional fit versus an additive fit
+truth_function <- function(x0, x1, x2) {
+  sin(2 * pi * x0) * sin(2 * pi * x1) * sin(2 * pi * x2)
+}
+set.seed(123)
+train <- data.frame(x0 = runif(800), x1 = runif(800), x2 = runif(800))
+train$y <- with(train, truth_function(x0, x1, x2)) + rnorm(800, sd = 0.1)
+
+joint_fit <- NGeDS(y ~ f(x0, x1, x2), data = train)
+additive_fit <- NGeDSgam(y ~ f(x0) + f(x1) + f(x2), data = train)
+
+set.seed(456)
+test <- data.frame(x0 = runif(2000), x1 = runif(2000), x2 = runif(2000))
+truth <- with(test, truth_function(x0, x1, x2))
+c(
+  additive = mean((truth - predict(additive_fit, test, n = 4))^2),
+  joint = mean((truth - predict(joint_fit, test, n = 4))^2)
+)
 }
 
 #########################################

@@ -6,7 +6,7 @@
 #' @title Generalized Geometrically Designed Spline Regression Estimation
 #' @name GGeDS
 #' @description
-#' \code{GGeDS} constructs a geometrically designed (univariate or bivariate)
+#' \code{GGeDS} constructs a geometrically designed univariate or joint multivariate
 #' variable knots spline regression model for the predictor in the context of
 #' generalized (non-)linear models. This is referred to as a GeDS model for a
 #' response with a distribution from the exponential family.
@@ -76,9 +76,9 @@
 #' regression (non-parametric) component involving part of the independent
 #' variables identified through the function \code{f}, and an optional parametric
 #' component involving the remaining independent variables. For \code{GGeDS}
-#' only one or two independent variables are allowed for the spline component and
-#' arbitrary many independent variables for the parametric component of the
-#' predictor. Failure to specify the independent variable for the  spline
+#' one or more independent variables may be included jointly in the spline
+#' component. An additional parametric component and offsets may also be used.
+#' Failure to specify an independent variable for the spline
 #' regression component through the function \code{f} will return an error.
 #' See \code{\link[=formula.GeDS]{formula}}.
 #'
@@ -406,7 +406,9 @@ GGeDS <- function(formula, family = gaussian(), data, weights, beta, phi = 0.99,
   # min/max.intknots
   if(missing(min.intknots)) min.intknots <- 0
   min.intknots <- as.integer(min.intknots)
-  if(missing(max.intknots)) max.intknots <- length(unique(X)) - 2 - ncz
+  if(missing(max.intknots)) {
+    max.intknots <- if (ncol(X) > 2L) 300L else length(unique(X)) - 2 - ncz
+  }
   max.intknots <- as.integer(max.intknots)
   # q
   q <- as.integer(q)
@@ -437,6 +439,9 @@ GGeDS <- function(formula, family = gaussian(), data, weights, beta, phi = 0.99,
     if (!is.null(Z)) Z <- Z[!tmp, ]
     weights <- weights[!tmp]
     offset <- offset[!tmp]
+  }
+  if (!any(weights > 0)) {
+    stop("'weights' must contain at least one positive value.", call. = FALSE)
   }
 
   #####################
@@ -475,13 +480,25 @@ GGeDS <- function(formula, family = gaussian(), data, weights, beta, phi = 0.99,
                               family = family, stoptype = stoptype, higher_order = higher_order)
 
     } else {
-      stop("Incorrect number of columns of the independent variable")
+      if (!is.null(Xextr) || !is.null(Yextr)) {
+        stop("'Xextr' and 'Yextr' are only available for one- or two-dimensional fits.",
+             call. = FALSE)
+      }
+      out <- GenMultivariateFitter(
+        coordinates = X, response = Y, family = family, weights = weights,
+        offset = offset, parametric = Z,
+        beta = beta, phi = phi, q = q, min.intknots = min.intknots,
+        max.steps = max.intknots + 1L, stoptype = stoptype,
+        spline.orders = if (isTRUE(higher_order)) 2:4 else 2L,
+        max.coef = 100000L
+      )
     }
 
     out$formula <- formula
     out$extcall <- save
     out$terms <- newdata$terms
     out$znames <- getZnames(newdata)
+    if (inherits(out, "GeDSfitND")) out$args$parametric.names <- out$znames
     return(out)
 }
 

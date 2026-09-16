@@ -1,8 +1,8 @@
 Type: Package
 Package: GeDS
 Title: Geometrically Designed Spline Regression
-Version: 0.3.4
-Date: 2026-07-14
+Version: 0.3.6
+Date: 2026-09-16
 Authors@R: c(
     person(c("Dimitrina", "S."), "Dimitrova", , "D.Dimitrova@citystgeorges.ac.uk", role = "aut"),
     person(c("Vladimir", "K."), "Kaishev", , "Vladimir.Kaishev.1@citystgeorges.ac.uk", role = "aut"),
@@ -16,7 +16,9 @@ Description: Spline regression, generalized additive models and
     component-wise gradient boosting utilizing geometrically designed
     (GeD) splines. GeDS regression is a non-parametric method inspired by
     geometric principles, for fitting spline regression models with
-    variable knots in one or two independent variables. It efficiently
+    variable knots. The established implementation handles one or two
+    independent variables; an experimental normal-response implementation
+    handles a joint tensor-product spline in more than two variables. It efficiently
     estimates the number of knots and their positions, as well as the
     spline order, assuming the response variable follows a distribution
     from the exponential family. GeDS models integrate the broader
@@ -68,4 +70,4 @@ VignetteBuilder:
 Config/testthat/edition: 3
 Encoding: UTF-8
 LazyData: TRUE
-Config/roxygen2/version: 8.0.0
+Config/roxygen2/version: 8.1.0

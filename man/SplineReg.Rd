@@ -115,8 +115,8 @@ variable computed at the sample values of the covariate(s).}
 \code{SplineReg_LM} is called or the residuals described in Details if
 \code{SplineReg_GLM} is called.}
 \item{rss}{The deviance for the fitted predictor model, defined as in
-Dimitrova et al. (2023), which for \code{SplineReg_LM} coincides with the
-residual sum of squares.}
+Dimitrova et al. (2023), which for \code{SplineReg_LM} is the weighted
+residual sum of squares, with unit weights by default.}
 \item{basis}{The matrix of B-spline regression functions and the covariates
 of the parametric part evaluated at the sample values of the covariate(s).}
 \item{nci}{A list containing the lower (\code{Low}) and upper (\code{Upp})

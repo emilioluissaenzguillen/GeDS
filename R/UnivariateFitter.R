@@ -172,8 +172,19 @@ UnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0,NROW(Y)),
 
   # Stop type, Indicator, distinctX
   stoptype <- match.arg(stoptype)
+  if (length(weights) != length(X) || anyNA(weights) ||
+      any(!is.finite(weights)) || any(weights < 0)) {
+    stop("'weights' must provide one finite non-negative value per observation.",
+         call. = FALSE)
+  }
+  positive.weight <- weights > 0
+  if (!any(positive.weight)) {
+    stop("'weights' must contain at least one positive value.", call. = FALSE)
+  }
   # NGeDS/GGeDS sort X before calling the fitter; rle() relies on this ordering.
-  xr <- rle(X)
+  placement.X <- X[positive.weight]
+  placement.weights <- weights[positive.weight]
+  xr <- rle(placement.X)
   Indicator <- xr$lengths
   distinctX <- xr$values
   has_repeated_x <- any(Indicator > 1L)
@@ -218,7 +229,7 @@ UnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0,NROW(Y)),
       # oldcoef[j, 1:(j+1+nz)] <- first.deg$theta # we don't need the coef for anything
 
       res.tmp <- Y - fit_init$pred
-      rssnew <- c(rssnew, sum((res.tmp)^2))
+      rssnew <- c(rssnew, .weighted_rss(res.tmp, weights))
     }
 
     ############################
@@ -262,11 +273,19 @@ UnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0,NROW(Y)),
     #     signs <- signs[-(1:d[i])]               # extract cluster from signs
     #   }
     # }
+    # Zero-weight observations do not contribute to the weighted objective and
+    # must not create geometric residual clusters. Preserve the established
+    # GeDS site-level convention at repeated predictor values by averaging the
+    # weighted residual contributions within each distinct site.
+    weighted.contributions <-
+      res.tmp[positive.weight] * placement.weights
     if (has_repeated_x) {
-      # Average res.tmp*weights for repeated values of X
-      res.weighted <- makeNewRes(resold = res.tmp*weights, recurr = as.numeric(Indicator)) # already fast - useless to do in C++
+      res.weighted <- makeNewRes(
+        resold = weighted.contributions,
+        recurr = as.numeric(Indicator)
+      )
     } else {
-      res.weighted <- res.tmp*weights
+      res.weighted <- weighted.contributions
     }
     # Group consecutive residuals into same-sign clusters (run-length encoding)
     d <- rle(sign(res.weighted))$lengths

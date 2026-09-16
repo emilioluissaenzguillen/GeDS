@@ -431,6 +431,42 @@ predict_newdata_base_learner <- function(object, model, newdata, n,
     stop(paste("The following predictors are missing in newdata:", paste(missing_vars, collapse = ", ")))
   }
 
+  # For the linear GeDSgam fit, use the stored backfitting representation.
+  # The combined B-spline coefficient vector is not unique for rank-deficient
+  # models, so splitting that vector by base learner can be platform-dependent.
+  # Centering each stored contribution separately is equivalent to the group
+  # centering used by predict_newdata_full_model().
+  if (n == 2L && inherits(object, "GeDSgam")) {
+    selected_bl <- object$args$base_learners[bl_name]
+    reference_X <- object$args$predictors[, bl$variables, drop = FALSE]
+
+    if (object$args$normalize_data) {
+      numeric_reference <- names(reference_X)[vapply(reference_X, is.numeric, logical(1))]
+      if (length(numeric_reference) > 0) {
+        reference_X[numeric_reference] <- scale(reference_X[numeric_reference])
+      }
+    }
+
+    if (bl$type == "linear") {
+      pred <- lin_model(X_df, model, selected_bl)
+      alpha <- mean(lin_model(reference_X, model, selected_bl))
+    } else if (length(bl$variables) == 1L) {
+      pred <- piecewise_multivar_linear_model(X_df, model, selected_bl)
+      alpha <- mean(piecewise_multivar_linear_model(reference_X, model, selected_bl))
+    } else {
+      pred <- bivariate_bl_linear_model(
+        X_df, model, base_learners = selected_bl,
+        extr = object$args$extr, type = "gam"
+      )
+      alpha <- mean(bivariate_bl_linear_model(
+        reference_X, model, base_learners = selected_bl,
+        extr = object$args$extr, type = "gam"
+      ))
+    }
+
+    return(as.numeric(pred - alpha))
+  }
+
   # Extract estimated knots and coefficients
   if (n == 2) {
 

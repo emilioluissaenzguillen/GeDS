@@ -23,6 +23,12 @@ lm.wfit.light <- function (x, y, w, tol = 1e-07) {
 
 ################################################################################
 
+.weighted_rss <- function(residuals, weights = rep(1, length(residuals))) {
+  as.numeric(sum(weights * residuals^2))
+}
+
+################################################################################
+
 makeNewMatr <- function(basisMatrix, tab, by.row=F){
   if(is.null(tab)){
     ret <- basisMatrix
@@ -138,14 +144,15 @@ newknot.guess <- function(intknots, extr, guess, newknot) {
 ci <- function(tmp, resid, prob = 0.95, basisMatrix, basisMatrix2, predicted,
                n_obs = NROW(basisMatrix),
                type = "lm",
-               huang = TRUE) {
+               huang = TRUE,
+               weights = rep(1, length(resid))) {
 
   if (type == "lm") {
     # Residual standard error
     df <- if(!is.null(tmp)) tmp$df.residual else as.numeric(nrow(basisMatrix2) - rankMatrix(basisMatrix2)) # residual degrees of freedom
     # Saturated fit (df <= 0): t-based bands are undefined; avoid spurious "NaNs produced".
     valid_df <- is.finite(df) && df > 0
-    sigma_hat <- if (valid_df) sqrt(sum(resid^2)/df) else NA_real_
+    sigma_hat <- if (valid_df) sqrt(.weighted_rss(resid, weights) / df) else NA_real_
     # Adjust probability for two-tailed test
     prob <- 1-.5*(1-prob)
     # Diagonal of the hat matrix

@@ -285,13 +285,50 @@ SplineReg_Multivar <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)), base_le
 #
 #
 #   out <- list(theta = theta, predicted = predicted, residuals = resid,
-#               rss = as.numeric(crossprod(resid)), basis = basisMatrix,
+#               rss = .weighted_rss(resid, weights), basis = basisMatrix,
 #               nci = ci$nci, aci = ci$aci,
 #               polygon = list(Kn = polyknots_list, thetas = theta[1:NCOL(basisMatrix)]),
 #               temporary = tmp)
 #   return(out)
 #
 # }
+
+jointSplineBasisMultivar <- function(X, base_learners, InterKnotsList, n,
+                                     extrList = lapply(X, range)) {
+  learners <- base_learners[vapply(base_learners, function(x) x$type == "GeDS", logical(1))]
+  matrices <- axis.matrices <- list()
+  for (learner_name in intersect(names(InterKnotsList), names(learners))) {
+    vars <- learners[[learner_name]]$variables
+    knots <- InterKnotsList[[learner_name]]
+    if (length(vars) == 1L) {
+      knots <- list(knots)
+    } else if (length(vars) == 2L && any(c("ikX", "ikY") %in% names(knots))) {
+      knots <- list(knots$ikX, knots$ikY)
+    }
+    if (length(knots) != length(vars)) {
+      stop("Internal knots for '", learner_name,
+           "' must contain one component per predictor.", call. = FALSE)
+    }
+    names(knots) <- vars
+    axes <- lapply(seq_along(vars), function(j) {
+      xj <- X[[vars[j]]]
+      boundary <- extrList[[vars[j]]]
+      if (is.null(boundary)) boundary <- range(xj)
+      splines::splineDesign(
+        knots = sort(c(knots[[j]], rep(boundary, n))),
+        derivs = rep(0, length(xj)), x = xj, ord = n, outer.ok = TRUE
+      )
+    })
+    names(axes) <- vars
+    matrix <- if (length(axes) == 1L) axes[[1L]] else tensorProdND(axes)
+    colnames(matrix) <- paste(learner_name, seq_len(NCOL(matrix)), sep = "_")
+    matrices[[learner_name]] <- matrix
+    axis.matrices[[learner_name]] <- axes
+  }
+  list(matrices = matrices, axes = axis.matrices,
+       basis = if (length(matrices)) do.call(cbind, matrices) else matrix(nrow = NROW(X), ncol = 0L))
+}
+
 
 SplineReg_LM_Multivar <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)), base_learners,
                                   weights = rep(1, NROW(Y)), InterKnotsList, n, extrList = lapply(X, range),
@@ -372,8 +409,24 @@ SplineReg_LM_Multivar <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)), base
     matrices_biv_list <- NULL
   }
 
+  # Joint smoothers with three or more coordinates.
+  nd_names <- names(InterKnotsList)[vapply(
+    names(InterKnotsList),
+    function(bl) length(base_learners[[bl]]$variables) > 2L,
+    logical(1)
+  )]
+  if (length(nd_names)) {
+    nd_basis <- jointSplineBasisMultivar(
+      X, base_learners[nd_names], InterKnotsList[nd_names], n, extrList
+    )
+    matrices_nd_list <- nd_basis$matrices
+    matrices_nd_list_aux <- nd_basis$axes
+  } else {
+    matrices_nd_list <- matrices_nd_list_aux <- NULL
+  }
+
   # Combine all matrices side-by-side
-  matrices_list <- c(matrices_univ_list, matrices_biv_list)
+  matrices_list <- c(matrices_univ_list, matrices_biv_list, matrices_nd_list)
   if (!is.null(matrices_list) && length(matrices_list) > 0) {
     basisMatrix <- do.call(cbind, matrices_list)
   } else {
@@ -523,10 +576,27 @@ SplineReg_LM_Multivar <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)), base
         polyknots_list[[learner_name]] <- learner_knots
       }
     }
+    if (length(nd_names)) {
+      for (learner_name in nd_names) {
+        learner_vars <- base_learners[[learner_name]]$variables
+        learner_knots <- InterKnotsList[[learner_name]]
+        names(learner_knots) <- learner_vars
+        polyknots_list[[learner_name]] <- lapply(learner_vars, function(var_name) {
+          kj <- learner_knots[[var_name]]
+          if (length(kj) < n - 1L) return(NULL)
+          makenewknots(
+            sort(c(kj, rep(extrList[[var_name]], n)))[-c(
+              1L, NCOL(matrices_nd_list_aux[[learner_name]][[var_name]]) + 1L
+            )], degree = n
+          )
+        })
+        names(polyknots_list[[learner_name]]) <- learner_vars
+      }
+    }
 
     # Confidence intervals
     ci <- ci(tmp, resid, prob = prob, basisMatrix, basisMatrix2, predicted,
-             n_obs = length(Y), type = "lm", huang = TRUE)
+             n_obs = length(Y), type = "lm", huang = TRUE, weights = weights)
     nci <- ci$nci
     aci <- ci$aci
     polygon <- list(Kn = polyknots_list, thetas = theta[seq_len(NCOL(basisMatrix))])
@@ -535,7 +605,7 @@ SplineReg_LM_Multivar <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)), base
   }
 
   out <- list(theta = theta, predicted = predicted, residuals = resid,
-              rss = as.numeric(crossprod(resid)), basis = basisMatrix,
+              rss = .weighted_rss(resid, weights), basis = basisMatrix,
               nci = nci, aci = aci,
               polygon = polygon,
               temporary = tmp)
@@ -640,8 +710,23 @@ SplineReg_GLM_Multivar <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)), bas
     matrices_univ_list <- matrices_biv_list <- NULL
   }
 
+  nd_names <- names(InterKnotsList)[vapply(
+    names(InterKnotsList),
+    function(bl) length(base_learners[[bl]]$variables) > 2L,
+    logical(1)
+  )]
+  if (length(nd_names)) {
+    nd_basis <- jointSplineBasisMultivar(
+      X, base_learners[nd_names], InterKnotsList[nd_names], n, extrList
+    )
+    matrices_nd_list <- nd_basis$matrices
+    matrices_nd_list_aux <- nd_basis$axes
+  } else {
+    matrices_nd_list <- matrices_nd_list_aux <- NULL
+  }
+
   # Combine all matrices side-by-side
-  matrices_list <- c(matrices_univ_list, matrices_biv_list)
+  matrices_list <- c(matrices_univ_list, matrices_biv_list, matrices_nd_list)
   if (!is.null(matrices_list) && length(matrices_list) > 0) {
     basisMatrix <- do.call(cbind, matrices_list)
   } else {
@@ -801,6 +886,23 @@ SplineReg_GLM_Multivar <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)), bas
           }
         }
         polyknots_list[[learner_name]] <- learner_knots
+      }
+    }
+    if (length(nd_names)) {
+      for (learner_name in nd_names) {
+        learner_vars <- base_learners[[learner_name]]$variables
+        learner_knots <- InterKnotsList[[learner_name]]
+        names(learner_knots) <- learner_vars
+        polyknots_list[[learner_name]] <- lapply(learner_vars, function(var_name) {
+          kj <- learner_knots[[var_name]]
+          if (length(kj) < n - 1L) return(NULL)
+          makenewknots(
+            sort(c(kj, rep(extrList[[var_name]], n)))[-c(
+              1L, NCOL(matrices_nd_list_aux[[learner_name]][[var_name]]) + 1L
+            )], degree = n
+          )
+        })
+        names(polyknots_list[[learner_name]]) <- learner_vars
       }
     }
 

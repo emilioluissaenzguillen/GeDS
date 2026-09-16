@@ -59,6 +59,8 @@
 #' @param higher_order a logical that defines whether to compute the higher order
 #' fits (quadratic and cubic) after the local-scoring algorithm is run. Default
 #' is \code{TRUE}.
+#' Joint smoothers can contain more than two predictors, for example
+#' \code{Y ~ f(X1, X2, X3)}.
 #'
 #' @return An object of class \code{"GeDSgam"} (a named list) with components:
 #' \describe{
@@ -391,9 +393,12 @@ NGeDSgam <- function(formula, family = "gaussian", data, weights = NULL,
         coefficients <- list("b0" = 0, "b1" = 0)
         base_learners_list[[bl_name]] <- list("knots" = knots, "coefficients" = coefficients)
         # (A.2) BIVARIATE BASE-LEARNERS
-      } else {
+      } else if (length(pred_vars) == 2L) {
         knots <- list(Xk = c(min_vals[1], max_vals[1]), Yk = c(min_vals[2], max_vals[2]))
         base_learners_list[[bl_name]] <- list("knots" = knots, "coefficients" = list())
+      } else {
+        knots <- setNames(Map(c, min_vals, max_vals), pred_vars)
+        base_learners_list[[bl_name]] <- list("knots" = knots, "coefficients" = numeric())
       }
       ## (B) Linear base-learners (initialize only coefficients)
     } else if (base_learners[[bl_name]]$type=="linear"){
@@ -431,7 +436,9 @@ NGeDSgam <- function(formula, family = "gaussian", data, weights = NULL,
     if (bl$type == "GeDS" && length(bl$variables) == 1L) {
       x <- data[[bl$variables]]
       ord <- order(x)
-      univ_geds_cache[[bl_name]] <- list(ord = ord, xs = x[ord], extr = range(x))
+      univ_geds_cache[[bl_name]] <- list(
+        ord = ord, xs = x[ord], extr = range(x[weights > 0])
+      )
     }
   }
 
@@ -457,7 +464,7 @@ NGeDSgam <- function(formula, family = "gaussian", data, weights = NULL,
     bf <- backfitting(z = z, base_learners = base_learners, base_learners_list = base_learners_list,
                       data = data, wz = wz, phi_gam_exit = phi_gam_exit, q_gam = q_gam, iter = iter,
                       internal_knots = internal_knots, beta = beta, phi = phi, q = q,
-                      univ_geds_cache = univ_geds_cache)
+                      univ_geds_cache = univ_geds_cache, max.coef = 100000L)
 
     eta <- bf$z_hat + offset
     mu <- linkinv(eta)
@@ -535,7 +542,10 @@ NGeDSgam <- function(formula, family = "gaussian", data, weights = NULL,
   # (ii) Coefficients
   # Filter GeDS base learners based on type and number of variables
   univariate_GeDS_learners <- Filter(function(bl) bl$type == "GeDS" && length(bl$variables) == 1, base_learners)
-  bivariate_GeDS_learners <- Filter(function(bl) bl$type == "GeDS" && length(bl$variables) == 2, base_learners)
+  bivariate_GeDS_learners <- c(
+    Filter(function(bl) bl$type == "GeDS" && length(bl$variables) == 2, base_learners),
+    Filter(function(bl) bl$type == "GeDS" && length(bl$variables) > 2, base_learners)
+  )
 
   # Extract B-spline coefficients
   univariate_GeDS_theta <- unlist(bSpline.coef(final_model, univariate_learners = univariate_GeDS_learners))
@@ -647,16 +657,23 @@ NGeDSgam <- function(formula, family = "gaussian", data, weights = NULL,
 #' @importFrom stats formula lm
 
 backfitting <- function(z, base_learners, base_learners_list, data, wz, phi_gam_exit, q_gam,
-                        iter, internal_knots, beta, phi, q, univ_geds_cache = NULL)
+                        iter, internal_knots, beta, phi, q, univ_geds_cache = NULL,
+                        max.coef = 100000L)
 {
   # 1. Initialize
+  weighted_mean <- function(x) {
+    if (length(wz) && all(wz == wz[1L])) mean(x) else
+      stats::weighted.mean(x, wz)
+  }
   # (I) Intercept
-  alpha <- rep(mean(z), length(z))
+  alpha <- rep(weighted_mean(z), length(z))
   # (II) Base-learners
   f <- matrix(0, nrow = length(z), ncol = length(base_learners))
   colnames(f) <- names(base_learners)
 
-  ok <- TRUE; rss0 <- sum((z-alpha)^2); model_formula_template <- "partial_resid ~ "
+  ok <- TRUE
+  rss0 <- .weighted_rss(z - alpha, wz)
+  model_formula_template <- "partial_resid ~ "
 
   # 2. Cycle
   n_iters <- 0
@@ -673,8 +690,8 @@ backfitting <- function(z, base_learners, base_learners_list, data, wz, phi_gam_
       # (A) GeDS base-learners
       if (base_learners[[bl_name]]$type == "GeDS") {
 
-        if (length(pred_vars) == 2 && internal_knots == 0) {
-          stop("internal_knots must be > 0 for bivariate learners")
+        if (length(pred_vars) >= 2 && internal_knots == 0) {
+          stop("internal_knots must be > 0 for joint multivariate learners")
         } else {
           max.intknots <- internal_knots
         }
@@ -708,10 +725,15 @@ backfitting <- function(z, base_learners, base_learners_list, data, wz, phi_gam_
                                      only_pred = TRUE)
               uf$formula <- model_formula   # predict_GeDS_linear() reads all.vars(formula)
               uf
-            } else {
+            } else if (length(pred_vars) == 2L) {
               NGeDS(model_formula, data = data_loop, weights = wz, beta = beta, phi = phi,
                     min.intknots = 0, max.intknots = max.intknots, q = q, Xextr = NULL, Yextr = NULL,
                     show.iters = FALSE, stoptype = "RD", higher_order = FALSE, only_pred = TRUE)
+            } else {
+              fit_joint_GeDS_linear(
+                data_loop, "partial_resid", pred_vars, wz, beta, phi, q,
+                max.intknots, max.coef
+              )
             },
             error = function(e) {
               message(paste0("Error occurred in NGeDS() for base learner ", bl_name, ": ", e))
@@ -729,6 +751,8 @@ backfitting <- function(z, base_learners, base_learners_list, data, wz, phi_gam_
           predict_GeDS_linear(fit, data_loop[[pred_vars]])
           } else if (length(pred_vars) == 2) {
             predict_GeDS_linear(fit, X = data[pred_vars[1]], Y = data[pred_vars[2]], Z = data_loop[["partial_resid"]])
+          } else {
+            fit
           }
 
         ## Update knots and coefficients ##
@@ -738,7 +762,7 @@ backfitting <- function(z, base_learners, base_learners_list, data, wz, phi_gam_
           base_learners_list[[bl_name]]$coefficients$b0 <- pred$b0
           base_learners_list[[bl_name]]$coefficients$b1 <- pred$b1
         # BIVARIATE BASE-LEARNERS
-          } else if(length(base_learners[[bl_name]]$variables) == 2) {
+          } else if(length(base_learners[[bl_name]]$variables) >= 2) {
             base_learners_list[[bl_name]]$knots <- pred$knt
             base_learners_list[[bl_name]]$coefficients <- pred$theta
           }
@@ -772,11 +796,11 @@ backfitting <- function(z, base_learners, base_learners_list, data, wz, phi_gam_
       }
 
       ## 2.2. Center predicted values
-      f[, bl_name] <- pred$Y_hat - mean(pred$Y_hat)
+      f[, bl_name] <- pred$Y_hat - weighted_mean(pred$Y_hat)
     }
 
   # 3. Stopping rule
-    rss <- sum((z-alpha-rowSums(f))^2)
+    rss <- .weighted_rss(z - alpha - rowSums(f), wz)
     rss0 <- c(rss0, rss)
     if (!is.null(phi_gam_exit) && !is.null(q_gam) && length(rss0) > q_gam) {
       # Check if the change in SSR is less than the tolerance level

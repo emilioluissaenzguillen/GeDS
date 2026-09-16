@@ -2,18 +2,22 @@
 % Please edit documentation in R/S3methods.R, R/S3methods_GeDSboost-GeDSgam.R
 \name{formula.GeDS}
 \alias{formula.GeDS}
+\alias{formula.GeDSfitND}
 \alias{formula.GeDSgam}
 \alias{formula.GeDSboost}
 \title{Formula for the Predictor Model}
 \usage{
 \method{formula}{GeDS}(x, ...)
 
+\method{formula}{GeDSfitND}(x, ...)
+
 \method{formula}{GeDSgam}(x, ...)
 
 \method{formula}{GeDSboost}(x, ...)
 }
 \arguments{
-\item{x}{Fitted \code{"GeDS"}, \code{"GeDSgam"} or \code{"GeDSboost"} class
+\item{x}{Fitted \code{"GeDS"}, \code{"GeDSfitND"}, \code{"GeDSgam"} or
+\code{"GeDSboost"} class
 object, produced by \code{\link{NGeDS}}, \code{\link{GGeDS}},
 \code{\link{NGeDSgam}} or \code{\link{NGeDSboost}} from which the predictor model
 \code{\link[stats]{formula}} should be extracted.}
@@ -29,10 +33,10 @@ A description of the structure of the predictor model fitted using
 In GeDS GNM (GLM) regression (implemented through \code{\link{NGeDS}} and
 \code{\link{GGeDS}}) the mean of the response variable, correspondingly
 transformed through an appropriate link function, is modeled using a
-potentially multivariate predictor model. The latter comprises two components:
-a GeD variable-knot spline regression involving up to two of the independent
-variables and a parametric component for the remaining independent variables.
-The formula defines the structure of this potentially multivariate predictor.
+potentially multivariate predictor model. Established \code{NGeDS} and
+\code{GGeDS} fits allow one or two covariates in a GeD spline component.
+Experimental Normal \code{NGeDS} fits allow more than two covariates in one
+joint tensor-product spline. \code{GGeDS} remains limited to at most two.
 
 The formulae that are input in \code{\link{NGeDS}} and \code{\link{GGeDS}}
 are similar to those input in \code{\link[stats]{lm}} or
@@ -56,6 +60,11 @@ the mean of the response variable \code{y} on \code{x1} and \code{x2} needs
 to be jointly modeled and there are no other covariates, the formula for the
 corresponding two dimensional predictor model should be specified as
 \code{y ~ f(x1,x2)}.
+
+For an experimental joint Normal fit involving three or more covariates,
+\code{NGeDS} accepts, for example, \code{y ~ f(x1,x2,x3)}. This route does
+not yet support parametric terms, offsets, initial knots or fits, or the LR
+stopping rule.
 
 Within the argument \code{formula}, similarly as in other \R functions, it is
 possible to specify one or more offset variables, i.e., known terms with fixed

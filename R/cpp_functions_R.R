@@ -2,6 +2,11 @@ Knotnew_R_clean <- function(wht, restmp, x, dcm, oldknots, tol, support_order = 
 
   # Number of residual clusters
   u <- length(dcm)
+  if (u == 0 || length(wht) == 0) {
+    return(list(newknot = NA_real_, cluster_index = NA_integer_))
+  }
+
+  candidate_wht <- as.numeric(wht)
   # Number of old knots and internal knots
   noldint <- length(oldknots) - 2*support_order
   # Dimension of the x vector
@@ -10,19 +15,20 @@ Knotnew_R_clean <- function(wht, restmp, x, dcm, oldknots, tol, support_order = 
   index <- NA
   # Initialize the new knot position
   newknot <- NA
+  knot_found <- FALSE
   # Extract internal knots
-  oldintknots <- if (noldint > 0) get_internal_knots(oldknots, support_order) else numeric(0)
+  oldintknots <- if (noldint > 0) tail(oldknots, noldint) else numeric(0)
 
   for (kk in seq_len(u)) {
 
     # Index of the cluster with the maximum weight
-    index <- which.max(wht)
+    index <- which.max(candidate_wht)
     # If all weights are zero, assign triangular weights peaking at the centre
-    if (wht[index] == 0) {
-      n <- length(wht)
+    if (candidate_wht[index] == 0) {
+      n <- length(candidate_wht)
       center <- (n + 1) / 2
-      wht <- 1 - abs(seq_len(n) - center) / center
-      index <- which.max(wht)
+      candidate_wht <- 1 - abs(seq_len(n) - center) / center
+      index <- which.max(candidate_wht)
     }
 
     # Cluster boundaries
@@ -43,7 +49,7 @@ Knotnew_R_clean <- function(wht, restmp, x, dcm, oldknots, tol, support_order = 
 
     # 2) If an internal knot already exists in this cluster, set its weight to zero
     if (cluster_has_knot) {
-      wht[index] <- 0
+      candidate_wht[index] <- 0
       next
     }
 
@@ -54,11 +60,18 @@ Knotnew_R_clean <- function(wht, restmp, x, dcm, oldknots, tol, support_order = 
 
     sortedknots <- sort(c(oldknots, newknot))
 
-    # --- 3. Schoenberg-Whitney minimum support ---
-    # between every i and i+support_order knots there should be at least one x
-    support_valid <- all(sapply(seq_len(length(sortedknots) - support_order), function(i) {
-      any(x > (sortedknots[i] - tol) & x < (sortedknots[i + support_order] + tol))
-    }))
+    # --- 3. GeDS/CRAN minimum-support check ---
+    # Each support interval is checked independently. This is not a global
+    # Schoenberg-Whitney matching test: the same observation may satisfy more
+    # than one overlapping interval.
+    support_valid <- all(vapply(
+      seq_len(length(sortedknots) - support_order),
+      function(i) {
+        any(x > sortedknots[i] + tol &
+              x < sortedknots[i + support_order] - tol)
+      },
+      logical(1)
+    ))
 
     # --- 4. Check new knot is not a boundary knot ---
     newknot_is_internal <- isTRUE(
@@ -67,11 +80,16 @@ Knotnew_R_clean <- function(wht, restmp, x, dcm, oldknots, tol, support_order = 
     )
 
     if (!support_valid || !newknot_is_internal) {
-      wht[index] <- 0
+      candidate_wht[index] <- 0
     } else {
+      knot_found <- TRUE
       break  # Valid knot found
     }
 
+  }
+
+  if (!knot_found) {
+    return(list(newknot = NA_real_, cluster_index = NA_integer_))
   }
 
   return(list(newknot = newknot, cluster_index = index))
@@ -163,17 +181,27 @@ Knotnew_R <- function(wht, restmp, x, dcm, oldknots, tol) {
 }
 
 #' @importFrom stats weighted.mean
-findNewDimKnot_R <- function(dcumFixedDim.Dim, Dim.weights, Dim.oldknots, matrFixedDim, Dim.index)
+findNewDimKnot_R <- function(dcumFixedDim.Dim, Dim.weights, Dim.oldknots,
+                             Dim.values, residuals)
 {
 
   # Loop through each cluster to find the optimal placement for a new Dim knot
   u <- length(dcumFixedDim.Dim) # total number of clusters
-  flagDim <- FALSE              # flag to handle cases where all calculated weights are non-positive
+  flagDim <- FALSE              # flag to handle cases where all calculated weights are negative
+  Dim.newknot <- weightDim <- NA_real_
+  dcumInf <- dcumSup <- 0L
 
-  for (i in 1:u) {
+  if (length(Dim.weights) != u) {
+    stop("Dim.weights and dcumFixedDim.Dim must have the same length.")
+  }
+  if (length(Dim.values) != length(residuals)) {
+    stop("Dim.values and residuals must have the same length.")
+  }
+
+  for (i in seq_len(u)) {
 
     if (all(Dim.weights < 0)) {
-      flagDim <- TRUE # Set the flagDim = TRUE if all weights are non-positive, indicating no valid knot can be found
+      flagDim <- TRUE # No valid knot can be found when all remaining weights are negative
       break
     }
 
@@ -183,15 +211,16 @@ findNewDimKnot_R <- function(dcumFixedDim.Dim, Dim.weights, Dim.oldknots, matrFi
     if (indice == 1) {dcumInf = 1} else {dcumInf = dcumFixedDim.Dim[indice - 1] + 1}
     dcumSup <- dcumFixedDim.Dim[indice]
     # Calculate the superior and inferior Dim-bounds
-    sup <- matrFixedDim[dcumSup, Dim.index]
-    inf <- matrFixedDim[dcumInf, Dim.index]
+    sup <- Dim.values[dcumSup]
+    inf <- Dim.values[dcumInf]
 
     # (Step 7 - UnivariateFitter) Compute the new Dim knot as a weighted average of Dim values
     # within the selected cluster, weighted by their residuals
-    # Dim.newknot <- matrFixedDim[dcumSup:dcumInf, 3]%*%matrFixedDim[dcumSup:dcumInf, Dim.index]/sum(matrFixedDim[dcumSup:dcumInf, 3])
+    # Dim.newknot <- residuals[dcumSup:dcumInf] %*%
+    #   Dim.values[dcumSup:dcumInf] / sum(residuals[dcumSup:dcumInf])
     Dim.newknot <- weighted.mean(
-      matrFixedDim[dcumSup:dcumInf, Dim.index],
-      matrFixedDim[dcumSup:dcumInf, 3]
+      Dim.values[dcumSup:dcumInf],
+      residuals[dcumSup:dcumInf]
       )
 
     # Check conditions to ensure the new knot is valid and does not conflict with existing knots
@@ -220,10 +249,13 @@ findNewDimKnot_R <- function(dcumFixedDim.Dim, Dim.weights, Dim.oldknots, matrFi
 
   }
 
-  # Check if all Dim.weights were turned to -Inf
-  if (all(Dim.weights < 0)) flagDim <- FALSE
+  # Check if all Dim.weights were turned to -Inf. In this case no admissible
+  # cluster was found, matching the C++ return contract.
+  if (all(Dim.weights < 0)) flagDim <- TRUE
 
-  weightDim <- Dim.weights[indice] # Store the weight of the selected cluster for further use
+  if (!flagDim) {
+    weightDim <- Dim.weights[indice] # Store the selected cluster weight
+  }
 
 
   return(list(Dim.newknot = Dim.newknot,

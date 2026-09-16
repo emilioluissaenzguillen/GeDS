@@ -49,7 +49,7 @@ SplineReg_biv <- function(X ,Y , Z = NULL, W = NULL, offset = rep(0,length(X)), 
     resid <- Z - predicted
 
     return(list("theta" = theta, "predicted" = predicted,
-                "residuals" = resid, "rss" = as.numeric(crossprod(resid)),
+                "residuals" = resid, "rss" = .weighted_rss(resid, weights),
                 "Xbasis" = basisMatrixX, "Ybasis" = basisMatrixY,
                 "Xknots" = sort(c(InterKnotsX, rep(Xextr, n))),
                 "Yknots" = sort(c(InterKnotsY, rep(Yextr, n))),
@@ -95,7 +95,7 @@ SplineReg_biv <- function(X ,Y , Z = NULL, W = NULL, offset = rep(0,length(X)), 
 
 
   out <- list("theta"= theta,"predicted"= predicted,
-              "residuals"= resid,"rss" = as.numeric(crossprod(resid)),
+              "residuals"= resid,"rss" = .weighted_rss(resid, weights),
               "Xbasis"= basisMatrixX, "Ybasis" = basisMatrixY,
               "Xknots" = sort(c(InterKnotsX,rep(Xextr,n))),
               "Yknots" = sort(c(InterKnotsY,rep(Yextr,n))),

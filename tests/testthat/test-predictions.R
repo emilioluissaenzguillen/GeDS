@@ -168,13 +168,10 @@ test_that("MTCARS - NGeDSgam predictions consistency", {
       pred8 = predict(Gmodgam, n = ord, newdata = mtcars,  base_learner = "gear")
       pred9 = predict(Gmodgam, n = ord, newdata = mtcars,  base_learner = "carb")
 
-      if (ord == 2) {
-        b0 = Gmodgam$final_model$linear.fit$theta["b0"]
-        alpha = if(Gmodgam$args$normalize_data) 0 else mean(mtcars$mpg)
-        pred0 = alpha + b0
-      } else {
-        pred0 = 0
-      }
+      # The combined B-spline coefficients are not uniquely identifiable for
+      # this rank-deficient model. Use the offset from the fitted backfitting
+      # representation, which is also used by the full prediction method.
+      pred0 <- if (ord == 2) mean(Gmodgam$final_model$Y_hat$z) else 0
       sum <-  pred0 + pred1 + pred2 + pred3 + pred4 + pred5 + pred6 + pred7 + pred8 + pred9
 
       if (Gmodgam$args$normalize_data && ord == 2) {

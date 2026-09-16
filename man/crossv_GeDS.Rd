@@ -3,6 +3,18 @@
 \name{crossv_GeDS}
 \alias{crossv_GeDS}
 \title{K-Fold Cross-Validation}
+\usage{
+crossv_GeDS(
+  formula,
+  data,
+  model_fun,
+  n = 2L,
+  n_folds = 5L,
+  parameters,
+  n_cores = NULL,
+  ...
+)
+}
 \arguments{
 \item{formula}{A description of the structure of the model structure,
 including the dependent and independent variables.}
@@ -11,6 +23,13 @@ including the dependent and independent variables.}
 
 \item{model_fun}{The GeDS model to cross-validate, that is, \code{NGeDS},
 \code{GGeDS}, \code{NGeDSgam} or \code{NGeDSboost}.}
+
+\item{n}{Integer value (2, 3 or 4) specifying the order (\eqn{=} degree
+\eqn{+ 1}) of the spline fit evaluated during cross-validation. The default
+is \code{2L}.}
+
+\item{n_folds}{Positive integer specifying the number of cross-validation
+folds. The default is \code{5L}.}
 
 \item{parameters}{A set of parameters to be tuned via cross-validation.
 These are: \code{beta}, \code{phi} and \code{q} in the case of \code{NGeDS},
@@ -28,6 +47,9 @@ are:
 \item{n_cores}{Integer specifying the number of cores to use for parallel
 cross-validation. If \code{NULL}, the function uses one fewer than the number
 of detected cores, subject to CRAN check limits.}
+
+\item{...}{Additional arguments passed to the internal cross-validation
+method. For \code{NGeDSboost}, these are forwarded to the fitting function.}
 }
 \value{
 Two data frames, \code{best_params} and \code{results}.

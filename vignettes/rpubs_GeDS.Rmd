@@ -36,7 +36,7 @@ Generalized Linear Models (GLM) as a special case---, and to the
 bivariate case by [@Dimitrova2023](https://doi.org/10.1016/j.amc.2022.127493). More recently, GeDS
 methodology has been extended towards the benchmark of Generalized
 Additive Models (GAM) and Functional Gradient Boosting (FGB) by
-[@Dimitrova2025].
+[@Dimitrova2026].
 
 GeDS methodology is implemented on the **R** package
 [GeDS](https://CRAN.R-project.org/package=GeDS) that I
@@ -95,9 +95,11 @@ $\{X_i, Y_i\}^N_{i=1}$, is to approximate $f$ with an $n$-th order
 interval $[a,b]$ and maps them into $\mathbb{R}$.
 
 Let me now illustrate the usage of the `NGeDS()` function, which
-constructs a Geometrically Designed (univariate or bivariate) variable
-knots spline regression model, for a response having a Normal
-distribution. But first, let us simulate some data based on the
+constructs a Geometrically Designed variable-knot spline regression
+model for a response having a Normal distribution. The established
+implementation covers univariate and bivariate splines; an experimental
+extension also supports joint spline components with more than two
+covariates. But first, let us simulate some data based on the
 following test example. Assume the "true" predictor to be $\eta=f_1(x)$,
 where, \begin{equation}
     f_1(x)=40\frac{x}{1+100x^2}+4,\quad x\in[-2,2].
@@ -483,3 +485,122 @@ sum(poisson()$dev.resids(f_XY, BivGeDS$Quadratic.Fit$Predicted, wt = 1))
 # Surface plot of the generating function (doublesin)
 plot(BivGeDS, f = doublesin)
 ```
+
+## Experimental Multivariate Normal GeDS Regression
+
+The Normal GeDS implementation can also fit one joint tensor-product spline
+in more than two covariates. For example, a three-dimensional fit is specified
+as `NGeDS(y ~ f(x0, x1, x2), data = data)`. This is structurally different
+from the additive model `NGeDSgam(y ~ f(x0) + f(x1) + f(x2), data = data)`:
+the former can represent interactions among all three covariates, whereas the
+latter estimates three separate one-dimensional effects.
+
+The distinction can be seen clearly with a pure three-way interaction,
+
+\begin{equation}
+f(x_0,x_1,x_2)=\sin(2\pi x_0)\sin(2\pi x_1)\sin(2\pi x_2),
+\qquad (x_0,x_1,x_2)\in[0,1]^3.
+\end{equation}
+
+For independent Uniform$(0,1)$ covariates, every one-dimensional marginal
+effect is zero. Consequently, an additive model cannot recover this signal,
+while a joint three-dimensional spline can.
+
+```{r}
+set.seed(123)
+N <- 800L
+interaction_function <- function(x0, x1, x2) {
+  sin(2 * pi * x0) * sin(2 * pi * x1) * sin(2 * pi * x2)
+}
+
+x0 <- runif(N)
+x1 <- runif(N)
+x2 <- runif(N)
+truth <- interaction_function(x0, x1, x2)
+y <- rnorm(N, mean = truth, sd = 0.1)
+interaction_data <- data.frame(y, x0, x1, x2)
+
+additive_fit <- NGeDSgam(
+  y ~ f(x0) + f(x1) + f(x2),
+  data = interaction_data
+)
+joint_fit <- NGeDS(
+  y ~ f(x0, x1, x2),
+  data = interaction_data
+)
+```
+
+The fits can be compared on new covariate values using the known generating
+function.
+
+```{r}
+set.seed(456)
+N_test <- 5000L
+newdata <- data.frame(
+  x0 = runif(N_test, min(x0), max(x0)),
+  x1 = runif(N_test, min(x1), max(x1)),
+  x2 = runif(N_test, min(x2), max(x2))
+)
+test_truth <- with(
+  newdata,
+  interaction_function(x0, x1, x2)
+)
+
+orders <- 2:4
+additive_mse <- vapply(
+  orders,
+  function(n) mean((test_truth - predict(additive_fit, newdata, n = n))^2),
+  numeric(1)
+)
+joint_mse <- vapply(
+  orders,
+  function(n) mean((test_truth - predict(joint_fit, newdata, n = n))^2),
+  numeric(1)
+)
+
+data.frame(
+  order = orders,
+  additive_MSE = additive_mse,
+  joint_MSE = joint_mse
+)
+joint_fit$Nintknots
+knots(joint_fit, n = 4, options = "internal")
+deviance(joint_fit, n = 4)
+head(coef(joint_fit, n = 4))
+summary(joint_fit)
+```
+
+In this example the cubic joint tensor fit captures the interaction especially
+well, while the additive errors remain close to the variance of the omitted
+signal. The selected linear internal knots can be inspected through
+`joint_fit$linear.intknots`, and predictions for orders 2, 3, and 4 are
+available through `predict(joint_fit, newdata, n = ...)`.
+
+Because the tensor basis grows multiplicatively across dimensions, an internal
+safeguard stops Stage A before an excessively large tensor would be fitted. If
+only a higher-order Stage B tensor is excessive, that order is omitted with a
+warning while the smaller available fits are retained.
+
+This multivariate route is currently experimental and deliberately limited:
+
+- it is implemented only for Normal-response `NGeDS()` models;
+- `GGeDS()` still supports at most two covariates in a spline component;
+- each `NGeDSgam()` or `NGeDSboost()` spline smoother remains univariate or
+  bivariate, although several smoothers may appear additively in one model;
+- parametric terms, offsets, initial knots or fits, and the LR stopping rule
+  are not yet supported for a joint spline with more than two covariates;
+- `predict()`, `formula()`, `knots()`, `deviance()`, `coef()`, `print()`, and
+  `summary()` are available for the experimental `"GeDSfitND"` object, while
+  the remaining standard `"GeDS"` methods are still to be generalized.
+
+The established bivariate fitters remain in place for backward compatibility
+and for the generalized-response functionality on which `GGeDS()` depends.
+
+When the observations form a complete Cartesian mesh and have equal weights,
+the multivariate fitter uses the tensor factorization of the least-squares
+operator described by @Kaishev1984. The coefficient tensor is computed by
+successive univariate QR solves, without constructing the full tensor-product
+design matrix. If the data are scattered, the weights are non-uniform, or a
+univariate mesh design is rank deficient, the fitter automatically uses the
+general dense least-squares calculation instead. The solver selected for each
+spline order is reported by `print()` and `summary()`.

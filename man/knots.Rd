@@ -2,18 +2,21 @@
 % Please edit documentation in R/S3methods.R, R/S3methods_GeDSboost-GeDSgam.R
 \name{knots.GeDS}
 \alias{knots.GeDS}
+\alias{knots.GeDSfitND}
 \alias{knots.GeDSgam}
 \alias{knots.GeDSboost}
-\title{Knots Method for GeDS, GeDSgam, GeDSboost}
+\title{Knots Method for GeDS, GeDSfitND, GeDSgam, GeDSboost}
 \usage{
 \method{knots}{GeDS}(Fn, n = 3L, options = c("all", "internal"), ...)
+
+\method{knots}{GeDSfitND}(Fn, n = 3L, options = c("all", "internal"), ...)
 
 \method{knots}{GeDSgam}(Fn, n = 3L, options = c("all", "internal"), ...)
 
 \method{knots}{GeDSboost}(Fn, n = 3L, options = c("all", "internal"), ...)
 }
 \arguments{
-\item{Fn}{The \code{"GeDS"}, \code{"GeDSgam"} or
+\item{Fn}{The \code{"GeDS"}, \code{"GeDSfitND"}, \code{"GeDSgam"} or
 \code{"GeDSboost"} class object from which the vector of knots for the
 specified GeDS, GAM-GeDS or FGB-GeDS fit should be extracted.}
 
@@ -31,8 +34,9 @@ extracted.}
 definition of the generic function). Currently ignored, but with a warning.}
 }
 \value{
-A vector in which each element represents a knot of the
-GeDS/GAM-GeDS/FGB-GeDS fit of the required order.
+For univariate fits, a vector in which each element represents a
+knot. For bivariate and multivariate fits, a named list containing one knot
+vector per spline coordinate.
 }
 \description{
 Method for the generic function \code{\link[stats]{knots}} that allows the

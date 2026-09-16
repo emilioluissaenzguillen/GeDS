@@ -45,7 +45,7 @@ NULL
 #'
 #' @format A \code{data.frame} with 1721 observations and 2 variables:
 #' \itemize{
-#'   \item{\code{Q}}: The scattering vector, measured in inverse angstroms, \eqn{\text{Å}^{-1}};
+#'   \item{\code{Q}}: The scattering vector, measured in inverse angstroms;
 #'   \item{\code{FQ}}: The measured function \eqn{F(Q)}, given in arbitrary units (a.u.).
 #' }
 #' @usage data(CrystalData10k)

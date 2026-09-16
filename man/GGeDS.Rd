@@ -100,7 +100,7 @@ this slot is empty if the object is not created by one of these functions.}
 }
 }
 \description{
-\code{GGeDS} constructs a geometrically designed (univariate or bivariate)
+\code{GGeDS} constructs a geometrically designed univariate or joint multivariate
 variable knots spline regression model for the predictor in the context of
 generalized (non-)linear models. This is referred to as a GeDS model for a
 response with a distribution from the exponential family.
@@ -126,9 +126,9 @@ allows the user to specify predictor models with two components: a spline
 regression (non-parametric) component involving part of the independent
 variables identified through the function \code{f}, and an optional parametric
 component involving the remaining independent variables. For \code{GGeDS}
-only one or two independent variables are allowed for the spline component and
-arbitrary many independent variables for the parametric component of the
-predictor. Failure to specify the independent variable for the  spline
+one or more independent variables may be included jointly in the spline
+component. An additional parametric component and offsets may also be used.
+Failure to specify an independent variable for the spline
 regression component through the function \code{f} will return an error.
 See \code{\link[=formula.GeDS]{formula}}.
 

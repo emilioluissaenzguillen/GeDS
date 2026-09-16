@@ -63,30 +63,37 @@ NumericVector Knotnew(NumericVector weights, NumericVector residuals, NumericVec
   int n_oldknots = oldknots.size();
   int n_oldintknots = n_oldknots - 2 * support_order;
   int data_size = x.size();
+
+  if (u == 0 || weights.size() == 0) {
+    return NumericVector::create(NA_REAL, NA_REAL);
+  }
+
+  NumericVector candidate_weights = clone(weights);
   
-  int best_index, dcumInf, dcumSup, i, j;
+  int best_index = 0, dcumInf, dcumSup, i, j;
   long double sup, inf;
   long double newknot = NA_REAL;
   bool has_old_knots_between, is_valid_knot;
+  bool knot_found = false;
   
   // Iterate through each cluster to find the best knot position
   for (int cluster = 0; cluster < u; ++cluster) {
     
     // Find the index of the cluster with the highest weight
-    best_index = whmx(weights);
+    best_index = whmx(candidate_weights);
     
     // If all weights are zero, fall back to triangular profile and recompute best_index
-    if (weights[best_index] == 0.0) {
-      int n = static_cast<int>(weights.size());
+    if (candidate_weights[best_index] == 0.0) {
+      int n = static_cast<int>(candidate_weights.size());
       double center = (n + 1.0) / 2.0;
       // Reassign triangular weights
       for (int i = 0; i < n; ++i) {
-        weights[i] = 1.0 - std::abs((double(i + 1) - center)) / center;
+        candidate_weights[i] = 1.0 - std::abs((double(i + 1) - center)) / center;
       }
       // Recompute best_index (mimic R's which.max: first occurrence)
       best_index = std::distance(
-        weights.begin(),
-        std::max_element(weights.begin(), weights.end())
+        candidate_weights.begin(),
+        std::max_element(candidate_weights.begin(), candidate_weights.end())
       );
     }
     
@@ -126,7 +133,7 @@ NumericVector Knotnew(NumericVector weights, NumericVector residuals, NumericVec
     
     // 2) If an internal knot already exists in this cluster, set its weight to zero
     if (has_old_knots_between) {
-      weights[best_index] = 0;
+      candidate_weights[best_index] = 0;
       continue;
     }     
     
@@ -146,34 +153,40 @@ NumericVector Knotnew(NumericVector weights, NumericVector residuals, NumericVec
     
     std::sort(sortedknots.begin(), sortedknots.end());
     
-    // Step 4: Check if new knot placement satisfies the minimum support constraint, i.e.,
-    // For each consecutive set of ()support_order+1) sortedknots, check whether there is at least one x
-    // that falls between the ith and ith+support_order knot in that set
+    // Step 4: Apply the GeDS/CRAN minimum-support rule. Each support interval
+    // is checked independently; this is not a global Schoenberg-Whitney
+    // matching test, so one observation may satisfy overlapping intervals.
     is_valid_knot = true;
     
-    for (i = 0; i < n_oldknots - (support_order-1); ++i) {
+    for (i = 0; i < n_oldknots - (support_order - 1); ++i) {
       bool valid_interval = false;
       
       for (j = 0; j < data_size; ++j) {
         valid_interval = valid_interval || 
-          ((sortedknots[i] + tol < x[j]) && (x[j] < sortedknots[i + support_order] - tol));
+          ((sortedknots[i] + tol < x[j]) &&
+           (x[j] < sortedknots[i + support_order] - tol));
         if (valid_interval) break;
-      }     
+      }
       
       is_valid_knot = is_valid_knot && valid_interval;
       if (!is_valid_knot) break;
     }
     
-    // --- 4. Check new knot is not a boundary knot ---
+    // 5) Check new knot is not a boundary knot
     bool newknot_is_internal = is_internal_knot(newknot, sortedknots, tol);
     
     // If the newknot placement is invalid, set the weight of the cluster to zero
     if (!is_valid_knot || !newknot_is_internal) {
-      weights[best_index] = 0;
+      candidate_weights[best_index] = 0;
     } else { 
+      knot_found = true;
       break; // Break out of the loop if a valid knot is found
     }  
   }   
+
+  if (!knot_found) {
+    return NumericVector::create(NA_REAL, NA_REAL);
+  }
   
   // Return the new knot and its index (adjusted to 1-based for R)
   return NumericVector::create(newknot, best_index + 1);
@@ -209,13 +222,18 @@ NumericVector makeEpsilonsb(NumericVector data, NumericVector Xs, NumericVector 
   }
 
 NumericVector ctrlpolyfun(NumericVector data, NumericVector Xs, NumericVector Ys, int degree) {
-  NumericVector epsilons;
   int length = Xs.size();
-  int i, j, k, p, n = data.size();
-  epsilons = makeEpsilonsb(data, Xs, Ys, degree);
+  int i, j, p = length - degree, n = data.size();
+
+  if (p < 2) {
+    stop("ctrlpolyfun requires at least two epsilon values");
+  }
+
+  NumericVector epsilons = makeEpsilonsb(data, Xs, Ys, degree);
   NumericVector vector(n);
-  p = length - degree;
     for (i=0; i<n; i++){
+      // Use the final interval for values beyond the last epsilon.
+      int k = p - 1;
       for (j = 1; j < p; j++) {
         if (epsilons[j] >= data[i]){
           k =  j; break;
@@ -342,29 +360,33 @@ List findNewDimKnot(
     IntegerVector dcumFixedDim_Dim,
     NumericVector Dim_weights,
     NumericVector Dim_oldknots,
-    NumericMatrix matrFixedDim,
-    int Dim_index) 
+    NumericVector Dim_values,
+    NumericVector residuals)
 {
   int u = dcumFixedDim_Dim.size(); // Number of clusters
   bool flagDim = false; // Flag for negative weights
   double Dim_newknot = NumericVector::get_na();  
   double weightDim = NumericVector::get_na();    
-  
-  int Dim_index_Cpp = Dim_index - 1;  // Convert R index (1-based) to C++ (0-based)
   int dcumInf = -1, dcumSup = -1;  // Initialize with invalid values
-  
-  if (Dim_index_Cpp < 0 || Dim_index_Cpp >= matrFixedDim.ncol()) {
-    stop("Dim_index is out of bounds.");
-  } 
+
+  if (Dim_weights.size() != u) {
+    stop("Dim_weights and dcumFixedDim_Dim must have the same length.");
+  }
+  if (Dim_values.size() != residuals.size()) {
+    stop("Dim_values and residuals must have the same length.");
+  }
+
+  // Work on a local copy so rejected clusters do not mutate the R input.
+  NumericVector candidate_weights = clone(Dim_weights);
   
   for (int i = 0; i < u; ++i) {
-    if (is_true(all(Dim_weights < 0))) {
+    if (is_true(all(candidate_weights < 0))) {
       flagDim = true;
       break;
     }
     
     // Find the index of the cluster with the highest weight
-    int best_index = which_max(Dim_weights);
+    int best_index = which_max(candidate_weights);
     
     if (best_index < 0 || best_index >= dcumFixedDim_Dim.size()) {
       stop("Invalid cluster index detected.");
@@ -374,23 +396,24 @@ List findNewDimKnot(
     dcumInf = (best_index == 0) ? 0 : dcumFixedDim_Dim[best_index - 1];
     dcumSup = dcumFixedDim_Dim[best_index] - 1;
     
-    if (dcumInf >= matrFixedDim.nrow() || dcumSup >= matrFixedDim.nrow() || dcumInf > dcumSup) {
+    if (dcumInf >= Dim_values.size() || dcumSup >= Dim_values.size() || dcumInf > dcumSup) {
       stop("Indexing error: dcumInf or dcumSup out of range.");
     } 
     
     // Calculate superior and inferior Dim-bounds
-    double sup = matrFixedDim(dcumSup, Dim_index_Cpp);
-    double inf = matrFixedDim(dcumInf, Dim_index_Cpp);
+    double sup = Dim_values[dcumSup];
+    double inf = Dim_values[dcumInf];
     
-    // Compute weighted average using std::inner_product and std::accumulate
-    NumericVector weights = matrFixedDim(_, 2);
-    NumericVector values = matrFixedDim(_, Dim_index_Cpp);
-    
+    // Compute the residual-weighted average of the coordinate values.
     Dim_newknot = std::inner_product(
-      weights.begin() + dcumInf, weights.begin() + dcumSup + 1, 
-      values.begin() + dcumInf, 
+      residuals.begin() + dcumInf, residuals.begin() + dcumSup + 1,
+      Dim_values.begin() + dcumInf,
       0.0
-    ) / std::accumulate(weights.begin() + dcumInf, weights.begin() + dcumSup + 1, 0.0);
+    ) / std::accumulate(
+      residuals.begin() + dcumInf,
+      residuals.begin() + dcumSup + 1,
+      0.0
+    );
     
     // Validate new knot conditions
     bool cond1 = (dcumSup - dcumInf) != 0;
@@ -398,15 +421,15 @@ List findNewDimKnot(
     bool cond3 = !is_true(any(abs(inf - Dim_oldknots) < 1e-12));
     
     if ((cond1 && cond2) || (!cond1 && cond3)) {
-      weightDim = Dim_weights[best_index];
+      weightDim = candidate_weights[best_index];
       break;
     } else {  
-      Dim_weights[best_index] = R_NegInf;
+      candidate_weights[best_index] = R_NegInf;
     }
   }
   
   // Check if all Dim.weights were turned to -Inf
-  if (is_true(all(Dim_weights < 0))) {
+  if (is_true(all(candidate_weights < 0))) {
     flagDim = true;
     }
   

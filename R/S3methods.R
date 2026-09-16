@@ -1,14 +1,14 @@
 ################################################################################
 ##################################### COEF #####################################
 ################################################################################
-#' @title Coef Method for GeDS Objects
+#' @title Coef Method for GeDS and GeDSfitND Objects
 #' @name coef.GeDS
 #' @description
 #' Method for the function \code{\link[stats]{coef}} that allows to extract the
 #' estimated coefficients of a fitted GeDS regression model from a \code{"GeDS"} class
 #' object.
 #'
-#' @param object The  \code{"GeDS"} class object from which the
+#' @param object The \code{"GeDS"} or \code{"GeDSfitND"} class object from which the
 #' coefficients of the selected GeDS regression model should be extracted.
 #' @param n Integer value (2, 3 or 4) specifying the order (\eqn{=} degree
 #' \eqn{+ 1}) of the \code{"GeDS"}, \code{"GeDSgam"} or \code{"GeDSboost"}
@@ -41,7 +41,9 @@
 #' the variables that enter the parametric component of the fitted multivariate
 #' predictor model are named as the variables themselves. The  coefficients of
 #' the GeDS component are coded as "\code{N}" followed by the index of the
-#' corresponding B-spline.
+#' corresponding B-spline. For \code{"GeDSfitND"} objects, coefficient names
+#' identify the basis index in every tensor dimension and the same indices are
+#' available as a data frame in the \code{"basis.index"} attribute.
 #'
 #' @seealso \code{\link[stats]{coef}} for the standard definition;
 #' \code{\link{NGeDS}} for more examples.
@@ -73,7 +75,7 @@
 #' coef(Gmod, onlySpline = FALSE, n = 3)
 #'
 #' @rdname coef
-#' @aliases coef.GeDS
+#' @aliases coef.GeDS coef.GeDSfitND
 #' @export
 
 coef.GeDS <- function(object, n = 3L, onlySpline = TRUE, ...)
@@ -119,6 +121,55 @@ coef.GeDS <- function(object, n = 3L, onlySpline = TRUE, ...)
     names(theta) <- paste0("N",1:nth)
   }
   return(theta)
+}
+
+#' @rdname coef
+#' @export
+coef.GeDSfitND <- function(object, n = 3L, onlySpline = TRUE, ...)
+{
+  if (!missing(...)) {
+    warning("Only 'object', 'n' and 'onlySpline' arguments will be considered")
+  }
+  if (length(onlySpline) != 1L || is.na(onlySpline) || !is.logical(onlySpline)) {
+    stop("'onlySpline' must be TRUE or FALSE.", call. = FALSE)
+  }
+
+  n <- validate_GeDS_order(n)
+  fit.name <- switch(
+    as.character(n),
+    "2" = "linear.fit",
+    "3" = "quadratic.fit",
+    "4" = "cubic.fit"
+  )
+  fit <- object[[fit.name]]
+  if (is.null(fit)) {
+    stop("The requested model (", fit.name,
+         ") is not available in the GeDS object.")
+  }
+
+  basis.counts <- vapply(fit$basis.matrices, NCOL, integer(1))
+  dimensions <- names(basis.counts)
+  reversed.grid <- do.call(
+    expand.grid,
+    c(
+      setNames(lapply(rev(basis.counts), seq_len), rev(dimensions)),
+      KEEP.OUT.ATTRS = FALSE,
+      stringsAsFactors = FALSE
+    )
+  )
+  basis.index <- reversed.grid[, rev(seq_along(dimensions)), drop = FALSE]
+  names(basis.index) <- dimensions
+
+  coefficients <- fit$coefficients
+  names(coefficients) <- apply(
+    basis.index,
+    1L,
+    function(index) {
+      paste0("B[", paste0(dimensions, "=", index, collapse = ","), "]")
+    }
+  )
+  attr(coefficients, "basis.index") <- basis.index
+  coefficients
 }
 
 ################################################################################
@@ -212,7 +263,7 @@ confint.GeDS <- function(object, parm, level = 0.95, n = 3L, ...) {
 ################################################################################
 ################################### DEVIANCE ###################################
 ################################################################################
-#' @title Deviance Method for GeDS, GeDSgam, GeDSboost
+#' @title Deviance Method for GeDS, GeDSfitND, GeDSgam, GeDSboost
 #' @name deviance.GeDS
 #' @description
 #' Method for the function \code{\link[stats]{deviance}} that allows the user to
@@ -220,7 +271,7 @@ confint.GeDS <- function(object, parm, level = 0.95, n = 3L, ...) {
 #' or GeDSgam fit typically returned by \code{\link{NGeDS}}/\code{\link{GGeDS}},
 #' \code{\link{NGeDSgam}} or \code{\link{NGeDSboost}}.
 #'
-#' @param object The \code{"GeDS"}, \code{"GeDSgam"} or
+#' @param object The \code{"GeDS"}, \code{"GeDSfitND"}, \code{"GeDSgam"} or
 #' \code{"GeDSboost"} class object from which the deviance should be extracted.
 #' @param n Integer value (2, 3 or 4) specifying the order (\eqn{=} degree
 #' \eqn{+ 1}) of the \code{"GeDS"}, \code{"GeDSgam"} or \code{"GeDSboost"} fit
@@ -243,7 +294,7 @@ confint.GeDS <- function(object, parm, level = 0.95, n = 3L, ...) {
 #' \code{\link{NGeDS}}, \code{\link{GGeDS}}, \code{\link{NGeDSgam}},
 #' \code{\link{NGeDSboost}} for examples.
 #'
-#' @aliases deviance.GeDS deviance.GeDSboost deviance.GeDSgam
+#' @aliases deviance.GeDS deviance.GeDSfitND deviance.GeDSboost deviance.GeDSgam
 #' @importFrom stats deviance
 #' @export
 
@@ -312,7 +363,8 @@ family.GeDS  <- function(object, ...) {
 #' A description of the structure of the predictor model fitted using
 #' \code{\link{NGeDS}}, \code{\link{GGeDS}}, \code{\link{NGeDSgam}} or
 #' \code{\link{NGeDSboost}}.
-#' @param x Fitted \code{"GeDS"}, \code{"GeDSgam"} or \code{"GeDSboost"} class
+#' @param x Fitted \code{"GeDS"}, \code{"GeDSfitND"}, \code{"GeDSgam"} or
+#' \code{"GeDSboost"} class
 #' object, produced by \code{\link{NGeDS}}, \code{\link{GGeDS}},
 #' \code{\link{NGeDSgam}} or \code{\link{NGeDSboost}} from which the predictor model
 #' \code{\link[stats]{formula}} should be extracted.
@@ -322,10 +374,10 @@ family.GeDS  <- function(object, ...) {
 #' In GeDS GNM (GLM) regression (implemented through \code{\link{NGeDS}} and
 #' \code{\link{GGeDS}}) the mean of the response variable, correspondingly
 #' transformed through an appropriate link function, is modeled using a
-#' potentially multivariate predictor model. The latter comprises two components:
-#' a GeD variable-knot spline regression involving up to two of the independent
-#' variables and a parametric component for the remaining independent variables.
-#' The formula defines the structure of this potentially multivariate predictor.
+#' potentially multivariate predictor model. Established \code{NGeDS} and
+#' \code{GGeDS} fits allow one or two covariates in a GeD spline component.
+#' Experimental Normal \code{NGeDS} fits allow more than two covariates in one
+#' joint tensor-product spline. \code{GGeDS} remains limited to at most two.
 #'
 #' The formulae that are input in \code{\link{NGeDS}} and \code{\link{GGeDS}}
 #' are similar to those input in \code{\link[stats]{lm}} or
@@ -349,6 +401,11 @@ family.GeDS  <- function(object, ...) {
 #' to be jointly modeled and there are no other covariates, the formula for the
 #' corresponding two dimensional predictor model should be specified as
 #' \code{y ~ f(x1,x2)}.
+#'
+#' For an experimental joint Normal fit involving three or more covariates,
+#' \code{NGeDS} accepts, for example, \code{y ~ f(x1,x2,x3)}. This route does
+#' not yet support parametric terms, offsets, initial knots or fits, or the LR
+#' stopping rule.
 #'
 #' Within the argument \code{formula}, similarly as in other \R functions, it is
 #' possible to specify one or more offset variables, i.e., known terms with fixed
@@ -376,17 +433,25 @@ formula.GeDS <- function(x, ...)
   return(formula)
 }
 
+#' @rdname deviance.GeDS
+#' @export
+deviance.GeDSfitND <- deviance.GeDS
+
+#' @rdname formula.GeDS
+#' @export
+formula.GeDSfitND <- formula.GeDS
+
 ################################################################################
 ##################################### KNOTS ####################################
 ################################################################################
-#' @title Knots Method for GeDS, GeDSgam, GeDSboost
+#' @title Knots Method for GeDS, GeDSfitND, GeDSgam, GeDSboost
 #' @name knots.GeDS
 #' @description
 #' Method for the generic function \code{\link[stats]{knots}} that allows the
 #' user to extract the vector of knots of a GeDS, GAM-GeDS or FGB-GeDS fit of a
 #' specified order contained in a \code{"GeDS"}, \code{"GeDSgam"} or
 #' \code{"GeDSboost"} class, respectively.
-#' @param Fn The \code{"GeDS"}, \code{"GeDSgam"} or
+#' @param Fn The \code{"GeDS"}, \code{"GeDSfitND"}, \code{"GeDSgam"} or
 #' \code{"GeDSboost"} class object from which the vector of knots for the
 #' specified GeDS, GAM-GeDS or FGB-GeDS fit should be extracted.
 #' @param n Integer value (2, 3 or 4) specifying the order (\eqn{=} degree
@@ -400,8 +465,9 @@ formula.GeDS <- function(x, ...)
 #' @param ... Potentially further arguments (required for compatibility with the
 #' definition of the generic function). Currently ignored, but with a warning.
 #'
-#' @return A vector in which each element represents a knot of the
-#' GeDS/GAM-GeDS/FGB-GeDS fit of the required order.
+#' @return For univariate fits, a vector in which each element represents a
+#' knot. For bivariate and multivariate fits, a named list containing one knot
+#' vector per spline coordinate.
 #'
 #' @details
 #' This is a method for the function \code{\link[stats]{knots}} in the
@@ -416,7 +482,7 @@ formula.GeDS <- function(x, ...)
 #' \code{\link{NGeDSboost}} and \code{\link{NGeDSgam}} for examples.
 #'
 #' @rdname knots
-#' @aliases knots.GeDS knots.GeDSgam knots.GeDSboost
+#' @aliases knots.GeDS knots.GeDSfitND knots.GeDSgam knots.GeDSboost
 #' @importFrom stats knots
 #' @export
 
@@ -452,6 +518,32 @@ knots.GeDS <- function(Fn, n = 3L, options = c("all","internal"), ...)
     }
   }
   return(kn)
+}
+
+#' @rdname knots
+#' @export
+knots.GeDSfitND <- function(Fn, n = 3L,
+                            options = c("all", "internal"), ...)
+{
+  if (!missing(...)) {
+    warning("Only 'Fn', 'n' and 'options' arguments will be considered")
+  }
+
+  n <- validate_GeDS_order(n)
+  options <- match.arg(options)
+  fit.name <- switch(
+    as.character(n),
+    "2" = "linear.fit",
+    "3" = "quadratic.fit",
+    "4" = "cubic.fit"
+  )
+  fit <- Fn[[fit.name]]
+  if (is.null(fit)) {
+    stop("The requested model (", fit.name,
+         ") is not available in the GeDS object.")
+  }
+
+  if (options == "internal") fit$intknots else fit$full.knots
 }
 
 ################################################################################
@@ -829,6 +921,63 @@ print.GeDS <- function(x, digits = max(3L, getOption("digits") - 3L), ...)
   invisible(x)
 }
 
+#' Print an Experimental Multivariate GeDS Fit
+#'
+#' Prints the call, dimensions, selected knot counts, residual sums of squares,
+#' and least-squares solver used for each available spline order.
+#'
+#' @param x A \code{"GeDSfitND"} object returned by \code{NGeDS()}.
+#' @param digits Number of significant digits used for the residual sums of
+#'   squares.
+#' @param ... Further arguments, currently ignored.
+#'
+#' @return The input object, invisibly.
+#' @seealso \code{\link{NGeDS}}, \code{\link{summary.GeDSfitND}}
+#' @export
+print.GeDSfitND <- function(x, digits = max(3L, getOption("digits") - 3L), ...)
+{
+  if (!missing(...)) warning("Arguments in '...' are currently ignored.")
+
+  fit.call <- if (!is.null(x$extcall)) x$extcall else x$Call
+  cat("\nExperimental multivariate Normal GeDS fit\n")
+  if (!is.null(fit.call)) {
+    cat("\nCall:\n", paste(deparse(fit.call), collapse = "\n"), "\n", sep = "")
+  }
+  cat("\nDimensions (", length(x$dimensions), "): ",
+      paste(x$dimensions, collapse = ", "), "\n", sep = "")
+
+  knot.counts <- x$Nintknots
+  if (is.null(knot.counts)) knot.counts <- setNames(integer(0), character(0))
+  cat("Linear internal knots: ",
+      if (length(knot.counts)) {
+        paste0(names(knot.counts), "=", knot.counts, collapse = ", ")
+      } else {
+        "none"
+      },
+      "\n", sep = "")
+
+  rss <- c(
+    `Order 2 (linear)` = x$dev.linear,
+    `Order 3 (quadratic)` = x$dev.quadratic,
+    `Order 4 (cubic)` = x$dev.cubic
+  )
+  if (length(rss)) {
+    cat("\nResidual sum of squares:\n")
+    print.default(format(rss, digits = digits), quote = FALSE)
+  }
+  solvers <- c(
+    `Order 2` = if (!is.null(x$linear.fit)) x$linear.fit$solver,
+    `Order 3` = if (!is.null(x$quadratic.fit)) x$quadratic.fit$solver,
+    `Order 4` = if (!is.null(x$cubic.fit)) x$cubic.fit$solver
+  )
+  if (length(solvers)) {
+    cat("Least-squares solver: ",
+        paste0(names(solvers), "=", solvers, collapse = ", "),
+        "\n", sep = "")
+  }
+  invisible(x)
+}
+
 ################################################################################
 ################################### SUMMARY ####################################
 ################################################################################
@@ -879,6 +1028,51 @@ summary.GeDS <- function(object, ...)
   }
 
 
+  invisible(object)
+}
+
+#' Summarize an Experimental Multivariate GeDS Fit
+#'
+#' Prints the model dimensions, selected linear knot counts, residual sums of
+#' squares, details of the Stage A stopping rule and tensor-basis size, and any
+#' Stage B fits omitted by the coefficient limit.
+#'
+#' @param object A \code{"GeDSfitND"} object returned by \code{NGeDS()}.
+#' @param digits Number of significant digits used for numerical output.
+#' @param ... Further arguments passed to \code{print.GeDSfitND()}.
+#'
+#' @return The input object, invisibly.
+#' @seealso \code{\link{print.GeDSfitND}}, \code{\link{NGeDS}}
+#' @export
+summary.GeDSfitND <- function(
+    object, digits = max(3L, getOption("digits") - 3L), ...)
+{
+  print.GeDSfitND(object, digits = digits, ...)
+  cat("\nStage A:\n")
+  cat("  Stopping rule: ", object$args$stoptype,
+      " (phi = ", format(object$args$phi, digits = digits),
+      ", q = ", object$args$q, ")\n", sep = "")
+  cat("  Knot-placement beta: ",
+      format(object$args$beta, digits = digits), "\n", sep = "")
+  cat("  Fitted iterations: ", object$iters, "\n", sep = "")
+  cat("  Selected iteration: ", object$selected.iteration, "\n", sep = "")
+  cat("  Maximum coefficients: ",
+      format(object$args$max.coef, scientific = FALSE), "\n", sep = "")
+  if (length(object$stageA$basis.sizes)) {
+    cat("  Largest fitted tensor basis: ",
+        format(max(object$stageA$basis.sizes), scientific = FALSE),
+        " coefficients\n", sep = "")
+  }
+  if (!is.null(object$stageA$stop.reason)) {
+    cat("  Termination: ", object$stageA$stop.reason, "\n", sep = "")
+  }
+  skipped <- object$stageB$skipped
+  if (length(skipped) && any(!is.na(skipped))) {
+    cat("\nStage B fits omitted by max.coef:\n")
+    for (fit.name in names(skipped)[!is.na(skipped)]) {
+      cat("  ", fit.name, ": ", skipped[[fit.name]], "\n", sep = "")
+    }
+  }
   invisible(object)
 }
 
@@ -940,7 +1134,7 @@ summary.GeDS <- function(object, ...)
 
   predicted <- as.numeric(basisMatrix2 %*% theta + offset)
   residuals <- Y - predicted
-  rss <- as.numeric(crossprod(residuals))
+  rss <- .weighted_rss(residuals, weights)
 
   list(
     theta = theta,

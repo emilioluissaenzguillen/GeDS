@@ -2,18 +2,21 @@
 % Please edit documentation in R/S3methods.R, R/S3methods_GeDSboost-GeDSgam.R
 \name{deviance.GeDS}
 \alias{deviance.GeDS}
+\alias{deviance.GeDSfitND}
 \alias{deviance.GeDSboost}
 \alias{deviance.GeDSgam}
-\title{Deviance Method for GeDS, GeDSgam, GeDSboost}
+\title{Deviance Method for GeDS, GeDSfitND, GeDSgam, GeDSboost}
 \usage{
 \method{deviance}{GeDS}(object, n = 3L, ...)
+
+\method{deviance}{GeDSfitND}(object, n = 3L, ...)
 
 \method{deviance}{GeDSgam}(object, n = 3L, ...)
 
 \method{deviance}{GeDSboost}(object, n = 3L, ...)
 }
 \arguments{
-\item{object}{The \code{"GeDS"}, \code{"GeDSgam"} or
+\item{object}{The \code{"GeDS"}, \code{"GeDSfitND"}, \code{"GeDSgam"} or
 \code{"GeDSboost"} class object from which the deviance should be extracted.}
 
 \item{n}{Integer value (2, 3 or 4) specifying the order (\eqn{=} degree

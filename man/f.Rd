@@ -16,12 +16,13 @@ covariate (in case \code{\link{NGeDS}}/\code{\link{GGeDS}} is run for two
 dimensions). It has to be either \code{NULL} (the default) or a vector of size
 \eqn{N}, same as \code{x}.}
 
-\item{...}{Further arguments. As GeDS currently allows for up to two
-covariates, specification of further arguments will return an error.}
+\item{...}{Further covariates for an experimental multivariate Normal GeDS
+spline. Generalized and additive-model smoothers currently remain limited to
+one or two covariates per spline component.}
 }
 \description{
 In general the GeDS predictor model may include a GeD spline regression
-component with respect to one or two independent variables and a parametric
+component with respect to one or more independent variables and a parametric
 component in which the remaining covariates may enter as additive terms.
 GAM-GeDS and FGB-GeDS models may include more than one GeD spline regression
 component.

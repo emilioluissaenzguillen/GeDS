@@ -1774,7 +1774,7 @@ bl_imp <- bl_imp.GeDSboost
 
   new_pred <- offset + component
   residuals <- Y - new_pred
-  rss <- as.numeric(crossprod(residuals))
+  rss <- .weighted_rss(residuals, weights)
 
   theta[theta_idx] <- theta_component
   object$final_model[[fit_name]]$theta <- theta

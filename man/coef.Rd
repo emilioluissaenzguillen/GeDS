@@ -2,12 +2,15 @@
 % Please edit documentation in R/S3methods.R
 \name{coef.GeDS}
 \alias{coef.GeDS}
-\title{Coef Method for GeDS Objects}
+\alias{coef.GeDSfitND}
+\title{Coef Method for GeDS and GeDSfitND Objects}
 \usage{
 \method{coef}{GeDS}(object, n = 3L, onlySpline = TRUE, ...)
+
+\method{coef}{GeDSfitND}(object, n = 3L, onlySpline = TRUE, ...)
 }
 \arguments{
-\item{object}{The  \code{"GeDS"} class object from which the
+\item{object}{The \code{"GeDS"} or \code{"GeDSfitND"} class object from which the
 coefficients of the selected GeDS regression model should be extracted.}
 
 \item{n}{Integer value (2, 3 or 4) specifying the order (\eqn{=} degree
@@ -29,7 +32,9 @@ univariate or multivariate predictor model. The coefficients corresponding to
 the variables that enter the parametric component of the fitted multivariate
 predictor model are named as the variables themselves. The  coefficients of
 the GeDS component are coded as "\code{N}" followed by the index of the
-corresponding B-spline.
+corresponding B-spline. For \code{"GeDSfitND"} objects, coefficient names
+identify the basis index in every tensor dimension and the same indices are
+available as a data frame in the \code{"basis.index"} attribute.
 }
 \description{
 Method for the function \code{\link[stats]{coef}} that allows to extract the

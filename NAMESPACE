@@ -4,21 +4,25 @@ S3method(N.boost.iter,GeDSboost)
 S3method(bl_imp,GeDSboost)
 S3method(coef,GeDS)
 S3method(coef,GeDSboost)
+S3method(coef,GeDSfitND)
 S3method(coef,GeDSgam)
 S3method(confint,GeDS)
 S3method(confint,GeDSboost)
 S3method(confint,GeDSgam)
 S3method(deviance,GeDS)
 S3method(deviance,GeDSboost)
+S3method(deviance,GeDSfitND)
 S3method(deviance,GeDSgam)
 S3method(family,GeDS)
 S3method(family,GeDSboost)
 S3method(family,GeDSgam)
 S3method(formula,GeDS)
 S3method(formula,GeDSboost)
+S3method(formula,GeDSfitND)
 S3method(formula,GeDSgam)
 S3method(knots,GeDS)
 S3method(knots,GeDSboost)
+S3method(knots,GeDSfitND)
 S3method(knots,GeDSgam)
 S3method(lines,GeDS)
 S3method(logLik,GeDS)
@@ -29,15 +33,18 @@ S3method(plot,GeDSboost)
 S3method(plot,GeDSgam)
 S3method(predict,GeDS)
 S3method(predict,GeDSboost)
+S3method(predict,GeDSfitND)
 S3method(predict,GeDSgam)
 S3method(print,GeDS)
 S3method(print,GeDSboost)
+S3method(print,GeDSfitND)
 S3method(print,GeDSgam)
 S3method(shapeConstrain,GeDS)
 S3method(shapeConstrain,GeDSboost)
 S3method(shapeConstrain,GeDSgam)
 S3method(summary,GeDS)
 S3method(summary,GeDSboost)
+S3method(summary,GeDSfitND)
 S3method(summary,GeDSgam)
 S3method(visualize_boosting,GeDSboost)
 export(BivariateFitter)
@@ -60,76 +67,96 @@ export(crossv_GeDS)
 export(shapeConstrain)
 export(visualize_boosting)
 importFrom(MASS,ginv)
-importFrom(Matrix,Matrix)
-importFrom(Matrix,rankMatrix)
+importFrom(Matrix,
+  Matrix,
+  rankMatrix
+)
 importFrom(Rcpp,sourceCpp)
 importFrom(doFuture,registerDoFuture)
 importFrom(doParallel,registerDoParallel)
-importFrom(doRNG,"%dorng%")
-importFrom(doRNG,registerDoRNG)
-importFrom(foreach,"%:%")
-importFrom(foreach,"%dopar%")
-importFrom(foreach,foreach)
-importFrom(future,multisession)
-importFrom(future,plan)
-importFrom(grDevices,dev.new)
-importFrom(grDevices,devAskNewPage)
-importFrom(graphics,abline)
-importFrom(graphics,barplot)
-importFrom(graphics,legend)
-importFrom(graphics,lines)
-importFrom(graphics,lines.default)
-importFrom(graphics,mtext)
-importFrom(graphics,par)
-importFrom(graphics,plot)
-importFrom(graphics,points)
-importFrom(graphics,rug)
-importFrom(parallel,detectCores)
-importFrom(parallel,makeCluster)
-importFrom(parallel,stopCluster)
-importFrom(splines,polySpline)
-importFrom(splines,splineDesign)
-importFrom(stats,.lm.fit)
-importFrom(stats,Gamma)
-importFrom(stats,as.formula)
-importFrom(stats,binomial)
-importFrom(stats,coef)
-importFrom(stats,confint.default)
-importFrom(stats,delete.response)
-importFrom(stats,deviance)
-importFrom(stats,family)
-importFrom(stats,formula)
-importFrom(stats,gaussian)
-importFrom(stats,glm)
-importFrom(stats,glm.control)
-importFrom(stats,glm.fit)
-importFrom(stats,hat)
-importFrom(stats,knots)
-importFrom(stats,lm)
-importFrom(stats,lm.fit)
-importFrom(stats,lm.wfit)
-importFrom(stats,logLik)
-importFrom(stats,model.frame)
-importFrom(stats,model.matrix)
-importFrom(stats,model.response)
-importFrom(stats,na.omit)
-importFrom(stats,pchisq)
-importFrom(stats,poisson)
-importFrom(stats,predict)
-importFrom(stats,predict.glm)
-importFrom(stats,qchisq)
-importFrom(stats,qnorm)
-importFrom(stats,qt)
-importFrom(stats,quasibinomial)
-importFrom(stats,quasipoisson)
-importFrom(stats,reformulate)
-importFrom(stats,residuals)
-importFrom(stats,sd)
-importFrom(stats,setNames)
-importFrom(stats,terms)
-importFrom(stats,weighted.mean)
-importFrom(utils,globalVariables)
-importFrom(utils,modifyList)
-importFrom(utils,packageDescription)
-importFrom(utils,tail)
+importFrom(doRNG,
+  "%dorng%",
+  registerDoRNG
+)
+importFrom(foreach,
+  "%:%",
+  "%dopar%",
+  foreach
+)
+importFrom(future,
+  multisession,
+  plan
+)
+importFrom(grDevices,
+  dev.new,
+  devAskNewPage
+)
+importFrom(graphics,
+  abline,
+  barplot,
+  legend,
+  lines,
+  lines.default,
+  mtext,
+  par,
+  plot,
+  points,
+  rug
+)
+importFrom(parallel,
+  detectCores,
+  makeCluster,
+  stopCluster
+)
+importFrom(splines,
+  polySpline,
+  splineDesign
+)
+importFrom(stats,
+  .lm.fit,
+  Gamma,
+  as.formula,
+  binomial,
+  coef,
+  confint.default,
+  delete.response,
+  deviance,
+  family,
+  formula,
+  gaussian,
+  glm,
+  glm.control,
+  glm.fit,
+  hat,
+  knots,
+  lm,
+  lm.fit,
+  lm.wfit,
+  logLik,
+  model.frame,
+  model.matrix,
+  model.response,
+  na.omit,
+  pchisq,
+  poisson,
+  predict,
+  predict.glm,
+  qchisq,
+  qnorm,
+  qt,
+  quasibinomial,
+  quasipoisson,
+  reformulate,
+  residuals,
+  sd,
+  setNames,
+  terms,
+  weighted.mean
+)
+importFrom(utils,
+  globalVariables,
+  modifyList,
+  packageDescription,
+  tail
+)
 useDynLib(GeDS)

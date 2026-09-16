@@ -3,6 +3,10 @@
 #################################### Cross-validation ###################################
 #########################################################################################
 #########################################################################################
+# Declare loop variables
+globalVariables(c("i", "j", "k", "l", "m"))
+
+# Define a function to perform k-fold cross-validation
 #' @title K-Fold Cross-Validation
 #' @name crossv_GeDS
 #' @description
@@ -15,6 +19,11 @@
 #' @param data A \code{data.frame} containing the variables referenced in the formula.
 #' @param model_fun The GeDS model to cross-validate, that is, \code{NGeDS},
 #' \code{GGeDS}, \code{NGeDSgam} or \code{NGeDSboost}.
+#' @param n Integer value (2, 3 or 4) specifying the order (\eqn{=} degree
+#' \eqn{+ 1}) of the spline fit evaluated during cross-validation. The default
+#' is \code{2L}.
+#' @param n_folds Positive integer specifying the number of cross-validation
+#' folds. The default is \code{5L}.
 #' @param parameters A set of parameters to be tuned via cross-validation.
 #' These are: \code{beta}, \code{phi} and \code{q} in the case of \code{NGeDS},
 #' \code{GGeDS} and \code{NGeDSgam}. In addition, for \code{NGeDSboost},
@@ -30,6 +39,8 @@
 #' @param n_cores Integer specifying the number of cores to use for parallel
 #' cross-validation. If \code{NULL}, the function uses one fewer than the number
 #' of detected cores, subject to CRAN check limits.
+#' @param ... Additional arguments passed to the internal cross-validation
+#' method. For \code{NGeDSboost}, these are forwarded to the fitting function.
 #'
 #' @return Two data frames, \code{best_params} and \code{results}.
 #' \code{best_params} contains the best combination of parameters according to
@@ -87,11 +98,6 @@
 #' @importFrom stats predict
 #' @importFrom utils globalVariables
 #' @export
-
-# Declare loop variables
-globalVariables(c("i", "j", "k", "l", "m"))
-
-# Define a function to perform k-fold cross-validation
 crossv_GeDS <- function(formula, data, model_fun, n = 2L, n_folds = 5L,
                         parameters, n_cores = NULL, ...)
   {

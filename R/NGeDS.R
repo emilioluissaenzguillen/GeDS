@@ -30,7 +30,7 @@
 #' @param max.intknots Optional parameter allowing the user to set a maximum
 #' number of internal knots to be added by the GeDS estimation algorithm. By
 #' default equal to the number of knots for the saturated GeDS model
-#' (i.e., \eqn{\kappa = N - 2}).
+#' (i.e., \eqn{\kappa = N - 2}); experimental multivariate fits use 300.
 #' @param q Numeric parameter which allows to fine-tune the stopping rule of
 #' stage A of GeDS, by default equal to \code{2L}. See Details.
 #' @param Xextr Numeric vector of 2 elements representing the left-most and
@@ -55,6 +55,11 @@
 #' representing the initial fit from which to begin stage A GeDS iteration (i.e.
 #' departing from step 2). See Details.
 #' @param only_pred Logical. If \code{TRUE} only predictions are computed.
+#' @param max.coef Maximum number of tensor-product spline coefficients allowed
+#' in an experimental fit with more than two spline covariates. Stage A stops
+#' before exceeding this value and oversized higher-order Stage B fits are
+#' omitted with a warning. The default is \code{100000L}. It is ignored for established
+#' univariate and bivariate fits.
 #'
 #' @details
 #' The  \code{NGeDS} function implements the GeDS methodology, developed by
@@ -74,9 +79,13 @@
 #' allows the user to specify models with two components, a spline regression
 #' (non-parametric) component involving part of the independent variables
 #' identified through the function \code{f} and an optional  parametric
-#' component involving the remaining independent variables. For \code{NGeDS} one
-#' or two independent variables are allowed for the spline component and
-#' arbitrary many independent variables for the parametric component. Failure to
+#' component involving the remaining independent variables. The established
+#' \code{NGeDS} implementation allows one or two independent variables in the
+#' spline component. Experimental Normal tensor-product fits allow more than two
+#' variables in a single \code{f()} term, currently without parametric covariates,
+#' offsets, initial knots, or the LR stopping rule. Tensor-basis growth is
+#' controlled by \code{max.coef}; see the corresponding
+#' argument for the Stage A stopping and Stage B omission behaviour. Failure to
 #' specify the independent variable for the  spline regression component through
 #' the function \code{f} will return an error. See
 #' \code{\link[=formula.GeDS]{formula}}.
@@ -126,7 +135,9 @@
 #' i.e., before selecting the last \code{q} knots. Setting a higher \code{q}
 #' will lead to more knots being added before exiting stage A of GeDS.
 #'
-#' @return An object of class \code{"GeDS"} (a named list) with components:
+#' @return An object of class \code{"GeDS"} for established univariate and
+#' bivariate fits, or \code{"GeDSfitND"} for an experimental spline component
+#' with more than two covariates.
 #' \describe{
 #' \item{type}{Character string indicating the type of regression performed.
 #' This can be \code{"LM - Univ"}/\code{"LM - Biv"} respectively corresponding
@@ -234,6 +245,25 @@
 #' data('BaFe2As2')
 #' (Gmod2 <- NGeDS(intensity ~ f(angle), data = BaFe2As2, beta = 0.6, phi = 0.99, q = 3))
 #' plot(Gmod2)
+#'
+#' # Experimental joint three-dimensional fit versus an additive fit
+#' truth_function <- function(x0, x1, x2) {
+#'   sin(2 * pi * x0) * sin(2 * pi * x1) * sin(2 * pi * x2)
+#' }
+#' set.seed(123)
+#' train <- data.frame(x0 = runif(800), x1 = runif(800), x2 = runif(800))
+#' train$y <- with(train, truth_function(x0, x1, x2)) + rnorm(800, sd = 0.1)
+#'
+#' joint_fit <- NGeDS(y ~ f(x0, x1, x2), data = train)
+#' additive_fit <- NGeDSgam(y ~ f(x0) + f(x1) + f(x2), data = train)
+#'
+#' set.seed(456)
+#' test <- data.frame(x0 = runif(2000), x1 = runif(2000), x2 = runif(2000))
+#' truth <- with(test, truth_function(x0, x1, x2))
+#' c(
+#'   additive = mean((truth - predict(additive_fit, test, n = 4))^2),
+#'   joint = mean((truth - predict(joint_fit, test, n = 4))^2)
+#' )
 #' }
 #'
 #' #########################################
@@ -277,10 +307,12 @@
 NGeDS <- function(formula, data, weights, beta = 0.5, phi = 0.99, min.intknots,
                   max.intknots, q = 2L, Xextr = NULL, Yextr = NULL,
                   show.iters = FALSE, stoptype = "RD", higher_order = TRUE,
-                  intknots_init = NULL, fit_init = NULL, only_pred = FALSE)
+                  intknots_init = NULL, fit_init = NULL, only_pred = FALSE,
+                  max.coef = 100000L)
   {
   # 1. Capture current function call and use formula's environment if 'data' is missing
   save <- match.call()
+  stoptype_missing <- missing(stoptype)
   if (missing(data)) data <- environment(formula)
 
   # 2. formula
@@ -324,7 +356,9 @@ NGeDS <- function(formula, data, weights, beta = 0.5, phi = 0.99, min.intknots,
   # min/max.intknots
   if(missing(min.intknots)) min.intknots <- 0
   min.intknots <- as.integer(min.intknots)
-  if(missing(max.intknots)) max.intknots <- length(unique(X)) - 2 - ncz
+  if(missing(max.intknots)) {
+    max.intknots <- if (ncol(X) > 2L) 300L else length(unique(X)) - 2 - ncz
+  }
   max.intknots <- as.integer(max.intknots)
   # q
   q <- as.integer(q)
@@ -357,6 +391,9 @@ NGeDS <- function(formula, data, weights, beta = 0.5, phi = 0.99, min.intknots,
     weights <- weights[!tmp]
     offset <- offset[!tmp]
   }
+  if (!any(weights > 0)) {
+    stop("'weights' must contain at least one positive value.", call. = FALSE)
+  }
 
   #####################
   ## UNIVARIATE GeDS ##
@@ -371,7 +408,7 @@ NGeDS <- function(formula, data, weights, beta = 0.5, phi = 0.99, min.intknots,
     offset <- offset[idx]
     if (!is.null(Z)) Z <- Z[idx, ]
 
-    Xextr <- if (is.null(Xextr)) range(X) else as.numeric(Xextr)
+    Xextr <- if (is.null(Xextr)) range(X[weights > 0]) else as.numeric(Xextr)
 
     out <- UnivariateFitter(X = X, Y = Y, Z = Z, offset = offset, weights = weights,
                             beta = beta, phi = phi, min.intknots = min.intknots,
@@ -397,8 +434,57 @@ NGeDS <- function(formula, data, weights, beta = 0.5, phi = 0.99, min.intknots,
                            stoptype = stoptype, higher_order = higher_order,
                            Xintknots = Xintknots, Yintknots = Yintknots)
 
+  ######################
+  ## MULTIVARIATE GeDS ##
+  ######################
   } else {
-    stop("Incorrect number of columns of the independent variable")
+    if (!is.null(Z)) {
+      stop("Parametric covariates are not yet supported by multivariate GeDS.",
+           call. = FALSE)
+    }
+    if (any(offset != 0)) {
+      stop("Offsets are not yet supported by multivariate GeDS.", call. = FALSE)
+    }
+    if (!is.null(Xextr) || !is.null(Yextr)) {
+      stop("'Xextr' and 'Yextr' are only available for one- or two-dimensional fits.",
+           call. = FALSE)
+    }
+    if (!is.null(intknots_init) || !is.null(fit_init)) {
+      stop("Initial fits and knots are not yet supported by multivariate GeDS.",
+           call. = FALSE)
+    }
+    if (isTRUE(only_pred)) {
+      stop("'only_pred' is not yet supported by multivariate GeDS.",
+           call. = FALSE)
+    }
+    if (max.intknots < 1L) {
+      stop("'max.intknots' must be positive for multivariate GeDS.",
+           call. = FALSE)
+    }
+
+    multivariate_stoptype <- if (stoptype_missing) {
+      "SR"
+    } else {
+      match.arg(stoptype, c("SR", "RD", "LR"))
+    }
+    if (multivariate_stoptype == "LR") {
+      stop("The LR stopping rule is not yet supported by multivariate GeDS.",
+           call. = FALSE)
+    }
+
+    out <- MultivariateFitter(
+      coordinates = X,
+      response = Y,
+      weights = weights,
+      beta = beta,
+      phi = phi,
+      q = q,
+      min.intknots = min.intknots,
+      max.steps = max.intknots + 1L,
+      stoptype = multivariate_stoptype,
+      spline.orders = if (isTRUE(higher_order)) 2:4 else 2L,
+      max.coef = max.coef
+    )
   }
 
   out$formula <- formula

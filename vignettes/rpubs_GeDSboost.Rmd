@@ -36,7 +36,7 @@ Generalized Linear Models (GLM) as a special case---, and to the
 bivariate case by [@Dimitrova2023](https://doi.org/10.1016/j.amc.2022.127493). More recently, GeDS
 methodology has been extended towards the benchmark of Generalized
 Additive Models (GAM) and Functional Gradient Boosting (FGB) by
-[@Dimitrova2025].
+[@Dimitrova2026].
 
 GeDS methodology is implemented on the **R** package
 [GeDS](https://CRAN.R-project.org/package=GeDS). In this

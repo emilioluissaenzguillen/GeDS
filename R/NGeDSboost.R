@@ -16,7 +16,8 @@
 #' including the dependent and independent variables. Unlike \code{\link{NGeDS}}
 #' and \code{\link{GGeDS}}, the formula specified allows for multiple additive
 #' GeD spline regression components (as well as linear components) to be
-#' included (e.g., \code{Y ~ f(X1) + f(X2) + X3}).
+#' included (e.g., \code{Y ~ f(X1) + f(X2) + X3}), including joint smoothers
+#' with more than two predictors such as \code{Y ~ f(X1, X2, X3)}.
 #' @param data A \code{data.frame} containing the variables referenced in the formula.
 #' @param weights An optional vector of "prior weights" to be put on the
 #' observations during the fitting process. It should be \code{NULL} or a
@@ -496,8 +497,11 @@ NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE,
         coefficients <- list("b0" = 0, "b1" = 0)
         base_learners_list[[bl_name]] <- list("knots" = knots, "intervals" = intervals, "coefficients" = coefficients)
       # (A.2) BIVARIATE BASE-LEARNERS
-      } else {
+      } else if (length(pred_vars) == 2L) {
         knots <- list(Xk = c(min_vals[1], max_vals[1]), Yk = c(min_vals[2], max_vals[2]))
+        base_learners_list[[bl_name]] <- list("knots" = knots, "iterations" = list())
+      } else {
+        knots <- setNames(Map(c, min_vals, max_vals), pred_vars)
         base_learners_list[[bl_name]] <- list("knots" = knots, "iterations" = list())
         }
     ## (B) Linear base-learners (initialize only coefficients)
@@ -534,6 +538,10 @@ NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE,
       univ_geds_cache[[bl_name]] <- list(ord  = ord,
                                          xs   = x[ord],
                                          w    = weights[ord],
+                                         # Match mboost's basis construction:
+                                         # zero-weight rows define predictor support,
+                                         # but UnivariateFitter excludes them from
+                                         # residual-based knot placement.
                                          extr = range(x))
     }
   }
@@ -562,7 +570,7 @@ NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE,
                         family = get_mboost_family(args$family@name),
                         weights = weights, base_learners = base_learners, m = 0,
                         internal_knots = int.knots_init, beta = beta, phi = phi, q = q,
-                        univ_geds_cache = univ_geds_cache)
+                        univ_geds_cache = univ_geds_cache, max.coef = 100000L)
       })
 
     ## 2. Calculate SSR and find model that fits best U according to SSR
@@ -613,15 +621,21 @@ NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE,
         n_intknots <- length(knots) - 2
 
       # (A.2) BIVARIATE BASE-LEARNERS
-        } else if (length(base_learners[[best_bl]]$variables) == 2){
+        } else if (length(base_learners[[best_bl]]$variables) >= 2){
           ## 3/4. Save knots and coefficients (bivariate base-learners are not converted into PP form)
           pred_linear <- best_pred$Y_hat
           int.knt <- best_pred$int.knt
-          knots = list(Xk = sort(c(base_learners_list[[best_bl]]$knots$Xk, int.knt$Xint.knt)),
-                       Yk = sort(c(base_learners_list[[best_bl]]$knots$Yk, int.knt$Yint.knt)))
+          if (length(base_learners[[best_bl]]$variables) == 2L) {
+            knots <- list(Xk = sort(c(base_learners_list[[best_bl]]$knots$Xk, int.knt$Xint.knt)),
+                          Yk = sort(c(base_learners_list[[best_bl]]$knots$Yk, int.knt$Yint.knt)))
+          } else {
+            knots <- Map(function(old, new) sort(c(old, new)),
+                         base_learners_list[[best_bl]]$knots, int.knt)
+            names(knots) <- base_learners[[best_bl]]$variables
+          }
           base_learners_list[[best_bl]]$knots <- knots
           # Number of int. knots placed on initial learner
-          n_intknots <- list(X = length(knots$Xk) - 2, Y = length(knots$Yk) - 2)
+          n_intknots <- lapply(knots, function(k) length(k) - 2L)
 
           coef <-  best_pred$theta
           base_learners_list[[best_bl]]$iterations[["model0"]] <- list("int.knt" = int.knt, "coef" = coef)
@@ -730,7 +744,7 @@ NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE,
                           weights = weights, base_learners = base_learners, m = m,
                           internal_knots = int.knots_boost, beta = beta, phi = phi, q = q,
                           starting_intknots =  starting_intknots,
-                          univ_geds_cache = univ_geds_cache)
+                          univ_geds_cache = univ_geds_cache, max.coef = 100000L)
         })
 
       ## 4. Calculate SSR and find model that fits best U according to SSR
@@ -769,7 +783,7 @@ NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE,
                               weights = weights, base_learners = base_learners, m = m,
                               internal_knots = int.knots_boost, beta = beta, phi = phi, q = q,
                               starting_intknots =  starting_intknots,
-                              univ_geds_cache = univ_geds_cache)
+                              univ_geds_cache = univ_geds_cache, max.coef = 100000L)
           }
       )
       ## 4. Calculate SSR and find model that fits best U according to SSR
@@ -864,16 +878,22 @@ NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE,
         n_intknots <- length(knots) - length(previous_model$base_learners[[best_bl]]$knots)
 
       # (A.2) BIVARIATE BASE-LEARNERS
-        } else if (length(base_learners[[best_bl]]$variables) == 2){
+        } else if (length(base_learners[[best_bl]]$variables) >= 2){
           ## 3/4. Save knots and coefficients (bivariate base-learners are not converted into PP form)
           pred_linear <- best_pred$Y_hat
           int.knt <- best_pred$int.knt
-          knots = list(Xk = sort(unique(c(base_learners_list[[best_bl]]$knots$Xk, int.knt$Xint.knt))),
-                       Yk = sort(unique(c(base_learners_list[[best_bl]]$knots$Yk, int.knt$Yint.knt))))
+          if (length(base_learners[[best_bl]]$variables) == 2L) {
+            knots <- list(Xk = sort(unique(c(base_learners_list[[best_bl]]$knots$Xk, int.knt$Xint.knt))),
+                          Yk = sort(unique(c(base_learners_list[[best_bl]]$knots$Yk, int.knt$Yint.knt))))
+          } else {
+            knots <- Map(function(old, new) sort(unique(c(old, new))),
+                         base_learners_list[[best_bl]]$knots, int.knt)
+            names(knots) <- base_learners[[best_bl]]$variables
+          }
           base_learners_list[[best_bl]]$knots <- knots
           # Number of int. knots placed on current iteration
-          n_intknots <- list(X = length(knots$Xk) - length(previous_model$base_learners[[best_bl]]$knots$Xk),
-                             Y = length(knots$Yk) - length(previous_model$base_learners[[best_bl]]$knots$Yk))
+          n_intknots <- Map(function(new, old) length(new) - length(old),
+                            knots, previous_model$base_learners[[best_bl]]$knots)
           coef <-  best_pred$theta
           base_learners_list[[best_bl]]$iterations[[paste0("model", m)]] <- list("int.knt" = int.knt, "coef" = coef)
         }
@@ -976,7 +996,7 @@ NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE,
   ## B-Spline Representation ##
   #############################
   # If all base-learners are univariate we transform the linear pp representation into B-spline form
-  bivariate_learners <- base_learners_selected[sapply(base_learners_selected, function(bl) length(bl$variables)) == 2]
+  bivariate_learners <- base_learners_selected[sapply(base_learners_selected, function(bl) length(bl$variables)) >= 2]
 
   # (i) Knots
   ll_list <- compute_avg_int.knots(final_model, base_learners = base_learners_selected,
@@ -1002,7 +1022,9 @@ NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE,
     suppressMessages(
       SplineReg_Multivar(X = args$predictors[GeDS_variables], Y = args$response[[response]],
                          Z = args$predictors[linear_variables], offset = offset,
-                         base_learners = bSpline.base_learners, InterKnotsList = ll_list,
+                         weights = args$weights, base_learners = bSpline.base_learners,
+                         InterKnotsList = ll_list,
+                         extrList = lapply(args$predictors[GeDS_variables], range),
                          n = 2, family = args$family, link = args$link,
                          coefficients = theta, linear.predictors = linear.pred, linear_intercept = TRUE)
       )
@@ -1070,7 +1092,7 @@ NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE,
       c(quadratic = 3, cubic = 4),
       function(n) stageB_fit(n, args, GeDS_variables, linear_variables,
                              response, final_model, normalize_data,
-                             weights = NULL,  # do not pass
+                             weights = TRUE,  # pull args$weights
                              offset  = NULL,  # do not pass
                              link    = TRUE,  # pull from args$link
                              only_pred = TRUE)
@@ -1141,7 +1163,7 @@ NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE,
 componentwise_fit <- function(bl_name, response, data, model_formula_template,
                               family = NULL, weights, base_learners, m,
                               internal_knots, beta, phi, q, starting_intknots = NULL,
-                              univ_geds_cache = NULL) {
+                              univ_geds_cache = NULL, max.coef = 100000L) {
 
   # Initialize a results list with default values
   results <- list(
@@ -1160,11 +1182,11 @@ componentwise_fit <- function(bl_name, response, data, model_formula_template,
 
     max.intknots <- if (length(pred_vars) == 1) {
       internal_knots + length(starting_intknots)
-      } else if (length(pred_vars) == 2) {
+      } else if (length(pred_vars) >= 2) {
         if (internal_knots == 0) {
-          stop("internal_knots must be > 0 for bivariate learners")
+          stop("internal_knots must be > 0 for joint multivariate learners")
           } else {
-            internal_knots + length(starting_intknots$ikX) + length(starting_intknots$ikY)
+            internal_knots + sum(lengths(starting_intknots))
           }
       }
 
@@ -1207,11 +1229,15 @@ componentwise_fit <- function(bl_name, response, data, model_formula_template,
                                    only_pred = TRUE)
             uf$formula <- model_formula   # predict_GeDS_linear() reads all.vars(formula)
             uf
-          } else {
+          } else if (length(pred_vars) == 2L) {
             NGeDS(model_formula, data = data, weights = weights, beta = beta, phi = phi,
                   min.intknots = 0, max.intknots = max.intknots, q = q,
                   Xextr = NULL, Yextr = NULL, show.iters = FALSE, stoptype = "RD",
                   higher_order = FALSE, intknots_init = starting_intknots, only_pred = TRUE)
+          } else {
+            fit_joint_GeDS_linear(data, response, pred_vars, weights, beta,
+                                  phi, q, max.intknots, max.coef,
+                                  starting_intknots)
           }
         } else {
           GGeDS(model_formula, data = data, family = family, weights = weights,
@@ -1236,6 +1262,18 @@ componentwise_fit <- function(bl_name, response, data, model_formula_template,
       predict_GeDS_linear(fit, data[[pred_vars]])
     } else if(length(pred_vars) == 2) {
       predict_GeDS_linear(fit, X = data[pred_vars[1]], Y = data[pred_vars[2]], Z = data[[response]])
+    } else {
+      if (inherits(fit, "GeDSfitND")) {
+        int.knt <- fit$linear.intknots
+        names(int.knt) <- pred_vars
+        knt <- Map(function(boundary, internal) sort(c(boundary, internal)),
+                   fit$grid$coordinate.ranges, int.knt)
+        names(knt) <- pred_vars
+        list(Y_hat = predict(fit, n = 2L), knt = knt,
+             int.knt = int.knt, theta = fit$linear.fit$coefficients)
+      } else {
+        fit
+      }
     }
 
     ## (B) Linear base-learners
@@ -1268,7 +1306,7 @@ componentwise_fit <- function(bl_name, response, data, model_formula_template,
 
   # Calculate SSR
   resid <- data[[response]] - pred$Y_hat
-  ssr <- sum((resid)^2)
+  ssr <- .weighted_rss(resid, weights)
 
   # Save results
   results$resid <- resid

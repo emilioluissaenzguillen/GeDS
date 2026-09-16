@@ -45,6 +45,31 @@ test_that("shapeConstrain.GeDS rejects incompatible constraints", {
   )
 })
 
+test_that("shapeConstrain.GeDS retains the weighted Normal objective", {
+  skip_if_not_installed("quadprog")
+
+  set.seed(321)
+  X <- sort(runif(80))
+  Y <- 2 * X + sin(5 * X) + rnorm(80, sd = 0.15)
+  weights <- seq(0.25, 2.5, length.out = length(X))
+  dat <- data.frame(X = X, Y = Y)
+
+  fit <- suppressWarnings(
+    NGeDS(Y ~ f(X), data = dat, weights = weights,
+          beta = 0.6, phi = 0.99)
+  )
+  constrained <- shapeConstrain(
+    fit, n = 2L, shape_constraint = "increasing"
+  )
+
+  expect_equal(constrained$linear.fit$rss,
+               sum(weights * constrained$linear.fit$residuals^2),
+               tolerance = 1e-12)
+  expect_equal(constrained$dev.linear,
+               constrained$linear.fit$rss,
+               tolerance = 0)
+})
+
 test_that("shapeConstrain.GeDSgam constrains a selected smoother", {
   skip_if_not_installed("quadprog")
 

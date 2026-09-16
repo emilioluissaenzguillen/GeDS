@@ -87,7 +87,9 @@ default equal to \code{2L}. See Details in \code{\link{NGeDS}}.}
 
 \item{higher_order}{a logical that defines whether to compute the higher order
 fits (quadratic and cubic) after the local-scoring algorithm is run. Default
-is \code{TRUE}.}
+is \code{TRUE}.
+Joint smoothers can contain more than two predictors, for example
+\code{Y ~ f(X1, X2, X3)}.}
 }
 \value{
 An object of class \code{"GeDSgam"} (a named list) with components:

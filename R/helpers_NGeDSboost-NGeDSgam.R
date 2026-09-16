@@ -88,12 +88,14 @@ get_internal_knots <- function(knots, depth = 1) {
   }
   # Bivariate
   if (is.list(knots)) {
-    # Get internal knots for each component and store them in a list
-    Xk <- if (!is.null(knots$Xk)) knots$Xk else knots$Xknt
-    Yk <- if (!is.null(knots$Yk)) knots$Yk else knots$Yknt
-    ikX <- extract_knots(Xk)
-    ikY <- extract_knots(Yk)
-    return(list(ikX = ikX, ikY = ikY))
+    # Preserve the historical bivariate names, while allowing a named knot
+    # vector for every coordinate of a higher-dimensional joint smoother.
+    if (any(c("Xk", "Xknt") %in% names(knots))) {
+      Xk <- if (!is.null(knots$Xk)) knots$Xk else knots$Xknt
+      Yk <- if (!is.null(knots$Yk)) knots$Yk else knots$Yknt
+      return(list(ikX = extract_knots(Xk), ikY = extract_knots(Yk)))
+    }
+    return(lapply(knots, extract_knots))
   } else {
     # Univariate
     return(extract_knots(knots))
@@ -215,6 +217,38 @@ predict_GeDS_linear <- function(Gmod, X, Y, Z){
     } else {
       print("Only 1 (i.e. Y ~ f(X)) or 2 (i.e. Z ~ f(X, Y)) predictors are allowed for NGeDS models.")
     }
+}
+
+# Fit the linear (Stage A) tensor GeDS learner used inside GAM backfitting and
+# component-wise boosting.  The surrounding algorithms always fit a Gaussian
+# working response here, irrespective of the response family's final link.
+fit_joint_GeDS_linear <- function(data, response, pred_vars, weights,
+                                  beta, phi, q, max.intknots,
+                                  max.coef = 100000L,
+                                  starting_intknots = NULL) {
+  coords <- as.matrix(data[pred_vars])
+  if (is.null(starting_intknots)) starting_intknots <- rep(list(NULL), length(pred_vars))
+  names(starting_intknots) <- pred_vars
+  additions <- max(0L, max.intknots - sum(lengths(starting_intknots)))
+  fit <- MultivariateFitter(
+    coordinates = coords, response = data[[response]], weights = weights,
+    beta = beta, phi = phi, q = q, min.intknots = 0L,
+    max.steps = additions + 1L, stoptype = "RD",
+    placement.ranges = lapply(pred_vars, function(v) range(data[[v]][weights > 0])),
+    intknots_init = starting_intknots,
+    spline.orders = 2L, max.coef = max.coef
+  )
+  int.knt <- fit$linear.intknots
+  names(int.knt) <- pred_vars
+  full.knots <- Map(
+    function(boundary, internal) sort(c(boundary, internal)),
+    fit$grid$coordinate.ranges, int.knt
+  )
+  names(full.knots) <- pred_vars
+  list(
+    Y_hat = as.numeric(fit$linear.fit$predicted), knt = full.knots,
+    int.knt = int.knt, theta = fit$linear.fit$coefficients, fit = fit
+  )
 }
 
 ############################################################################
@@ -446,6 +480,24 @@ compute_avg_int.knots <- function(final_model, base_learners = base_learners, X_
       }
 
       return(list(ikX = ikX, ikY = ikY))
+    } else {
+      intknt <- get_internal_knots(final_model$base_learners[[bl]]$knots)
+      names(intknt) <- pred_vars
+      out <- lapply(seq_along(pred_vars), function(j) {
+        knots_j <- intknt[[j]]
+        if (normalize_data && !is.null(knots_j)) {
+          knots_j <- knots_j * X_sd[[pred_vars[j]]] + X_mean[[pred_vars[j]]]
+        }
+        if (length(knots_j) >= n - 1) return(makenewknots(knots_j, n))
+        warning_messages <<- c(
+          warning_messages,
+          paste0(bl, " has less than ", n - 1,
+                 " linear internal knots for ", pred_vars[j], ".")
+        )
+        knots_j
+      })
+      names(out) <- pred_vars
+      return(out)
     }
   })
 
@@ -630,6 +682,10 @@ stageB_fit <- function(n, args, GeDS_variables, linear_variables,
   wts <- if (isTRUE(weights)) args$weights else rep(1, n_obs)
   off <- if (isTRUE(offset))  args$offset  else rep(0, n_obs)
   lnk <- if (isTRUE(link))    args$link    else NULL
+  extr <- lapply(
+    X_mat[wts > 0, , drop = FALSE],
+    range
+  )
 
   # 1) knots
   iklist <- compute_avg_int.knots(
@@ -639,6 +695,21 @@ stageB_fit <- function(n, args, GeDS_variables, linear_variables,
     n = n
   )
 
+  spline_learners <- args$base_learners[names(iklist)]
+  basis_sizes <- vapply(names(iklist), function(bl) {
+    dims <- length(spline_learners[[bl]]$variables)
+    knots <- iklist[[bl]]
+    if (dims == 1L) length(knots) + n else prod(lengths(knots) + n)
+  }, numeric(1))
+  total_coef <- sum(basis_sizes) + NCOL(Z_mat) + as.integer(NCOL(Z_mat) > 0L)
+  max.coef <- if (is.null(args$max.coef)) 100000L else args$max.coef
+  if (total_coef > max.coef) {
+    warning("Omitting the order-", n, " fit because its additive tensor basis requires ",
+            total_coef, " coefficients, exceeding 'max.coef' = ", max.coef, ".",
+            call. = FALSE)
+    return(list(fit = NULL, preds = rep(NA_real_, n_obs), int.knots = iklist))
+  }
+
   # (IR)LS fit
   fit <- tryCatch(
     suppressMessages(
@@ -646,7 +717,8 @@ stageB_fit <- function(n, args, GeDS_variables, linear_variables,
                          Z = Z_mat, offset = off,
                          weights = wts,
                          base_learners = args$base_learners[names(final_model$base_learners)],
-                         InterKnotsList = iklist, n = n, family = args$family,
+                         InterKnotsList = iklist, n = n, extrList = extr,
+                         family = args$family,
                          link = lnk, only_pred = only_pred)
     ),
     error = function(e) { warning(sprintf("Error computing n=%d fit: %s", n, conditionMessage(e))); NULL }

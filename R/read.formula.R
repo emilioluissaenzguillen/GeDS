@@ -22,9 +22,9 @@ read.formula <- function(formula, data, weights, offset)
       warning("An intercept will be included in the basis functions")
       }
   data <- as.list(data)
-  data$f <- function(x,xx=NULL,...) {
-    if(!missing(...)) stop("Algorithm supports at most two variables in 'f'")
-    cbind(x,xx)
+  data$f <- function(x, xx = NULL, ...) {
+    coordinates <- c(list(x), if (!is.null(xx)) list(xx), list(...))
+    do.call(cbind, coordinates)
   }
 
   # Locate f(X)/f(X,Y) in model terms
@@ -47,6 +47,9 @@ read.formula <- function(formula, data, weights, offset)
   attr(Y,"names")<- NULL
   # Extract GeDS covariates
   X <- mf[,spec]
+  spline_vars <- all.vars(attr(mt, "variables")[[spec + 1L]])
+  X <- as.matrix(X)
+  colnames(X) <- spline_vars
   # Extract linear covariates
   if(ncol(mm)>ncol(X)) {
     Z <- mf[, -c(spec, attr(mt, "response"), attr(mt, "offset")), drop = TRUE]
@@ -58,7 +61,6 @@ read.formula <- function(formula, data, weights, offset)
   # a GeD spline basis already reproduces constant + linear functions, so a
   # bare linear term in the spline variable is not separately identifiable.
   if (!is.null(Z)) {
-    spline_vars  <- all.vars(attr(mt, "variables")[[spec + 1]])      # var(s) inside f()
     f_idx        <- grep("^f\\(", attr(mt, "term.labels"))
     param_labels <- attr(mt, "term.labels")[-f_idx]
     param_vars   <- unique(unlist(lapply(param_labels,
@@ -72,12 +74,24 @@ read.formula <- function(formula, data, weights, offset)
   }
 
   # Check if formula variables make sense
-  if (ncol(X) == 1) {
-    if (all(Y == X) || (!is.null(Z) && all(Y == Z))) stop("Response variable cannot be equal to a covariate.")
-    } else if (ncol(X) == 2) {
-      if (all(Y == X[,1]) || all(Y == X[,2]) || (!is.null(Z) && all(Y == Z))) stop("Response variable cannot be equal to a covariate.")
-      if (all(X[,1] == X[,2])) stop("Covariates are the same in bivariate GeDS function.")
+  response_is_coordinate <- any(vapply(
+    seq_len(ncol(X)),
+    function(j) all(Y == X[, j]),
+    logical(1)
+  ))
+  if (response_is_coordinate || (!is.null(Z) && all(Y == Z))) {
+    stop("Response variable cannot be equal to a covariate.")
+  }
+  if (ncol(X) > 1L) {
+    equal_coordinates <- utils::combn(
+      seq_len(ncol(X)),
+      2L,
+      FUN = function(index) all(X[, index[1L]] == X[, index[2L]])
+    )
+    if (any(equal_coordinates)) {
+      stop("Covariates in the GeDS function must be distinct.")
     }
+  }
 
   # Initialize an offset vector with zeros
   offset <- rep(0, nrow(X))
@@ -185,10 +199,6 @@ read.formula.gam <- read.formula.boost <- function(formula, data,
     type <- ifelse(grepl("f\\(.*\\)", bl), "GeDS", "linear")
     # Extract the predictor variables
     variables <- trimws(unlist(strsplit(gsub("f\\((.*?)\\)", "\\1", bl), ",")))
-    # Check if the f() has more than two predictors
-    if (type == "GeDS" && length(variables) > 2) {
-      stop("Formula incorrectly specified: f() can have at most two predictors. Read documentation for further information.")
-    }
     # Return a list containing variable names and the type
     return(list(variables = variables, type = type))
   }), bl_elements)
@@ -206,7 +216,7 @@ read.formula.gam <- read.formula.boost <- function(formula, data,
 #' @name f
 #' @description
 #' In general the GeDS predictor model may include a GeD spline regression
-#' component with respect to one or two independent variables and a parametric
+#' component with respect to one or more independent variables and a parametric
 #' component in which the remaining covariates may enter as additive terms.
 #' GAM-GeDS and FGB-GeDS models may include more than one GeD spline regression
 #' component.
@@ -223,8 +233,9 @@ read.formula.gam <- read.formula.boost <- function(formula, data,
 #' covariate (in case \code{\link{NGeDS}}/\code{\link{GGeDS}} is run for two
 #' dimensions). It has to be either \code{NULL} (the default) or a vector of size
 #' \eqn{N}, same as \code{x}.
-#' @param ... Further arguments. As GeDS currently allows for up to two
-#' covariates, specification of further arguments will return an error.
+#' @param ... Further covariates for an experimental multivariate Normal GeDS
+#' spline. Generalized and additive-model smoothers currently remain limited to
+#' one or two covariates per spline component.
 #'
 #' @examples
 #' # Generate a data sample for the response variable Y and
@@ -261,9 +272,9 @@ read.formula.gam <- read.formula.boost <- function(formula, data,
 #' \code{\link{NGeDS}}, \code{\link{GGeDS}}, \code{\link{NGeDSgam}} or
 #' \code{\link{NGeDSboost}} and not to be called in other cases by the user.
 
-f <- function(x,xx=NULL,...) {
-  if(!missing(...)) stop("Algorithm supports at most two variables in 'f'")
-  cbind(x,xx)
+f <- function(x, xx = NULL, ...) {
+  coordinates <- c(list(x), if (!is.null(xx)) list(xx), list(...))
+  do.call(cbind, coordinates)
 }
 
 

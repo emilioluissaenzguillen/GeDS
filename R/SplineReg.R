@@ -112,8 +112,8 @@
 #' \code{SplineReg_LM} is called or the residuals described in Details if
 #' \code{SplineReg_GLM} is called.}
 #' \item{rss}{The deviance for the fitted predictor model, defined as in
-#' Dimitrova et al. (2023), which for \code{SplineReg_LM} coincides with the
-#' residual sum of squares.}
+#' Dimitrova et al. (2023), which for \code{SplineReg_LM} is the weighted
+#' residual sum of squares, with unit weights by default.}
 #' \item{basis}{The matrix of B-spline regression functions and the covariates
 #' of the parametric part evaluated at the sample values of the covariate(s).}
 #' \item{nci}{A list containing the lower (\code{Low}) and upper (\code{Upp})
@@ -209,7 +209,7 @@ SplineReg_LM <- function(X, Y, Z = NULL, offset = rep(0,length(X)), weights = re
     predicted <- as.numeric(basisMatrix2 %*% theta) + offset
     resid <- Y - predicted
     return(list("theta" = theta, "predicted" = predicted, "residuals" = resid,
-                "rss" = as.numeric(crossprod(resid)), "basis" = basisMatrix2,
+                "rss" = .weighted_rss(resid, weights), "basis" = basisMatrix2,
                 "temporary" = NULL))
   }
 
@@ -259,7 +259,7 @@ SplineReg_LM <- function(X, Y, Z = NULL, offset = rep(0,length(X)), weights = re
 
     # Confidence intervals
     ci <- ci(tmp, resid, prob = 0.95, basisMatrix, basisMatrix2, predicted,
-             n_obs = length(Y), type = "lm", huang = TRUE)
+             n_obs = length(Y), type = "lm", huang = TRUE, weights = weights)
     nci <- ci$nci; aci <- ci$aci
 
     } else {
@@ -267,7 +267,7 @@ SplineReg_LM <- function(X, Y, Z = NULL, offset = rep(0,length(X)), weights = re
     }
 
   out <- list("theta" = theta, "predicted" = predicted, "residuals" = resid,
-              "rss" = as.numeric(crossprod(resid)), "basis" = basisMatrix,
+              "rss" = .weighted_rss(resid, weights), "basis" = basisMatrix,
               "nci" = nci, "aci" = aci,
               "polygon" = list("kn" = polyknots,
                                "thetas" = theta[1:NCOL(basisMatrix)]),
