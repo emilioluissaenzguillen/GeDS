@@ -491,6 +491,8 @@ NGeDS <- function(formula, data, weights, beta = 0.5, phi = 0.99, min.intknots,
   out$extcall <- save
   out$terms <- newdata$terms
   out$znames <- getZnames(newdata)
+  out$contrasts <- newdata$contrasts
+  out$xlevels <- newdata$xlevels
   return(out)
 }
 

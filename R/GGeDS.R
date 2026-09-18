@@ -498,6 +498,8 @@ GGeDS <- function(formula, family = gaussian(), data, weights, beta, phi = 0.99,
     out$extcall <- save
     out$terms <- newdata$terms
     out$znames <- getZnames(newdata)
+    out$contrasts <- newdata$contrasts
+    out$xlevels <- newdata$xlevels
     if (inherits(out, "GeDSfitND")) out$args$parametric.names <- out$znames
     return(out)
 }

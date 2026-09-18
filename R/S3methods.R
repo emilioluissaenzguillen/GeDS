@@ -113,9 +113,8 @@ coef.GeDS <- function(object, n = 3L, onlySpline = TRUE, ...)
           }
       }
 
-  if(!is.null(object$args$Z) && !onlySpline){
-    znames <- attr(object$terms,"term.labels")[-1]
-    names(theta) <- c(paste0("N",1:nth),znames)
+  if(length(object$znames) && !onlySpline){
+    names(theta) <- c(paste0("N",1:nth),object$znames)
   } else {
     theta <- theta[1:nth]
     names(theta) <- paste0("N",1:nth)
@@ -224,9 +223,8 @@ confint.GeDS <- function(object, parm, level = 0.95, n = 3L, ...) {
     } else if (object$type == "LM - Biv" || object$type == "GLM - Biv") {
       nth <- NCOL(fit_obj$Xbasis) * NCOL(fit_obj$Ybasis)
     }
-    if (!is.null(object$args$Z)) {
-      znames <- attr(object$terms, "term.labels")[-1]
-      names <- c(paste0("N", 1:nth), znames)
+    if (length(object$znames)) {
+      names <- c(paste0("N", 1:nth), object$znames)
     } else {
       names <- paste0("N", 1:nth)
     }
@@ -689,15 +687,11 @@ predict.GeDS <- function(object, newdata,
         mt <- delete.response(mt)
         newdata <- as.list(newdata)
         newdata$f <- f
-        mm <- model.matrix(mt,newdata)
-        mf <- model.frame(mt,newdata)
+        mf <- model.frame(mt, newdata, xlev = object$xlevels)
+        mm <- makeGeDSModelMatrix(mt, mf, contrasts.arg = object$contrasts)
         spec <- attr(mt,"specials")$f
         X <- mf[,spec]
-        if(ncol(mm) > ncol(X)) {
-          Z <- mf[, -c(spec, attr(mt,"response")), drop = T]
-          } else {
-            Z <- NULL
-          }
+        Z <- getParametricMatrix(mt, mm)
       offset <- rep(0, NROW(X))
       if (!is.null(off.num <- attr(mt, "offset")))
         for (i in off.num) offset <- offset + eval(attr(mt, "variables")[[i + 1]], newdata)
@@ -756,16 +750,12 @@ predict.GeDS <- function(object, newdata,
       mt <- delete.response(mt)
       newdata <- as.list(newdata)
       newdata$f <- f
-      mm <- model.matrix(mt, newdata)
-      mf <- model.frame(mt, newdata)
+      mf <- model.frame(mt, newdata, xlev = object$xlevels)
+      mm <- makeGeDSModelMatrix(mt, mf, contrasts.arg = object$contrasts)
       spec <- attr(mt,"specials")$f
       X <- mf[,spec][, 1]
       Y <- mf[,spec][, 2]
-      if(ncol(mm) > ncol(mf[,spec])) {
-        W <- mf[, -c(spec, attr(mt, "response")), drop = T]
-      } else {
-        W <- NULL
-      }
+      W <- getParametricMatrix(mt, mm)
     }
 
     # Knots

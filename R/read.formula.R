@@ -32,7 +32,7 @@ read.formula <- function(formula, data, weights, offset)
   if(length(spec)!= 1) stop("Formula incorrectly specified. Read documentation for further information.")
 
   # Generate a model matrix based on the model terms and data
-  mm <- model.matrix(mt, data)
+  mm <- makeGeDSModelMatrix(mt, data)
   # Create a model frame based on the model terms and data, omitting rows with NAs
   mf <- model.frame(mt, data, na.action = na.omit)
 
@@ -50,12 +50,10 @@ read.formula <- function(formula, data, weights, offset)
   spline_vars <- all.vars(attr(mt, "variables")[[spec + 1L]])
   X <- as.matrix(X)
   colnames(X) <- spline_vars
-  # Extract linear covariates
-  if(ncol(mm)>ncol(X)) {
-    Z <- mf[, -c(spec, attr(mt, "response"), attr(mt, "offset")), drop = TRUE]
-  } else {
-    Z <- NULL
-  }
+  # Extract the parametric design matrix. Use model.matrix() rather than the
+  # raw model-frame columns so factors, interactions and transformations are
+  # represented by the same numeric columns during fitting and prediction.
+  Z <- getParametricMatrix(mt, mm)
 
   # Guard against a parametric term collinear with the spline component:
   # a GeD spline basis already reproduces constant + linear functions, so a
@@ -100,8 +98,35 @@ read.formula <- function(formula, data, weights, offset)
     for (i in off.num) offset <- offset + eval(attr(mt,"variables")[[i + 1]], data)
   }
 
-  out <- list("X" = X, "Y" = Y, "Z" = Z, "offset" = offset, "terms" = mt, "model.matrix" = mm)
+  xlevels <- lapply(mf[vapply(mf, is.factor, logical(1))], levels)
+  out <- list("X" = X, "Y" = Y, "Z" = Z, "offset" = offset,
+              "terms" = mt, "model.matrix" = mm,
+              "contrasts" = attr(mm, "contrasts"), "xlevels" = xlevels)
   return(out)
+}
+
+# Extract columns belonging to the parametric component from a model matrix.
+# The "assign" attribute indexes term.labels; the unique f(...) term belongs
+# to the GeDS spline component and all remaining columns are parametric.
+getParametricMatrix <- function(mt, mm) {
+  spline.term <- grep("^f\\s*\\(", attr(mt, "term.labels"))
+  if (length(spline.term) != 1L) {
+    stop("Formula incorrectly specified. Read documentation for further information.")
+  }
+
+  keep <- attr(mm, "assign") != 0L & attr(mm, "assign") != spline.term
+  parametric <- mm[, keep, drop = FALSE]
+  if (ncol(parametric) == 0L) NULL else parametric
+}
+
+# Build factor contrasts as though the model had an intercept, then let
+# getParametricMatrix() remove that intercept. The GeDS spline basis already
+# contains a constant column, so this yields k - 1 identifiable columns for a
+# k-level factor instead of a collinear full set of k indicators.
+makeGeDSModelMatrix <- function(mt, data, contrasts.arg = NULL) {
+  matrix.terms <- mt
+  attr(matrix.terms, "intercept") <- 1L
+  model.matrix(matrix.terms, data, contrasts.arg = contrasts.arg)
 }
 
 ###############################################################
@@ -280,11 +305,7 @@ f <- function(x, xx = NULL, ...) {
 
 # this is to get the names of the Z variable(s)
 getZnames <- function(out){
-  names <- colnames(out$model.matrix)
-  id <- attr(out$model.matrix,"assign")
-  spec <- attr(out$terms,"specials")$f-1
-  znames <- names[id!=spec]
-  znames
+  if (is.null(out$Z)) character(0) else colnames(out$Z)
 }
 
 

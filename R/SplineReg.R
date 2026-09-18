@@ -284,8 +284,13 @@ SplineReg_GLM <- function(X, Y, Z, offset = rep(0,nobs), weights = rep(1,length(
                           InterKnots, n, extr = range(X), family, mustart,
                           inits = NULL, etastart = NULL, fast = FALSE)
   {
-  # Ensure X, Y, Z, InterKnots are numeric, and n and extr are integers
-  X <- as.numeric(X); Y <- as.numeric(Y); Z <- as.numeric(Z)
+  # Ensure X, Y, Z, InterKnots are numeric, and n and extr are integers.
+  # Preserve the dimensions of a multi-column parametric design matrix.
+  X <- as.numeric(X); Y <- as.numeric(Y)
+  if (!is.null(Z)) {
+    Z <- as.matrix(Z)
+    storage.mode(Z) <- "double"
+  }
   InterKnots <- as.numeric(InterKnots); n <- as.integer(n); extr <- as.numeric(extr)
 
   # Check that 'n' (spline order) has length 1

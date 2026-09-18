@@ -712,8 +712,15 @@ GenUnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)),
   # If model selected is from first iteration
   if (iter == 1) {
     mustart <- NULL
+    linear.inits <- NULL
   } else {
     mustart <- oldguess[iter, 1:(iter+1)]
+    selected.guess.z <- if (nz > 0L) {
+      oldcoef[iter, (iter + 2):(iter + 1 + nz)]
+    } else {
+      NULL
+    }
+    linear.inits <- c(mustart, selected.guess.z)
   }
 
   # 1. LINEAR
@@ -722,7 +729,7 @@ GenUnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)),
     ll <- NULL
     lin <- SplineReg_GLM(X = X, Y = Y, Z = Z, offset = offset, weights = weights,
                          extr = extr, InterKnots = ll, n = 2, family = family,
-                         inits = c(mustart, guess_z))
+                         inits = linear.inits)
   } else {
     ik <- as.numeric(na.omit(previous[iter,-c(1,2,iter+2,iter+3)]))
     # Stage B.1 (averaging knot location)
@@ -730,7 +737,7 @@ GenUnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)),
     # Stage B.2
     lin <- SplineReg_GLM(X = X, Y = Y, Z = Z, offset = offset, weights = weights,
                          extr = extr, InterKnots = ll, n = 2, family = family,
-                         inits = c(mustart, guess_z))
+                         inits = linear.inits)
   }
   #######################
   ## Higher order fits ##
