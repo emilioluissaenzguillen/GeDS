@@ -695,7 +695,9 @@ predict.GeDS <- function(object, newdata,
       offset <- rep(0, NROW(X))
       if (!is.null(off.num <- attr(mt, "offset")))
         for (i in off.num) offset <- offset + eval(attr(mt, "variables")[[i + 1]], newdata)
-      if (!is.null(object$call$offset))
+      # A formula offset has already been evaluated above. The fitter's call
+      # also records its offset argument, so adding both counts it twice.
+      if (is.null(off.num) && !is.null(object$call$offset))
         offset <- offset + eval(object$call$offset, newdata)
       }
 
@@ -806,6 +808,7 @@ predict.GeDS <- function(object, newdata,
     }
 
   }
+  if (type == "terms") return(predicted)
   return(as.numeric(predicted))
 }
 

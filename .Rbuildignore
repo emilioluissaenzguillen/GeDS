@@ -2,6 +2,7 @@
 ^\.Rproj\.user$
 ^Meta$
 ^\.github(/|$)
+^\.codex.*$
 ^dev$
 ^\.positai$
 ^\.claude$
