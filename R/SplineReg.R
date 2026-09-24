@@ -321,30 +321,24 @@ SplineReg_GLM <- function(X, Y, Z, offset = rep(0,nobs), weights = rep(1,length(
       # Validate length of 'inits'
       if (length(inits)!= NCOL(basisMatrix2)) stop("'inits' must be of length length(InterKnots) + n + NCOL(Z)")
       # Calculate initial mustart based on 'inits' (initial value for spline coefficients)
-      mustart <- family$linkinv(basisMatrix2 %*% inits)
+      mustart <- family$linkinv(basisMatrix2 %*% inits + offset)
     }
   }
-
-  Y0 <- Y - offset
 
   # Stage-A fast path: glm.fit (no formula parsing) and no CI/polygon.
   # glm() forwards to glm.fit() with the same mustart, so the fit is identical.
   if (fast) {
-    tmp <- glm.fit(basisMatrix2, Y0, family = family, weights = weights,
-                   mustart = mustart, intercept = FALSE)
+    tmp <- glm.fit(basisMatrix2, Y, family = family, weights = weights,
+                   offset = offset, mustart = mustart, intercept = FALSE)
     return(list("theta" = tmp$coefficients, "residuals" = tmp$residuals,
                 "basis" = basisMatrix,
                 "temporary" = list("iter" = tmp$iter, "deviance" = tmp$deviance,
                                    "weights" = tmp$weights)))
   }
 
-  Y0 <- Y - offset
   # Fit linear model without intercept, using weights
-  # tmp <- IRLSfit(basisMatrix2, Y0, offset = offset,
-  #                family = family, mustart = mustart, weights = weights)
-  # tmp <- glm.fit(basisMatrix2, Y0, family = family,
-  #                weights = weights, mustart = mustart)
-  tmp <- glm(Y0 ~ -1 + basisMatrix2, family = family, weights = weights, mustart = mustart)
+  tmp <- glm(Y ~ -1 + basisMatrix2, family = family, weights = weights,
+             offset = offset, mustart = mustart)
 
   # Extract fitted coefficients
   theta <- coef(tmp)
