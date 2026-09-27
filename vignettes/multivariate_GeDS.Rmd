@@ -1,0 +1,426 @@
+---
+title: "Joint Tensor-Product GeDS Splines in Higher Dimensions"
+author: "Emilio Luis Sáenz Guillén"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Joint Tensor-Product GeDS Splines in Higher Dimensions}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.align = "center",
+  fig.width = 7,
+  fig.height = 5,
+  out.width = "90%",
+  message = FALSE,
+  warning = FALSE
+)
+```
+
+## Why a joint smoother?
+
+The syntax
+
+```r
+f(x1, x2, x3, x4)
+```
+
+defines one joint tensor-product GeDS spline. It is different from the additive
+model
+
+```r
+f(x1) + f(x2) + f(x3) + f(x4)
+```
+
+because the joint smoother can represent interactions among the covariates.
+This vignette uses joint smoothers with `NGeDS`, `GGeDS`, and `NGeDSboost`,
+and compares them with additive `NGeDSgam` and `NGeDSboost` models.
+Joint smoothers use the SR stopping rule by default; the additive
+one-dimensional `NGeDS` learners use RD. `GGeDS` uses SR by default.
+
+```{r}
+library("GeDS")
+
+wiggly4 <- function(x1, x2, x3, x4) {
+  2 * sin(pi * x1) * sin(pi * x2) *
+    sin(pi * x3) * sin(pi * x4) *
+    (1 + 0.15 * sin(4 * pi * x1) * sin(4 * pi * x2))
+}
+
+simulate_gaussian <- function(n, noise = 0.15) {
+  data <- data.frame(
+    x1 = runif(n), x2 = runif(n),
+    x3 = runif(n), x4 = runif(n)
+  )
+  data$truth <- with(data, wiggly4(x1, x2, x3, x4))
+  data$y <- data$truth + rnorm(n, sd = noise)
+  data
+}
+```
+
+## A four-dimensional Normal example
+
+We fit the joint tensor with the direct Normal fitter and with boosting, then
+compare these fits with additive local-scoring and boosting models. The joint
+boost starts from the family's constant offset (`initial_learner = FALSE`).
+
+```{r fit-normal, results='hide'}
+set.seed(123)
+train <- simulate_gaussian(1000)
+
+fit_ngeds <- NGeDS(
+  y ~ f(x1, x2, x3, x4), data = train
+)
+
+fit_boost_joint <- NGeDSboost(
+  y ~ f(x1, x2, x3, x4), data = train,
+  initial_learner = FALSE
+)
+
+fit_gam <- NGeDSgam(
+  y ~ f(x1) + f(x2) + f(x3) + f(x4), data = train
+)
+
+fit_boost_additive <- NGeDSboost(
+  y ~ f(x1) + f(x2) + f(x3) + f(x4), data = train
+)
+```
+
+The four-way interaction is not additive, but its central peak gives the
+default knot-insertion rule a detectable improvement from its first knots.
+The number of linear internal knots selected in each direction is:
+
+```{r}
+lengths(fit_ngeds$linear.intknots)
+```
+
+To isolate the contribution of knot insertion, the zero-knot multilinear
+tensor can be fitted with all four-way products of the original coordinates.
+The comparison below uses the *linear* GeDS fit (`n = 2`), so the two models
+differ in their knots rather than their spline degree.
+
+```{r}
+no_knot_tensor <- lm(y ~ x1 * x2 * x3 * x4, data = train)
+set.seed(321)
+test <- simulate_gaussian(1000, noise = 0)
+
+round(c(
+  `No internal knots` = mean((test$truth - predict(no_knot_tensor, test))^2),
+  `GeDS-selected knots` = mean((test$truth - predict(fit_ngeds, test, n = 2))^2)
+), 3)
+```
+
+The response depends on products of the coordinates: an additive model cannot
+represent it exactly. For the surface slices, `x3` and `x4` are fixed at 0.25
+while `x1` and `x2` vary over a grid.
+
+```{r four-dimensional-surface, fig.width=9, fig.height=4.2}
+grid_values <- seq(0.01, 0.99, length.out = 45)
+surface_data <- expand.grid(
+  x1 = grid_values, x2 = grid_values,
+  x3 = 0.25, x4 = 0.25
+)
+
+truth_surface <- with(
+  surface_data,
+  matrix(wiggly4(x1, x2, x3, x4), nrow = length(grid_values))
+)
+fitted_surface <- matrix(
+  predict(fit_ngeds, surface_data, n = 4),
+  nrow = length(grid_values)
+)
+
+surface_colours <- hcl.colors(30, "Blue-Red 3")
+old_par <- par(mfrow = c(1, 2), mar = c(4, 4, 2.5, 1))
+image(grid_values, grid_values, truth_surface,
+      col = surface_colours, xlab = "x1", ylab = "x2",
+      main = "True 4D surface slice")
+contour(grid_values, grid_values, truth_surface, add = TRUE,
+        drawlabels = FALSE, col = "grey25")
+image(grid_values, grid_values, fitted_surface,
+      col = surface_colours, xlab = "x1", ylab = "x2",
+      main = "Cubic NGeDS slice")
+contour(grid_values, grid_values, fitted_surface, add = TRUE,
+        drawlabels = FALSE, col = "grey25")
+par(old_par)
+```
+
+The next plot follows a path through the four-dimensional space: `x1` and `x2`
+vary together, while `x3` and `x4` are fixed. This reveals the interaction as
+a curve along the path.
+
+```{r four-dimensional-curves, fig.height=8}
+slice_data <- data.frame(
+  x1 = seq(0.01, 0.99, length.out = 250),
+  x2 = seq(0.01, 0.99, length.out = 250), x3 = 0.25, x4 = 0.25
+)
+slice_truth <- with(slice_data, wiggly4(x1, x2, x3, x4))
+slice_fits <- cbind(
+  Truth = slice_truth,
+  `NGeDS joint` = predict(fit_ngeds, slice_data, n = 4),
+  `NGeDSboost joint` = predict(fit_boost_joint, slice_data, n = 4),
+  `NGeDSgam additive` = predict(fit_gam, slice_data, n = 4),
+  `NGeDSboost additive` = predict(fit_boost_additive, slice_data, n = 4)
+)
+
+layout(matrix(1:2, ncol = 1), heights = c(5, 2))
+old_par <- par(mar = c(4, 4, 3, 1))
+matplot(
+  slice_data$x1,
+  slice_fits,
+  type = "l", lty = c(1, 1, 2, 3, 4), lwd = c(3, 2, 2, 2, 2),
+  col = c("grey20", "#0072B2", "#009E73", "#E69F00", "#D55E00"),
+  ylim = range(slice_fits, finite = TRUE),
+  xlab = "x1", ylab = "Response",
+  main = "Interaction path: x1 = x2, x3 = x4 = 0.25"
+)
+par(mar = c(0, 0, 0, 0))
+plot.new()
+legend(
+  "center", ncol = 2, cex = 0.85,
+  c("Truth", "NGeDS joint (degree 3)", "NGeDSboost joint (degree 3)",
+    "NGeDSgam additive (degree 3)", "NGeDSboost additive (degree 3)"),
+  lty = c(1, 1, 2, 3, 4), lwd = c(3, 2, 2, 2, 2),
+  col = c("grey20", "#0072B2", "#009E73", "#E69F00", "#D55E00"),
+  bty = "n"
+)
+par(old_par)
+layout(1)
+```
+
+The y-axis includes every fitted curve on the original response scale.
+
+## Repeated test-sample comparison
+
+A single train/test split can be misleading. We repeat the experiment four
+times and compare test mean squared errors against the known generating
+function. Each box contains results from the same four simulated datasets.
+The additive models cannot represent the four-way interaction exactly.
+
+```{r gaussian-boxplots, fig.width=9, fig.height=6, results='hide'}
+set.seed(123)
+n_repetitions <- 4
+normal_results <- vector("list", n_repetitions)
+
+for (b in seq_len(n_repetitions)) {
+  train_b <- simulate_gaussian(1000)
+  test_b <- simulate_gaussian(1000, noise = 0)
+
+  ngeds_b <- NGeDS(
+    y ~ f(x1, x2, x3, x4), data = train_b
+  )
+  boost_joint_b <- NGeDSboost(
+    y ~ f(x1, x2, x3, x4), data = train_b,
+    initial_learner = FALSE
+  )
+  gam_b <- NGeDSgam(
+    y ~ f(x1) + f(x2) + f(x3) + f(x4), data = train_b
+  )
+  boost_additive_b <- NGeDSboost(
+    y ~ f(x1) + f(x2) + f(x3) + f(x4), data = train_b
+  )
+
+  normal_results[[b]] <- c(
+    "NGeDS joint (degree 3)" = mean((test_b$truth - predict(ngeds_b, test_b, n = 4))^2),
+    "NGeDSboost joint (degree 3)" = mean((test_b$truth - predict(boost_joint_b, test_b, n = 4))^2),
+    "NGeDSgam additive (degree 3)" = mean((test_b$truth - predict(gam_b, test_b, n = 4))^2),
+    "NGeDSboost additive (degree 3)" = mean((test_b$truth - predict(boost_additive_b, test_b, n = 4))^2)
+  )
+}
+
+normal_mse <- as.data.frame(do.call(rbind, normal_results))
+old_par <- par(mar = c(10, 4, 3, 1))
+boxplot(
+  normal_mse, names = rep("", 4), xaxt = "n", log = "y",
+  col = c("#0072B2", "#009E73", "#E69F00", "#D55E00"),
+  ylab = "Test MSE (log scale)", cex.axis = 0.85,
+  main = "Four-dimensional Gaussian experiment"
+)
+stripchart(normal_mse, vertical = TRUE, method = "jitter",
+           pch = 19, col = adjustcolor("grey15", 0.65), add = TRUE)
+mtext(c("NGeDS joint\ndegree 3", "Boost joint\ndegree 3",
+        "GAM additive\ndegree 3", "Boost additive\ndegree 3"),
+      side = 1, at = 1:4, line = 3.5, cex = 0.75)
+par(old_par)
+
+round(vapply(normal_mse, median, numeric(1)), 3)
+```
+
+The additive models can capture marginal patterns, but not the four-way
+interaction itself. The test MSE comparison therefore shows what the joint
+tensor adds beyond separate univariate smoothers.
+
+The joint boosting fit uses `initial_learner = FALSE` as specified above. The
+common boxplot uses a log scale so that all four test-error distributions can
+be compared on the same axes.
+
+## A four-dimensional generalized-response example
+
+The same tensor syntax is available in `GGeDS`. We generate Poisson counts with
+a log-mean driven by the wiggly four-dimensional function. The higher count
+level makes the shape visible above Poisson noise. For clarity and speed, this
+example uses the linear Stage A tensor fit.
+
+```{r poisson-fit, results='hide'}
+simulate_poisson <- function(n) {
+  data <- simulate_gaussian(n, noise = 0)
+  data$eta <- 4 + 0.70 * data$truth
+  data$mu <- exp(data$eta)
+  data$count <- rpois(n, data$mu)
+  data
+}
+
+set.seed(123)
+poisson_train <- simulate_poisson(1000)
+
+fit_ggeds <- GGeDS(
+  count ~ f(x1, x2, x3, x4),
+  family = poisson(), data = poisson_train
+)
+```
+
+The response-scale fitted surface can again be displayed as a two-dimensional
+slice.
+
+```{r poisson-surface, fig.width=9, fig.height=4.2}
+poisson_surface_data <- surface_data
+true_mean_surface <- with(
+  poisson_surface_data,
+  matrix(exp(4 + 0.70 * wiggly4(x1, x2, x3, x4)),
+         nrow = length(grid_values))
+)
+fitted_mean_surface <- matrix(
+  predict(fit_ggeds, poisson_surface_data, n = 2),
+  nrow = length(grid_values)
+)
+
+old_par <- par(mfrow = c(1, 2), mar = c(4, 4, 2.5, 1))
+image(grid_values, grid_values, true_mean_surface,
+      col = hcl.colors(30, "YlOrRd"), xlab = "x1", ylab = "x2",
+      main = "True Poisson mean")
+contour(grid_values, grid_values, true_mean_surface, add = TRUE,
+        drawlabels = FALSE, col = "grey25")
+image(grid_values, grid_values, fitted_mean_surface,
+      col = hcl.colors(30, "YlOrRd"), xlab = "x1", ylab = "x2",
+      main = "GGeDS fitted mean")
+contour(grid_values, grid_values, fitted_mean_surface, add = TRUE,
+        drawlabels = FALSE, col = "grey25")
+par(old_par)
+```
+
+For a small repeated comparison, we use an ordinary Poisson GLM with linear main
+effects as a familiar benchmark. Thus, `count ~ x1 + x2 + x3 + x4` is compared
+with the flexible joint tensor `count ~ f(x1, x2, x3, x4)`. The loss is the mean
+Poisson deviance relative to the true conditional mean.
+
+```{r poisson-boxplots, fig.height=4.5, results='hide'}
+set.seed(123)
+poisson_results <- vector("list", n_repetitions)
+
+for (b in seq_len(n_repetitions)) {
+  train_b <- simulate_poisson(1000)
+  test_b <- simulate_poisson(1000)
+
+  ggeds_b <- GGeDS(
+    count ~ f(x1, x2, x3, x4),
+    family = poisson(), data = train_b
+  )
+  fitted_mean <- predict(ggeds_b, test_b, n = 2)
+  glm_b <- glm(
+    count ~ x1 + x2 + x3 + x4,
+    family = poisson(), data = train_b
+  )
+  glm_mean <- predict(glm_b, test_b, type = "response")
+
+  poisson_results[[b]] <- c(
+    "Linear Poisson GLM" = mean(poisson()$dev.resids(test_b$mu, glm_mean, 1)),
+    "GGeDS joint tensor (degree 1)" = mean(poisson()$dev.resids(test_b$mu, fitted_mean, 1))
+  )
+}
+
+poisson_deviance <- as.data.frame(do.call(rbind, poisson_results))
+old_par <- par(mar = c(7, 4, 3, 1))
+boxplot(
+  poisson_deviance,
+  names = c("Linear\nPoisson GLM", "GGeDS joint\ndegree 1"),
+  col = c("grey75", "#CC79A7"),
+  ylab = "Mean Poisson deviance", cex.axis = 0.85,
+  main = "Four-dimensional Poisson experiment"
+)
+stripchart(poisson_deviance, vertical = TRUE, method = "jitter",
+           pch = 19, col = adjustcolor("grey15", 0.65), add = TRUE)
+par(old_par)
+
+round(vapply(poisson_deviance, median, numeric(1)), 3)
+```
+
+Here the joint `GGeDS` tensor is compared with a model that uses all four
+covariates, but restricts each of their effects to be linear.
+
+## Moving to five dimensions
+
+Nothing in the formula changes when a fifth coordinate is added. The following
+example augments the earlier function with another oscillating interaction and
+fits a five-dimensional tensor spline.
+
+```{r five-dimensional-fit, results='hide'}
+wiggly5 <- function(x1, x2, x3, x4, x5) {
+  wiggly4(x1, x2, x3, x4) + 2 * sin(pi * x5) +
+    0.6 * sin(2 * pi * (x5 + x1 * x3))
+}
+
+set.seed(123)
+train5 <- data.frame(
+  x1 = runif(1000), x2 = runif(1000), x3 = runif(1000),
+  x4 = runif(1000), x5 = runif(1000)
+)
+train5$truth <- with(train5, wiggly5(x1, x2, x3, x4, x5))
+train5$y <- train5$truth + rnorm(nrow(train5), sd = 0.20)
+
+fit5 <- NGeDS(
+  y ~ f(x1, x2, x3, x4, x5), data = train5
+)
+```
+
+The default fit also selects linear internal knots in this five-dimensional
+example:
+
+```{r}
+lengths(fit5$linear.intknots)
+```
+
+As before, a one-dimensional slice gives an immediate visual check of the fit.
+The curves below are on their original response scale. Any vertical difference
+is therefore a prediction error on this particular slice, not an adjustment
+made to align the curves.
+
+```{r five-dimensional-slice}
+slice5 <- data.frame(
+  x1 = 0.25, x2 = 0.40, x3 = 0.65, x4 = 0.30,
+  x5 = seq(0.01, 0.99, length.out = 250)
+)
+truth5 <- with(slice5, wiggly5(x1, x2, x3, x4, x5))
+prediction5 <- predict(fit5, slice5, n = 2)
+
+plot(slice5$x5, truth5, type = "l", lwd = 3, col = "grey20",
+     ylim = range(c(truth5, prediction5), finite = TRUE),
+     xlab = "x5", ylab = "Response",
+     main = "A slice through the five-dimensional tensor fit")
+lines(slice5$x5, prediction5, lwd = 2, col = "#0072B2")
+legend("topright", c("Truth", "NGeDS (degree 1)"),
+       col = c("grey20", "#0072B2"), lwd = c(3, 2), bty = "n")
+```
+
+The fitted values match the mean training response, so an offset on this slice
+does not indicate a missing intercept. A five-dimensional tensor is much harder
+to estimate from 1,000 observations; this slice illustrates that limitation.
+
+The same syntax extends to further dimensions, but tensor-product basis sizes
+grow multiplicatively. In practice, higher-dimensional models should therefore
+be accompanied by careful out-of-sample validation and by plots of informative
+low-dimensional slices such as those above.

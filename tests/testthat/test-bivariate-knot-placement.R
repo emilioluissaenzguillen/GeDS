@@ -1384,3 +1384,31 @@ test_that("Poisson bivariate fitter uses all repeated-coordinate rows", {
     tolerance = 1e-10
   )
 })
+
+test_that("bivariate SR is the default and rank-deficient RD selections are avoided", {
+  set.seed(501)
+  train <- data.frame(x = runif(300), z = runif(300))
+  train$y <- with(train, sin(2 * pi * x) * sin(2 * pi * z)) +
+    rnorm(nrow(train), sd = 0.2)
+
+  default <- NGeDS(y ~ f(x, z), data = train, Xextr = c(0, 1),
+                   Yextr = c(0, 1), higher_order = FALSE)
+  explicit.sr <- NGeDS(y ~ f(x, z), data = train, Xextr = c(0, 1),
+                       Yextr = c(0, 1), stoptype = "SR", higher_order = FALSE)
+  expect_equal(coef(default, n = 2L), coef(explicit.sr, n = 2L))
+
+  warnings <- character()
+  rd <- withCallingHandlers(
+    NGeDS(y ~ f(x, z), data = train, Xextr = c(0, 1),
+          Yextr = c(0, 1), stoptype = "RD", higher_order = FALSE),
+    warning = function(w) {
+      warnings <<- c(warnings, conditionMessage(w))
+      invokeRestart("muffleWarning")
+    }
+  )
+  design <- GeDS:::tensorProd(rd$linear.fit$Xbasis,
+                             rd$linear.fit$Ybasis)
+  expect_equal(qr(design)$rank, NCOL(design))
+  expect_true(any(grepl("rank deficient", warnings)))
+  expect_lt(max(abs(coef(rd, n = 2L))), 10)
+})

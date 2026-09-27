@@ -105,8 +105,8 @@ predict_newdata_full_model <- function(object, model, newdata, n, type) {
     lin_bl <- base_learners[sapply(base_learners, function(x) x$type == "linear")]
     # 1.2 Extract univariate base learners
     univariate_bl <- base_learners[sapply(base_learners, function(x) x$type == "GeDS" & length(x$variables) == 1)]
-    # 1.3 Extract bivariate base learners
-    bivariate_bl <- base_learners[sapply(base_learners, function(x) x$type == "GeDS" & length(x$variables) == 2)]
+    # 1.3 Extract joint (two- or higher-dimensional) base learners
+    bivariate_bl <- base_learners[sapply(base_learners, function(x) x$type == "GeDS" & length(x$variables) >= 2)]
 
     # Family
     if (inherits(object, "GeDSboost")) {
@@ -257,17 +257,9 @@ predict_newdata_full_model <- function(object, model, newdata, n, type) {
     Z <- newdata[linear_variables]
 
     if (n == 3) {
-      if (is.null(model$quadratic.fit)) {
-        cat("No Quadratic Fit to compute predictions.\n")
-        return(NULL)
-      }
       int.knots <- "quadratic.int.knots"
       Fit <- "quadratic.fit"
     } else if (n == 4) {
-      if (is.null(model$cubic.fit)) {
-        cat("No Cubic Fit to compute predictions.\n")
-        return(NULL)
-      }
       int.knots <- "cubic.int.knots"
       Fit <- "cubic.fit"
     }
@@ -321,30 +313,22 @@ predict_newdata_full_model <- function(object, model, newdata, n, type) {
     } else {
       matrices_univ_list <- NULL
     }
-    # Bivariate
+    # Joint tensor learners
     if (length(InterKnotsList_biv) != 0) {
-      bivariate_learners <- base_learners[sapply(base_learners, function(bl) length(bl$variables)) == 2]
+      bivariate_learners <- base_learners[
+        sapply(base_learners, function(bl) length(bl$variables)) >= 2
+      ]
       matrices_biv_list <- list()
 
       for (learner_name in names(bivariate_learners)) {
         vars <- bivariate_learners[[learner_name]]$variables
-        X_biv <- X[, vars, drop = FALSE]
-        Xextr <- range(object$args$predictors[vars[1]])
-        Yextr <- range(object$args$predictors[vars[2]])
-
-        # # If new data exceeds boundary knots limits, redefine boundary knots
-        # if(min(X_biv[,1]) < Xextr[1] || max(X_biv[,1]) > Xextr[2] || min(X_biv[,2]) < Yextr[1] || max(X_biv[,2]) > Yextr[2]) {
-        #   Xextr <- range(c(Xextr, X_biv[,1]))
-        #   Yextr <- range(c(Yextr, X_biv[,2]))
-        #   warning("Input values exceed original boundary knots; extending boundary knots to cover new data range.")
-        # }
-
-        knots <- InterKnotsList_biv[[learner_name]]
-        basisMatrixX <- splineDesign(knots=sort(c(knots$ikX,rep(Xextr,n))), derivs=rep(0,length(X_biv[,1])),
-                                     x=X_biv[,1],ord=n,outer.ok = TRUE)
-        basisMatrixY <- splineDesign(knots=sort(c(knots$ikY,rep(Yextr,n))),derivs=rep(0,length(X_biv[,2])),
-                                     x=X_biv[,2],ord=n,outer.ok = TRUE)
-        matrices_biv_list[[learner_name]] <- tensorProd(basisMatrixX, basisMatrixY)
+        matrices_biv_list[[learner_name]] <- jointSplineBasisMultivar(
+          X = X[, vars, drop = FALSE],
+          base_learners = bivariate_learners[learner_name],
+          InterKnotsList = InterKnotsList_biv[learner_name],
+          n = n,
+          extrList = lapply(object$args$predictors[vars], range)
+        )$basis
       }
     } else {
       matrices_biv_list <- NULL
@@ -585,4 +569,33 @@ predict_newdata_base_learner <- function(object, model, newdata, n,
 
   }
 
+}
+
+.unfitted_order_reason <- function(object, n) {
+  knot_key <- switch(as.character(n),
+                     "3" = "quadratic.int.knots",
+                     "4" = "cubic.int.knots",
+                     NULL)
+  if (is.null(knot_key)) return(NULL)
+  knot_list <- object$internal_knots[[knot_key]]
+  if (!length(knot_list)) return(NULL)
+
+  joint_sizes <- vapply(names(knot_list), function(name) {
+    learner <- object$args$base_learners[[name]]
+    knots <- knot_list[[name]]
+    if (is.null(learner) || length(learner$variables) < 2L ||
+        !is.list(knots)) return(NA_real_)
+    prod(as.double(lengths(knots) + n))
+  }, numeric(1))
+  n_informative <- sum(object$args$weights > 0)
+  too_large <- joint_sizes[is.finite(joint_sizes) &
+                             joint_sizes >= n_informative]
+  if (!length(too_large)) return(NULL)
+
+  paste0(
+    " The joint tensor basis requires ",
+    format(max(too_large), scientific = FALSE, big.mark = ","),
+    " coefficients, but only ", n_informative,
+    " observations have positive weight; the unpenalized Stage B fit was omitted."
+  )
 }

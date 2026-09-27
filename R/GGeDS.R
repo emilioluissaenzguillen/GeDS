@@ -50,7 +50,8 @@
 #' information of the fit at each GeDS iteration. By default equal to \code{FALSE}.
 #' @param stoptype A character string indicating the type of GeDS stopping rule
 #' to be used. It should be either one of \code{"SR"}, \code{"RD"} or
-#' \code{"LR"}, partial match allowed. See Details below.
+#' \code{"LR"}, partial match allowed. The default is \code{"SR"} for any
+#' smoother dimension. See Details below.
 #' @param higher_order Logical; if \code{TRUE}, the function proceeds to Stage B,
 #' fitting higher-order models (quadratic and cubic), after completing Stage A.
 #' Default is \code{TRUE}.

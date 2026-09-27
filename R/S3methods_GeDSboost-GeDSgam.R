@@ -352,6 +352,23 @@ predict.GeDSgam_GeDSboost <- function(object, newdata, n = 3L,
   ## 2. Specific n -------------------------------------------------------------
   n <- validate_GeDS_order(n)
 
+  if (is.null(model[[.fit_key(n)]])) {
+    available <- c(2L, 3L, 4L)[!vapply(
+      c("linear.fit", "quadratic.fit", "cubic.fit"),
+      function(key) is.null(model[[key]]), logical(1)
+    )]
+    reason <- .unfitted_order_reason(object, n)
+    if (is.null(reason)) {
+      reason <- " Stage B did not produce a fit for this order; check fitting warnings."
+    }
+    stop(
+      "Spline order ", n, " was not fitted.",
+      reason,
+      " Available orders: ", paste(available, collapse = ", "), ".",
+      call. = FALSE
+    )
+  }
+
   # 2.1. Training data ---------------------------------------------------------
   if (missing(newdata)) {
     return(

@@ -728,7 +728,7 @@ backfitting <- function(z, base_learners, base_learners_list, data, wz, phi_gam_
             } else if (length(pred_vars) == 2L) {
               NGeDS(model_formula, data = data_loop, weights = wz, beta = beta, phi = phi,
                     min.intknots = 0, max.intknots = max.intknots, q = q, Xextr = NULL, Yextr = NULL,
-                    show.iters = FALSE, stoptype = "RD", higher_order = FALSE, only_pred = TRUE)
+                    show.iters = FALSE, higher_order = FALSE, only_pred = TRUE)
             } else {
               fit_joint_GeDS_linear(
                 data_loop, "partial_resid", pred_vars, wz, beta, phi, q,
@@ -765,6 +765,9 @@ backfitting <- function(z, base_learners, base_learners_list, data, wz, phi_gam_
           } else if(length(base_learners[[bl_name]]$variables) >= 2) {
             base_learners_list[[bl_name]]$knots <- pred$knt
             base_learners_list[[bl_name]]$coefficients <- pred$theta
+            if (length(pred_vars) > 2L) {
+              base_learners_list[[bl_name]]$knot_order <- pred$knot_order
+            }
           }
 
       # (B) Linear base-learners

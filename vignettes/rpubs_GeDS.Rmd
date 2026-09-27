@@ -96,10 +96,9 @@ interval $[a,b]$ and maps them into $\mathbb{R}$.
 
 Let me now illustrate the usage of the `NGeDS()` function, which
 constructs a Geometrically Designed variable-knot spline regression
-model for a response having a Normal distribution. The established
-implementation covers univariate and bivariate splines; an experimental
-extension also supports joint spline components with more than two
-covariates. But first, let us simulate some data based on the
+model for a response having a Normal distribution. The implementation
+supports joint spline components with two or more covariates. But first,
+let us simulate some data based on the
 following test example. Assume the "true" predictor to be $\eta=f_1(x)$,
 where, \begin{equation}
     f_1(x)=40\frac{x}{1+100x^2}+4,\quad x\in[-2,2].
@@ -408,12 +407,20 @@ univariate GeDS procedure (GeDS). Then, the knot with maximal
 
 Below, the implementation of Normal bivariate GeDS and Poisson bivariate GeDS, with `NGeDS()` and `GGeDS()` functions, respectively, is illustrated. In particular the following example is considered:
 
+Both functions use the smoothed-ratio (SR) stopping rule by default for joint
+smoothers. If the selected Normal bivariate linear fit is rank deficient,
+`NGeDS()` uses the latest full-rank Stage A fit.
+
 **Example 2.** The "true" linear predictor is assumed to be $\eta = f(x_1,x_2)$,
 where \begin{equation}
 f(x_1,x_2) = \sin(2x_1)\sin(2x_2),\quad x \in [0, 3]^2.
 \end{equation}
 
-For the Normal case, a dataset $\{X_{i1}, X_{i2}, Y_i\}_{i=1}^N$ is simulated, with $Y_i = f(X_{i1}, X_{i2}) + \epsilon_i$, where $\epsilon_i \sim \mathcal{N}(0, 0.1)$. For the Poisson case, $Z_i \sim \text{Poisson}(0, 0.1)$ $Z_i ∼ \text{Poisson}(\mu_i)$, with $\mu_i = \exp(\eta_i)$ and $\eta_i = f(X_{i1}, X_{i2})$. In both cases, $(X_{i1}, X_{i2})$ are randomly scattered within $[0,3]^2$, following a uniform distribution and $N = 400$.
+For the Normal case, $Z_i = f(X_{i1}, X_{i2}) + \epsilon_i$, where
+$\epsilon_i \sim \mathcal{N}(0, 0.2^2)$. For the Poisson case,
+$Z_i \sim \text{Poisson}(\mu_i)$, with
+$\mu_i = \exp(\sin(2X_{i1}) + \sin(2X_{i2}))$. In both cases, 400
+covariate pairs are sampled uniformly from $[0,3]^2$.
 
 #### Normal Bivariate GeDS:
 
@@ -443,7 +450,7 @@ deviance(BivGeDS, n = 3)
 
 # RSS w.r.t true function
 f_XY <- apply(cbind(X, Y), 1, function(row) doublesin(matrix(row, ncol = 2)))
-mean((f_XY- Gmod$Quadratic.Fit$Predicted)^2)
+mean((f_XY - predict(BivGeDS, n = 3))^2)
 
 # Surface plot of the generating function (doublesin)
 plot(BivGeDS, f = doublesin)
@@ -480,13 +487,13 @@ deviance(BivGeDS, n = 3)
 
 # Poisson deviance w.r.t true function
 f_XY <- apply(cbind(X, Y), 1, function(row) doublesin(matrix(row, ncol = 2)))
-sum(poisson()$dev.resids(f_XY, BivGeDS$Quadratic.Fit$Predicted, wt = 1))
+mean(poisson()$dev.resids(lambda, predict(BivGeDS, n = 3), wt = 1))
 
 # Surface plot of the generating function (doublesin)
 plot(BivGeDS, f = doublesin)
 ```
 
-## Experimental Multivariate Normal GeDS Regression
+## Multivariate Normal GeDS Regression
 
 The Normal GeDS implementation can also fit one joint tensor-product spline
 in more than two covariates. For example, a three-dimensional fit is specified
@@ -581,20 +588,12 @@ safeguard stops Stage A before an excessively large tensor would be fitted. If
 only a higher-order Stage B tensor is excessive, that order is omitted with a
 warning while the smaller available fits are retained.
 
-This multivariate route is currently experimental and deliberately limited:
-
-- it is implemented only for Normal-response `NGeDS()` models;
-- `GGeDS()` still supports at most two covariates in a spline component;
-- each `NGeDSgam()` or `NGeDSboost()` spline smoother remains univariate or
-  bivariate, although several smoothers may appear additively in one model;
-- parametric terms, offsets, initial knots or fits, and the LR stopping rule
-  are not yet supported for a joint spline with more than two covariates;
-- `predict()`, `formula()`, `knots()`, `deviance()`, `coef()`, `print()`, and
-  `summary()` are available for the experimental `"GeDSfitND"` object, while
-  the remaining standard `"GeDS"` methods are still to be generalized.
-
-The established bivariate fitters remain in place for backward compatibility
-and for the generalized-response functionality on which `GGeDS()` depends.
+Joint smoothers above two dimensions are also available in `GGeDS()`,
+`NGeDSgam()`, and `NGeDSboost()`; see the
+[higher-dimensional vignette](multivariate_GeDS.html). For `NGeDS()` joint
+smoothers above two dimensions, parametric terms, offsets, initial knots or
+fits, and the LR stopping rule are not yet supported. The dedicated bivariate
+fitters remain in use, including for generalized responses.
 
 When the observations form a complete Cartesian mesh and have equal weights,
 the multivariate fitter uses the tensor factorization of the least-squares

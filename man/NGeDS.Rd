@@ -70,7 +70,9 @@ information about the fitting at each step.}
 
 \item{stoptype}{A character string indicating the type of GeDS stopping rule
 to be used. It should be either one of \code{"SR"}, \code{"RD"} or
-\code{"LR"}, partial match allowed. See Details.}
+\code{"LR"}, partial match allowed. The default is \code{"RD"} for a
+univariate smoother and \code{"SR"} for a joint smoother in two or more
+dimensions. See Details.}
 
 \item{higher_order}{Logical. If \code{TRUE}, after completing stage A, the
 function proceeds to stage B and fits higher-order models (quadratic and cubic).
@@ -209,6 +211,8 @@ Therefore \code{"LR"} can be viewed as a log likelihood ratio test performed
 at each iteration of the knot placement. In each of these cases the
 corresponding stopping criterion is compared with a threshold value
 \code{phi}.
+In bivariate Normal fits, a rank-deficient selected linear tensor fit is
+replaced by the latest full-rank Stage A fit.
 
 The argument \code{phi} provides a threshold value required for the stopping
 rule to exit the knot placement in stage A of GeDS. The higher the value of

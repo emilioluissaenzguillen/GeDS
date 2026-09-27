@@ -3,6 +3,23 @@
 ############################## Bivariate Fitters ###############################
 ################################################################################
 ################################################################################
+fullRankBivariateLinear <- function(X, Y, Xintknots, Yintknots,
+                                    Xextr, Yextr, weights) {
+  positive <- weights > 0
+  basis.size <- (length(Xintknots) + 2L) * (length(Yintknots) + 2L)
+  if (basis.size > sum(positive)) return(FALSE)
+  Xbasis <- splines::splineDesign(
+    sort(c(Xintknots, rep(Xextr, 2L))), X[positive], ord = 2L,
+    outer.ok = TRUE
+  )
+  Ybasis <- splines::splineDesign(
+    sort(c(Yintknots, rep(Yextr, 2L))), Y[positive], ord = 2L,
+    outer.ok = TRUE
+  )
+  basis <- tensorProd(Xbasis, Ybasis)
+  qr(basis)$rank == NCOL(basis)
+}
+
 #' @title Fitter Function for GeD Spline Regression for Bivariate Data
 #' @name BivariateFitters
 #' @aliases BivariateFitters BivariateFitter
@@ -194,6 +211,7 @@ BivariateFitter <- function(X, Y, Z, W, weights = rep(1,length(X)), indicator,
         phis <- c(phis, rssnew[j-q]-rssnew[j])
         } else {
           phnew <- (rssnew[j]/rssnew[j-q])^(1/(ncoef[j]-ncoef[j-q]))
+          if (stoptype == "SR" && (!is.finite(phnew) || phnew >= 1)) break
           phis <- c(phis, phnew)
           }
 
@@ -342,6 +360,27 @@ BivariateFitter <- function(X, Y, Z, W, weights = rep(1,length(X)), indicator,
       lastYknots <- sum(!is.na(previousY[j-q, ]))
       iter <- j - q
     }
+
+  selected.iter <- iter
+  while (iter > 1L) {
+    candidateX <- previousX[iter, !is.na(previousX[iter, ])]
+    candidateY <- previousY[iter, !is.na(previousY[iter, ])]
+    internalX <- if (length(candidateX) > 4L) {
+      candidateX[3L:(length(candidateX) - 2L)]
+    } else NULL
+    internalY <- if (length(candidateY) > 4L) {
+      candidateY[3L:(length(candidateY) - 2L)]
+    } else NULL
+    if (fullRankBivariateLinear(
+      X, Y, internalX, internalY, Xextr, Yextr, weights
+    )) break
+    iter <- iter - 1L
+  }
+  if (iter < selected.iter) {
+    warning("Selected linear tensor basis is rank deficient; using the latest full-rank Stage A fit instead.")
+    lastXknots <- sum(!is.na(previousX[iter, ]))
+    lastYknots <- sum(!is.na(previousY[iter, ]))
+  }
 
   # 1. LINEAR
   if (iter < 2) {
@@ -1439,6 +1478,11 @@ stageALoopND <- function(coordinates, response, upper.bounds,
       coefficient.increment <- length(step$coefficients) -
         length(earlier$coefficients)
       phnew <- rss.ratio^(1 / coefficient.increment)
+      if (stop.rule == "SR" && (!is.finite(phnew) || phnew >= 1)) {
+        stop.reason <- "SR ratio reached one"
+        selected.iteration <- iteration - q
+        break
+      }
       phis <- c(phis, phnew)
 
       if (iteration - q > min.intknots) {

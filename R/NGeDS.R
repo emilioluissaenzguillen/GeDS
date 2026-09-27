@@ -43,7 +43,9 @@
 #' information about the fitting at each step.
 #' @param stoptype A character string indicating the type of GeDS stopping rule
 #' to be used. It should be either one of \code{"SR"}, \code{"RD"} or
-#' \code{"LR"}, partial match allowed. See Details.
+#' \code{"LR"}, partial match allowed. The default is \code{"RD"} for a
+#' univariate smoother and \code{"SR"} for a joint smoother in two or more
+#' dimensions. See Details.
 #' @param higher_order Logical. If \code{TRUE}, after completing stage A, the
 #' function proceeds to stage B and fits higher-order models (quadratic and cubic).
 #' Default is \code{TRUE}.
@@ -117,6 +119,8 @@
 #' at each iteration of the knot placement. In each of these cases the
 #' corresponding stopping criterion is compared with a threshold value
 #' \code{phi}.
+#' In bivariate Normal fits, a rank-deficient selected linear tensor fit is
+#' replaced by the latest full-rank Stage A fit.
 #'
 #' The argument \code{phi} provides a threshold value required for the stopping
 #' rule to exit the knot placement in stage A of GeDS. The higher the value of
@@ -318,6 +322,7 @@ NGeDS <- function(formula, data, weights, beta = 0.5, phi = 0.99, min.intknots,
   # 2. formula
   newdata <- read.formula(formula, data)
   X <- newdata$X                                    # GeDS covariates
+  if (stoptype_missing && ncol(X) >= 2L) stoptype <- "SR"
   Y <- newdata$Y                                    # response
   offset <- newdata$offset                          # offset
   Z <- newdata$Z; if(!is.null(Z)) Z <- as.matrix(Z) # linear covariates

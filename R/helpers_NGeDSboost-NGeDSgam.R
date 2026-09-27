@@ -222,10 +222,54 @@ predict_GeDS_linear <- function(Gmod, X, Y, Z){
 # Fit the linear (Stage A) tensor GeDS learner used inside GAM backfitting and
 # component-wise boosting.  The surrounding algorithms always fit a Gaussian
 # working response here, irrespective of the response family's final link.
+.joint_stageB_basis_budget <- function(n_dims, n_informative, order) {
+  # Leave a numerical buffer where possible, while allowing one knot if its
+  # tensor basis is still smaller than the informative sample.
+  min(n_informative,
+      max(floor(n_informative / 2),
+          (order + 1) * order^(n_dims - 1L) + 1))
+}
+
+.stageB_joint_prefix <- function(internal, insertion_order,
+                                 order, n_informative) {
+  n_dims <- length(internal)
+  budget <- .joint_stageB_basis_budget(n_dims, n_informative, order)
+  if (prod(as.double(lengths(internal) + order)) < budget ||
+      order^n_dims >= n_informative) return(internal)
+
+  selected <- setNames(rep(list(NULL), n_dims), names(internal))
+  # The recorded Stage A insertion order is authoritative. The fallback is
+  # only for knots fitted before this history was recorded.
+  fallback <- lapply(seq_along(internal), function(j) {
+    lapply(internal[[j]], function(knot) {
+      list(dimension = names(internal)[j], knot = knot)
+    })
+  })
+  for (event in c(insertion_order, do.call(c, fallback))) {
+    dimension <- event$dimension
+    knot <- event$knot
+    if (!dimension %in% names(internal) ||
+        !any(abs(internal[[dimension]] - knot) < 1e-10) ||
+        any(abs(selected[[dimension]] - knot) < 1e-10)) next
+    candidate <- selected
+    candidate[[dimension]] <- sort(c(candidate[[dimension]], knot))
+    if (prod(as.double(lengths(candidate) + order)) >= budget) break
+    selected <- candidate
+  }
+  selected
+}
+
+.selected_joint_insertion_order <- function(fit) {
+  selected <- fit$stageA$selected.iteration
+  if (is.null(selected) || is.na(selected) || selected <= 1L) return(list())
+  utils::head(fit$stageA$insertions, selected - 1L)
+}
+
 fit_joint_GeDS_linear <- function(data, response, pred_vars, weights,
                                   beta, phi, q, max.intknots,
                                   max.coef = 100000L,
-                                  starting_intknots = NULL) {
+                                  starting_intknots = NULL,
+                                  stoptype = "SR") {
   coords <- as.matrix(data[pred_vars])
   if (is.null(starting_intknots)) starting_intknots <- rep(list(NULL), length(pred_vars))
   names(starting_intknots) <- pred_vars
@@ -233,7 +277,7 @@ fit_joint_GeDS_linear <- function(data, response, pred_vars, weights,
   fit <- MultivariateFitter(
     coordinates = coords, response = data[[response]], weights = weights,
     beta = beta, phi = phi, q = q, min.intknots = 0L,
-    max.steps = additions + 1L, stoptype = "RD",
+    max.steps = additions + 1L, stoptype = stoptype,
     placement.ranges = lapply(pred_vars, function(v) range(data[[v]][weights > 0])),
     intknots_init = starting_intknots,
     spline.orders = 2L, max.coef = max.coef
@@ -247,7 +291,8 @@ fit_joint_GeDS_linear <- function(data, response, pred_vars, weights,
   names(full.knots) <- pred_vars
   list(
     Y_hat = as.numeric(fit$linear.fit$predicted), knt = full.knots,
-    int.knt = int.knt, theta = fit$linear.fit$coefficients, fit = fit
+    int.knt = int.knt, theta = fit$linear.fit$coefficients, fit = fit,
+    knot_order = .selected_joint_insertion_order(fit)
   )
 }
 
@@ -375,8 +420,41 @@ bivariate_bl_linear_model <- function(pred_vars, model, shrinkage, base_learners
   # For each base learner (and its corresponding model)
   for (base_learner in names(model$base_learners)) {
 
-    X <- pred_vars[, base_learners[[base_learner]]$variables[1]]
-    Y <- pred_vars[, base_learners[[base_learner]]$variables[2]]
+    vars <- base_learners[[base_learner]]$variables
+    bl <- model$base_learners[[base_learner]]
+
+    # Higher-dimensional joint learners use the same tensor-basis builder as
+    # SplineReg_Multivar.  The historical two-dimensional code below is kept
+    # for its X/Y knot naming convention.
+    if (length(vars) > 2L) {
+      learner <- base_learners[base_learner]
+      make_prediction <- function(int.knots, theta) {
+        if (is.null(names(int.knots))) names(int.knots) <- vars
+        knot.list <- setNames(list(int.knots), base_learner)
+        basis <- jointSplineBasisMultivar(
+          pred_vars, learner, knot.list, n = 2,
+          extrList = extr[vars]
+        )$basis
+        theta[is.na(theta)] <- 0
+        as.numeric(basis %*% theta)
+      }
+
+      if (type == "boost") {
+        for (mod in names(bl$iterations)) {
+          contribution <- make_prediction(
+            bl$iterations[[mod]]$int.knt,
+            bl$iterations[[mod]]$coef
+          )
+          Y_hat <- Y_hat + if (mod == "model0") contribution else shrinkage * contribution
+        }
+      } else if (type == "gam") {
+        Y_hat <- Y_hat + make_prediction(bl$linear.int.knots, bl$coefficients)
+      }
+      next
+    }
+
+    X <- pred_vars[, vars[1]]
+    Y <- pred_vars[, vars[2]]
 
     # Boundary knots
     extrX <- extr[[base_learners[[base_learner]]$variables[1]]]
@@ -390,7 +468,6 @@ bivariate_bl_linear_model <- function(pred_vars, model, shrinkage, base_learners
               paste(extrX, collapse = ", "), "], extrY = [", paste(extrY, collapse = ", "), "].")
     }
 
-    bl <- model$base_learners[[base_learner]]
     # (I) Bivariate boosted base learners
     if(type == "boost") {
 
@@ -687,9 +764,30 @@ stageB_fit <- function(n, args, GeDS_variables, linear_variables,
     range
   )
 
+  # Stage B may use an early prefix of Stage A knots without changing the
+  # selected linear fit or its boosted iterations.
+  n_informative <- sum(wts > 0)
+  stageB_model <- final_model
+  for (bl in names(stageB_model$base_learners)) {
+    learner <- args$base_learners[[bl]]
+    if (is.null(learner) || learner$type != "GeDS" ||
+        length(learner$variables) <= 2L) next
+    full_knots <- stageB_model$base_learners[[bl]]$knots
+    internal <- get_internal_knots(full_knots)
+    names(internal) <- learner$variables
+    chosen <- .stageB_joint_prefix(
+      internal, stageB_model$base_learners[[bl]]$knot_order,
+      order = n, n_informative = n_informative
+    )
+    stageB_model$base_learners[[bl]]$knots <- Map(
+      function(full, selected) sort(c(range(full), selected)),
+      full_knots, chosen
+    )
+  }
+
   # 1) knots
   iklist <- compute_avg_int.knots(
-    final_model,
+    stageB_model,
     base_learners = args$base_learners[names(final_model$base_learners)],
     args$X_sd, args$X_mean, normalize_data,
     n = n
@@ -707,6 +805,24 @@ stageB_fit <- function(n, args, GeDS_variables, linear_variables,
     warning("Omitting the order-", n, " fit because its additive tensor basis requires ",
             total_coef, " coefficients, exceeding 'max.coef' = ", max.coef, ".",
             call. = FALSE)
+    return(list(fit = NULL, preds = rep(NA_real_, n_obs), int.knots = iklist))
+  }
+
+  # A joint tensor with at least as many basis coefficients as informative
+  # observations is not identifiable by the unpenalized Stage B regression.
+  # In that case lm/glm may return rank-deficient coefficients which later
+  # turn otherwise valid predictions into NA/NaN values. Additive collections
+  # of univariate learners retain their existing behaviour.
+  joint_not_estimable <- any(vapply(names(iklist), function(bl) {
+    length(spline_learners[[bl]]$variables) > 1L &&
+      basis_sizes[[bl]] >= n_informative
+  }, logical(1)))
+  if (joint_not_estimable) {
+    warning(
+      "Omitting the order-", n,
+      " fit because a joint tensor basis is not estimable from the available observations.",
+      call. = FALSE
+    )
     return(list(fit = NULL, preds = rep(NA_real_, n_obs), int.knots = iklist))
   }
 

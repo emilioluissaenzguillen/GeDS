@@ -634,6 +634,9 @@ NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE,
             names(knots) <- base_learners[[best_bl]]$variables
           }
           base_learners_list[[best_bl]]$knots <- knots
+          if (length(base_learners[[best_bl]]$variables) > 2L) {
+            base_learners_list[[best_bl]]$knot_order <- best_pred$knot_order
+          }
           # Number of int. knots placed on initial learner
           n_intknots <- lapply(knots, function(k) length(k) - 2L)
 
@@ -891,6 +894,12 @@ NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE,
             names(knots) <- base_learners[[best_bl]]$variables
           }
           base_learners_list[[best_bl]]$knots <- knots
+          if (length(base_learners[[best_bl]]$variables) > 2L) {
+            base_learners_list[[best_bl]]$knot_order <- c(
+              base_learners_list[[best_bl]]$knot_order,
+              best_pred$knot_order
+            )
+          }
           # Number of int. knots placed on current iteration
           n_intknots <- Map(function(new, old) length(new) - length(old),
                             knots, previous_model$base_learners[[best_bl]]$knots)
@@ -1232,7 +1241,7 @@ componentwise_fit <- function(bl_name, response, data, model_formula_template,
           } else if (length(pred_vars) == 2L) {
             NGeDS(model_formula, data = data, weights = weights, beta = beta, phi = phi,
                   min.intknots = 0, max.intknots = max.intknots, q = q,
-                  Xextr = NULL, Yextr = NULL, show.iters = FALSE, stoptype = "RD",
+                  Xextr = NULL, Yextr = NULL, show.iters = FALSE,
                   higher_order = FALSE, intknots_init = starting_intknots, only_pred = TRUE)
           } else {
             fit_joint_GeDS_linear(data, response, pred_vars, weights, beta,
@@ -1242,7 +1251,7 @@ componentwise_fit <- function(bl_name, response, data, model_formula_template,
         } else {
           GGeDS(model_formula, data = data, family = family, weights = weights,
                 beta = beta, phi = phi, min.intknots = 0, max.intknots = max.intknots,
-                q = q, Xextr = NULL, Yextr = NULL, show.iters = FALSE, stoptype = "SR",
+                q = q, Xextr = NULL, Yextr = NULL, show.iters = FALSE,
                 higher_order = FALSE)
         },
         error = function(e) {
@@ -1270,7 +1279,8 @@ componentwise_fit <- function(bl_name, response, data, model_formula_template,
                    fit$grid$coordinate.ranges, int.knt)
         names(knt) <- pred_vars
         list(Y_hat = predict(fit, n = 2L), knt = knt,
-             int.knt = int.knt, theta = fit$linear.fit$coefficients)
+             int.knt = int.knt, theta = fit$linear.fit$coefficients,
+             knot_order = .selected_joint_insertion_order(fit))
       } else {
         fit
       }
