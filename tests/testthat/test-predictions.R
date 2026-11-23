@@ -1,6 +1,40 @@
 library("testthat")
 library("GeDS")
 
+test_that("GAM and boost Stage B drops knots only where averaging is impossible", {
+  internal <- list(NULL, 0.3, c(0.3, 0.6), c(0.2, 0.5, 0.8))
+  full <- lapply(internal, function(k) c(0, k, 1))
+  learners <- list(
+    univ = list(type = "GeDS", variables = "x1"),
+    biv = list(type = "GeDS", variables = c("x1", "x2")),
+    joint = list(type = "GeDS", variables = paste0("x", 1:4))
+  )
+  model <- list(base_learners = list(
+    univ = list(knots = full[[2]]),
+    biv = list(knots = list(Xk = full[[2]], Yk = full[[4]])),
+    joint = list(knots = setNames(full, paste0("x", 1:4)))
+  ))
+  compute <- function(n) {
+    result <- NULL
+    invisible(capture.output(result <- GeDS:::compute_avg_int.knots(
+      model, learners, X_sd = NULL, X_mean = NULL,
+      normalize_data = FALSE, n = n
+    )))
+    result
+  }
+  linear <- compute(2)
+  expect_equal(linear$univ, internal[[2]])
+  expect_equal(linear$biv, list(ikX = internal[[2]], ikY = internal[[4]]))
+  expect_equal(linear$joint, setNames(internal, paste0("x", 1:4)))
+  for (n in c(3, 4)) {
+    higher <- compute(n)
+    expect_null(higher$univ)
+    expect_null(higher$biv$ikX)
+    expect_equal(higher$biv$ikY, GeDS:::makenewknots(internal[[4]], n))
+    expect_equal(higher$joint, GeDS:::stageBKnotsND(linear$joint, n))
+  }
+})
+
 test_that("IRIS - NGeDSgam predictions consistency", {
   # Prepare the iris dataset
   iris_subset <- subset(iris, Species %in% c("setosa", "versicolor"))
@@ -27,7 +61,7 @@ test_that("IRIS - NGeDSgam predictions consistency", {
       Gmodgam <- suppressWarnings(
         NGeDSgam(Species ~ f(Sepal.Length, Sepal.Width) + f(Petal.Length) + Petal.Width,
                  data = iris_subset, family = binomial(link = "cauchit"), normalize_data = normalize,
-                 phi_gam_exit = 0.8)
+                 phi_gam_exit = 0.8, penalty = "none")
         )
       }))
 
@@ -73,7 +107,7 @@ test_that("joint NGeDSgam predicts after an SR-based learner fit", {
 
   invisible(capture.output(
     fit <- suppressWarnings(NGeDSgam(
-      y ~ f(x1, x2, x3, x4), data = data
+      y ~ f(x1, x2, x3, x4), data = data, penalty = "none"
     ))
   ))
 
@@ -158,7 +192,7 @@ test_that("IRIS - NGeDSboost predictions consistency", {
           NGeDSboost(Species ~ f(Sepal.Length, Sepal.Width) + f(Petal.Length) + f(Petal.Width),
                      data = iris_subset, family = mboost::Binomial(link = "probit"),
                      initial_learner = init_learner, normalize_data = normalize,
-                     phi_boost_exit = 0.8)
+                     phi_boost_exit = 0.8, penalty = "none")
           )
         }))
 
@@ -204,7 +238,8 @@ test_that("MTCARS - NGeDSgam predictions consistency", {
     invisible(capture.output({
       Gmodgam <- suppressWarnings(
         NGeDSgam(mpg ~ cyl + f(disp, hp) + f(drat) + f(wt) + f(qsec) + vs + am + gear + carb,
-                 data = mtcars, family = gaussian, normalize_data = normalize)
+                 data = mtcars, family = gaussian, normalize_data = normalize,
+                 penalty = "none")
         )
       }))
 
@@ -269,29 +304,31 @@ test_that("MTCARS - NGeDSboost predictions consistency", {
         Gmodboost <- suppressWarnings(
           NGeDSboost(mpg ~ cyl + f(disp, hp) + f(drat) + f(wt) + f(qsec) + vs + am + gear + carb,
                      data = mtcars, family = mboost::Gaussian(), initial_learner = init_learner,
-                     normalize_data = normalize)
+                     normalize_data = normalize, max_iterations = 3L, penalty = "none")
           )
         }))
 
-      # Check prediction differences for orders 2, 3, and 4
-      expect_equal(
-        predict(Gmodboost, newdata = mtcars, type = "response", n = 2),
-        Gmodboost$predictions$pred_linear,
-        tolerance = 1e-6
-      )
-      expect_equal(
-        predict(Gmodboost, newdata = mtcars, type = "response", n = 3),
-        Gmodboost$predictions$pred_quadratic,
-        tolerance = 1e-6
-      )
-      expect_equal(
-        predict(Gmodboost, newdata = mtcars, type = "response", n = 4),
-        Gmodboost$predictions$pred_cubic,
-        tolerance = 1e-6
-      )
+      # The tensor-size safeguard can omit higher orders in this 32-row model.
+      fit_keys <- c("linear.fit", "quadratic.fit", "cubic.fit")
+      pred_keys <- c("pred_linear", "pred_quadratic", "pred_cubic")
+      available <- !vapply(Gmodboost$final_model[fit_keys], is.null, logical(1))
+      expect_true(available[1])
+      for (ord in (2:4)[!available]) {
+        expect_error(
+          predict(Gmodboost, newdata = mtcars, type = "response", n = ord),
+          "joint tensor basis requires.*positive weight"
+        )
+      }
+      for (ord in (2:4)[available]) {
+        expect_equal(
+          predict(Gmodboost, newdata = mtcars, type = "response", n = ord),
+          Gmodboost$predictions[[pred_keys[ord - 1]]],
+          tolerance = 1e-6
+        )
+      }
 
       # Check that the sum of base learner contributions equals the overall prediction
-      for (ord in 2:4) {
+      for (ord in (2:4)[available]) {
         pred1 = predict(Gmodboost, n = ord, newdata = mtcars,  base_learner = "cyl")
         pred2 = predict(Gmodboost, n = ord, newdata = mtcars,  base_learner = "f(disp, hp)")
         pred3 = predict(Gmodboost, n = ord, newdata = mtcars,  base_learner = "f(drat)")

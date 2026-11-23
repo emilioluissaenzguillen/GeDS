@@ -440,7 +440,7 @@ Y <- (round(runif(400, min = 0, max = 3),2))
 Z <- doublesin(cbind(X,Y))
 Z <- Z + rnorm(400, 0, sd = 0.2)
 # Fit a two dimensional GeDS model using NGeDS
-(BivGeDS <- NGeDS(Z ~ f(X, Y), beta = 0.3, phi = 0.95,
+(BivGeDS <- NGeDS(Z ~ f(X, Y), beta = 0.3,
 Xextr = c(0, 3), Yextr = c(0, 3)))
 
 # Extract quadratic coefficients/knots/deviance
@@ -478,7 +478,7 @@ Z <- rpois(400, lambda)
 data <- data.frame(X, Y, Z)
 
 # Fit a Poisson GeDS regression using GGeDS
-(BivGeDS <- GGeDS(Z ~ f(X,Y), beta = 0.2, phi = 0.99, family = "poisson"))
+(BivGeDS <- GGeDS(Z ~ f(X,Y), beta = 0.2, family = "poisson"))
 
 # Extract quadratic coefficients/knots/deviance
 coef(BivGeDS, n = 3)

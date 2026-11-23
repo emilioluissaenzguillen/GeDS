@@ -56,6 +56,23 @@ This method computes predictions from GeDSboost and GeDSgam objects.
 It is designed to be user-friendly and accommodate different orders of the
 GeDSboost or GeDSgam fits.
 }
+\details{
+Fitted knots and coefficients remain fixed when predicting at \code{newdata}.
+Linear spline components (\code{n = 2}) continue their boundary segments
+linearly. Joint smoothers continue linearly in each coordinate; a bivariate
+smoother therefore has a bilinear continuation when both coordinates are
+outside their fitted ranges. Quadratic and cubic spline components
+(\code{n = 3} or \code{n = 4}) clamp each coordinate to its fitted boundary
+range. Full-model interior predictions and explicitly linear parametric terms are
+unchanged. These rules also apply to individual base-learner predictions,
+and do not depend on the other observations supplied in \code{newdata}.
+Linear component centering uses the training observations, not the
+observations in the prediction batch.
+For Gamma models with the inverse link, all spline orders clamp each
+coordinate to its fitted boundary range. Parametric terms remain unchanged.
+The complete linear predictor must be positive and finite for this family
+and link; otherwise full-model prediction raises an error.
+}
 \examples{
 ## Gu and Wahba 4 univariate term example ##
 # Generate a data sample for the response variable

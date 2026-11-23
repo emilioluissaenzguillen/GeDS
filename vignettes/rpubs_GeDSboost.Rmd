@@ -178,7 +178,7 @@ visualize_boosting(Gmodboost, 0:N.boost.iter(Gmodboost), final_fits = TRUE)
 
 On the left, the linear fit of the model to the data at each boosting
 iteration is depicted, starting with an initial learner `NGeDS()` fit with two internal knots. Above each plot, the vector of internal knots of each fit is displayed. On the right, the `NGeDS()` base-learner fit to the recomputed residuals at each boosting iteration is depicted; the internal knots fitted at the corresponding iteration are displayed at the top of each plot.  The final
-plot displays the linear, quadratic, and cubic fits, which are obtained by first computing the corresponding averaging knot location of the knots vector obtained through the boosting iterations, and, second, re-estimating the B-spline coefficients via least squares (see Stage B in [Geometrically
+coefficient-update iterations keep the selected knots fixed and show the updated fit on the left and the gradient fit for the next update on the right. The final plot displays the linear, quadratic, and cubic fits. The quadratic and cubic fits are obtained by first computing the corresponding averaging knot location of the knots vector obtained through the boosting iterations, and, second, re-estimating the B-spline coefficients via least squares (see Stage B in [Geometrically
 Designed Splines:
 `GeDS`](https://rpubs.com/emilioluissaenzguillen/1273496)).
 
@@ -248,11 +248,11 @@ train <- ames_data[trainIndex, ]
 test <- ames_data[-trainIndex, ]
 
 Gmodboost <- NGeDSboost(formula = ames_formula, data = train,
-                        initial_learner = FALSE,
-                        phi_boost_exit = 0.999, phi = 0.95)
+                        initial_learner = FALSE, stoptype = "GD",
+                        phi_boost_exit = 0.999)
 
 ```
-Note that I'm pushing up the number of boosting iterations by setting `phi_boost_exit = 0.999` (instead of the default `phi_boost_exit = 0.99`) and reduce the strength of the `NGeDS()` base-learner by setting `phi = 0.95` (instead of the default `phi=0.99`).
+For this fit we use Gamma dynamic (`stoptype = "GD"`) for the univariate base learners. The overall boosting threshold is `phi_boost_exit = 0.999`.
 
 Compute predictions on the test set and calculate the corresponding root mean squared error (RMSE):
 ```{r}
@@ -279,7 +279,7 @@ plot(Gmodboost, n = 3)
 plot(Gmodboost, n = 4)
 ```
 
-If the focus is prediction reduce the strength of the GeDS base-learners to avoid overfitting:
+To reduce the strength of each boosting update, we use `shrinkage = 0.4` in the second fit. We use RD with `phi = 0.95` for the base learners in this fit to keep computation time practical.
 ```{r}
 # Set the seed for reproducibility
 set.seed(123)
@@ -292,7 +292,7 @@ train <- ames_data[trainIndex, ]
 test <- ames_data[-trainIndex, ]
 
 Gmodboost <- NGeDSboost(formula = ames_formula, data = train,
-                        initial_learner = FALSE,
+                        initial_learner = FALSE, stoptype = "RD",
                         phi = 0.95, shrinkage = 0.4)
 
 # RMSE
@@ -317,7 +317,8 @@ mod <- glm(Species ~ Sepal.Length,
 # GeDS
 Gmod <- suppressWarnings(GGeDS(Species ~ f(Sepal.Length), data = iris_subset, family = binomial(link = "logit"), phi = 0.8))
 # GAM-GeDS
-Gmodgam <- suppressWarnings(NGeDSgam(Species ~ f(Sepal.Length), data = iris_subset, family = binomial(link = "logit"), phi = 0.8))
+Gmodgam <- suppressWarnings(NGeDSgam(Species ~ f(Sepal.Length), data = iris_subset,
+                                    family = binomial(link = "logit"), stoptype = "RD", phi = 0.8))
 # FGB-GeDS
 Gmodboost <- suppressWarnings(NGeDSboost(Species ~ f(Sepal.Length), data = iris_subset, family = mboost::Binomial()))
 
@@ -377,12 +378,11 @@ In binary classification we model the posterior probability $p(x)= P(Y =
 \end{equation*}
 Now for the multinomial logit regression case with $J>2$ different classes, we pick a baseline class, say `setosa`, then,
 \begin{align*}
-&P(Y = setosa |X = x)= 1-\sum_{j=1}^{J-1}P(Y=j|X = x)=1-\sum_{j=1}^{J-1}\frac{e^{F^j(x)}}{1+e^{F^j(x)}}\\
-&=1-\frac{e^{\sum_{j=1}^{J-1}F^j(x)}}{1+e^{\sum_{j=1}^{J-1}F^j(x)}}=\frac{1}{1+e^{\sum_{j=1}^{J-1}F^j(x)}}.
+&P(Y = setosa |X = x)=\frac{1}{1+\sum_{j=1}^{J-1}e^{F^j(x)}}.
 \end{align*}
 For each other class $j=versicolor,\ virginica$:
 \begin{align*}
-    &\log\left(\frac{p_j(x)}{p_{setosa}(x)}\right)=F^j(x),\quad\text{i.e.,}\quad p_j(x)=p_{setosa}(x)e^{F^j(x)}=\frac{e^{F^j(x)}}{1+e^{\sum_{j=1}^{J-1}F^j(x)}}
+    &\log\left(\frac{p_j(x)}{p_{setosa}(x)}\right)=F^j(x),\quad\text{i.e.,}\quad p_j(x)=p_{setosa}(x)e^{F^j(x)}=\frac{e^{F^j(x)}}{1+\sum_{\ell=1}^{J-1}e^{F^\ell(x)}}.
 \end{align*}
 
 From the binomial models $F^{versicolor}$ and $F^{virginica}$ we can then compute the multinomial probabilities for each species (*Setosa*, *Versicolor*, *Virginica*).
@@ -421,11 +421,20 @@ compute_multinomial_probs <- function(mod_1, mod_2, newdata, n) {
     eta2 <- predict(mod_2, newdata = newdata, type = "link", n = n)
   }
 
+  # The linear mboost::Binomial() boosting score is half the log-odds.
+  # Quadratic/cubic binomial GLM refits already return full log-odds.
+  if (!missing(n) && n == 2L) {
+    if (inherits(mod_1, "GeDSboost") &&
+        mod_1$args$family@name == "Negative Binomial Likelihood (logit link)") eta1 <- 2 * eta1
+    if (inherits(mod_2, "GeDSboost") &&
+        mod_2$args$family@name == "Negative Binomial Likelihood (logit link)") eta2 <- 2 * eta2
+  }
+
   # Normalize exponentials for numerical stability (Log-Sum-Exp Trick)
   max_eta <- pmax(0, eta1, eta2)
 
   # Compute stabilized exponentials
-  exp_setosa     <- exp(0 - max_eta) # i.e., \approx 1
+  exp_setosa     <- exp(0 - max_eta)
   exp_versicolor <- exp(eta1 - max_eta)
   exp_virginica  <- exp(eta2 - max_eta)
 
@@ -447,10 +456,10 @@ compute_multinomial_probs <- function(mod_1, mod_2, newdata, n) {
   return(pred_probs)
 }
 ```
-Finally, the function `multinomial_logit_boost()` wraps everything together to fit a multinomial logistic regression using boosting. It takes a dataset, identifies a base class, and fits separate binomial boosting models against that base. The function then calls `compute_multinomial_probs()` to obtain class probabilities, assigns the predicted class labels, and evaluates the fit using `evaluate_model()`. The output includes probabilities, predicted classes, and accuracy results.
+Finally, the function `multinomial_logit()` wraps everything together to approximate a multinomial logistic regression using boosting. It takes a dataset, identifies a base class, and fits separate binomial boosting models against that base. The function then calls `compute_multinomial_probs()` to obtain class probabilities, assigns the predicted class labels, and evaluates the fit using `evaluate_model()`. The output includes probabilities, predicted classes, and accuracy results.
 ```{r}
 multinomial_logit <- function(data, response, predictors, base_class,
-                                    method = NGeDSboost, params = list()) {
+                                    method = NGeDSboost, params = list(), n = 3L) {
   # Ensure response is a factor
   data[[response]] <- factor(data[[response]])
 
@@ -470,7 +479,7 @@ multinomial_logit <- function(data, response, predictors, base_class,
   })
 
   # Compute multinomial probabilities
-  pred_probs <- suppressWarnings(compute_multinomial_probs(models[[1]], models[[2]], newdata = data))
+  pred_probs <- suppressWarnings(compute_multinomial_probs(models[[1]], models[[2]], newdata = data, n = n))
 
   # Predict classes
   predicted_classes <- factor(
@@ -485,6 +494,15 @@ multinomial_logit <- function(data, response, predictors, base_class,
 }
 ```
 
+This example uses the default component-specific REML refits, with the
+quadratic fits (`n = 3`) providing the class probabilities below. Setosa is
+completely separated from both other species by petal length. When a binomial
+REML refit fails or produces saturated training predictions, Firth bias-reduced
+logistic regression is used on the same selected spline basis. The affected
+refit then uses Firth's likelihood adjustment instead of the curvature penalty;
+the fallback and its reason are recorded in the fitted model. Both quadratic
+and cubic fits remain available.
+
 ```{r}
 # Example usage:
 # NGeDSboost
@@ -492,6 +510,7 @@ results <- multinomial_logit(iris, response = "Species",
                              predictors = c("Sepal.Length", "Sepal.Width", "Petal.Length", "Petal.Width"),
                              base_class = "setosa",
                              method = NGeDSboost,
+                             n = 3L,
                              params = list(
                                family = mboost::Binomial(),
                                phi = 0.99,

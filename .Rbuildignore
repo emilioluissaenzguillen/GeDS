@@ -8,3 +8,6 @@
 ^\.claude$
 ^doc$
 ^cran-comments\.md$
+^Rplots\.pdf$
+^student-paper-faculty-letter$
+^stageA73-diagnostics$

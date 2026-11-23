@@ -21,14 +21,6 @@ makeEpsilonsb <- function(data, Xs, Ys, degree) {
     .Call('_GeDS_makeEpsilonsb', PACKAGE = 'GeDS', data, Xs, Ys, degree)
 }
 
-makeRatSplines <- function(matrice, h) {
-    .Call('_GeDS_makeRatSplines', PACKAGE = 'GeDS', matrice, h)
-}
-
-makeWeights <- function(x) {
-    .Call('_GeDS_makeWeights', PACKAGE = 'GeDS', x)
-}
-
 tensorProd <- function(Xmat, Ymat) {
     .Call('_GeDS_tensorProd', PACKAGE = 'GeDS', Xmat, Ymat)
 }
@@ -39,5 +31,25 @@ makeNewMatrCPP <- function(matrix, tab = NULL, by_row = FALSE) {
 
 findNewDimKnot <- function(dcumFixedDim_Dim, Dim_weights, Dim_oldknots, Dim_values, residuals) {
     .Call('_GeDS_findNewDimKnot', PACKAGE = 'GeDS', dcumFixedDim_Dim, Dim_weights, Dim_oldknots, Dim_values, residuals)
+}
+
+linear_spline_ls <- function(x, y, w, t) {
+    .Call('_GeDS_linear_spline_ls', PACKAGE = 'GeDS', x, y, w, t)
+}
+
+geds_knot_step <- function(residuals, positive, placement_weights, site_counts, repeated_sites, site_scale, geometry_tol, sites, beta, extr, intknots, tol, support_order) {
+    .Call('_GeDS_geds_knot_step', PACKAGE = 'GeDS', residuals, positive, placement_weights, site_counts, repeated_sites, site_scale, geometry_tol, sites, beta, extr, intknots, tol, support_order)
+}
+
+gd_neighbour_semivariance <- function(r, nn) {
+    .Call('_GeDS_gd_neighbour_semivariance', PACKAGE = 'GeDS', r, nn)
+}
+
+gd_stage_a_path <- function(X, Y, offset, weights, positive, placement_weights, site_counts, repeated_sites, site_scale, geometry_tol, sites, beta, extr, tol, max_intknots, intknots_start, loss_start, first_residuals, append_first_rss, first_iter, last_iter) {
+    .Call('_GeDS_gd_stage_a_path', PACKAGE = 'GeDS', X, Y, offset, weights, positive, placement_weights, site_counts, repeated_sites, site_scale, geometry_tol, sites, beta, extr, tol, max_intknots, intknots_start, loss_start, first_residuals, append_first_rss, first_iter, last_iter)
+}
+
+gd_glm_path <- function(X, Y, offset, weights, positive, site_counts, repeated_sites, sites, beta, extr, tol, family, link, intknots_start, guess_start, residuals_start, working_start, j, max_intknots, last_iter) {
+    .Call('_GeDS_gd_glm_path', PACKAGE = 'GeDS', X, Y, offset, weights, positive, site_counts, repeated_sites, sites, beta, extr, tol, family, link, intknots_start, guess_start, residuals_start, working_start, j, max_intknots, last_iter)
 }
 

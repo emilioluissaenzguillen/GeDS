@@ -54,6 +54,68 @@ bool is_internal_knot(double newknot,
   return newknot_is_internal;
 }
 
+namespace {
+bool has_ordered_sw_support(const NumericVector& knots,
+                            const NumericVector& sites, int order, double tol) {
+  int next_site = 0;
+  int n_basis = knots.size() - order;
+  double previous_site = R_NegInf;
+  for (int i = 0; i < n_basis; ++i) {
+    bool matched = false;
+    while (next_site < sites.size()) {
+      double z = sites[next_site++];
+      if (z <= previous_site) continue;
+      bool interior = knots[i] + tol < z && z < knots[i + order] - tol;
+      bool left_endpoint = i == 0 && z == knots[0] && knots[order - 1] == knots[0];
+      bool right_endpoint = i == n_basis - 1 && z == knots[knots.size() - 1] &&
+        knots[n_basis] == knots[knots.size() - 1];
+      if (interior || left_endpoint || right_endpoint) {
+        previous_site = z;
+        matched = true;
+        break;
+      }
+    }
+    if (!matched) return false;
+  }
+  return true;
+}
+
+// Same greedy matching for strictly increasing sites. Each basis takes the
+// first unused site satisfying one of its conditions, so the scan can jump to
+// the first candidate of each condition by binary search.
+bool has_ordered_sw_support_sorted(const NumericVector& knots,
+                                   const NumericVector& sites, int order, double tol) {
+  const double *s = sites.begin(), *end = sites.end();
+  const int m = sites.size(), n_knots = knots.size(), n_basis = n_knots - order;
+  int next_site = 0;
+  for (int i = 0; i < n_basis; ++i) {
+    int match = m;
+    const double lower = knots[i] + tol, upper = knots[i + order] - tol;
+    int j = (int)(std::upper_bound(s + next_site, end, lower) - s);
+    if (j < m && s[j] < upper) match = j;
+    if (i == 0 && knots[order - 1] == knots[0]) {
+      j = (int)(std::lower_bound(s + next_site, end, (double)knots[0]) - s);
+      if (j < m && s[j] == knots[0] && j < match) match = j;
+    }
+    if (i == n_basis - 1 && knots[n_basis] == knots[n_knots - 1]) {
+      j = (int)(std::lower_bound(s + next_site, end, (double)knots[n_knots - 1]) - s);
+      if (j < m && s[j] == knots[n_knots - 1] && j < match) match = j;
+    }
+    if (match == m) return false;
+    next_site = match + 1;
+  }
+  return true;
+}
+
+bool strictly_increasing(const NumericVector& v) {
+  for (int i = 1; i < v.size(); ++i) {
+    if (!(v[i] > v[i - 1])) return false;
+  }
+  return true;
+}
+}
+
+// R reference: Knotnew_R_clean() (Knotnew_R() is the original) in R/cpp_functions_R.R.
 // [[Rcpp::export]]
 NumericVector Knotnew(NumericVector weights, NumericVector residuals, NumericVector x,
                       NumericVector dcum, NumericVector oldknots, double tol,
@@ -66,6 +128,18 @@ NumericVector Knotnew(NumericVector weights, NumericVector residuals, NumericVec
 
   if (u == 0 || weights.size() == 0) {
     return NumericVector::create(NA_REAL, NA_REAL);
+  }
+
+  // Callers pass distinct sorted sites; other inputs keep the linear scans.
+  const bool sorted_sites = strictly_increasing(x);
+  NumericVector sw_sites = x;
+  if (!sorted_sites) {
+    sw_sites = clone(x);
+    std::sort(sw_sites.begin(), sw_sites.end());
+  }
+  std::vector<double> oldintknots(n_oldintknots > 0 ? n_oldintknots : 0);
+  for (int k = 0; k < n_oldintknots; ++k) {
+    oldintknots[k] = oldknots[2 * support_order + k];
   }
 
   NumericVector candidate_weights = clone(weights);
@@ -109,13 +183,6 @@ NumericVector Knotnew(NumericVector weights, NumericVector residuals, NumericVec
     has_old_knots_between = false;
     
     if (n_oldintknots > 0) {
-      NumericVector oldintknots(n_oldintknots);
-      
-      // Extract internal knots (ignoring the boundary knots)
-      for (i = 0; i < n_oldintknots; ++i) {
-        oldintknots[i] = oldknots[2 * support_order + i];
-      }
-      
       if (inf != sup) {
         // For each internal knot, check if it lies within the current cluster's boundaries
         for (j = 0; j < n_oldintknots; ++j) {
@@ -153,23 +220,34 @@ NumericVector Knotnew(NumericVector weights, NumericVector residuals, NumericVec
     
     std::sort(sortedknots.begin(), sortedknots.end());
     
-    // Step 4: Apply the GeDS/CRAN minimum-support rule. Each support interval
-    // is checked independently; this is not a global Schoenberg-Whitney
-    // matching test, so one observation may satisfy overlapping intervals.
+    // Step 4: Retain the minimum-support rule and require distinct-site SW matching.
     is_valid_knot = true;
     
     for (i = 0; i < n_oldknots - (support_order - 1); ++i) {
       bool valid_interval = false;
-      
-      for (j = 0; j < data_size; ++j) {
-        valid_interval = valid_interval || 
-          ((sortedknots[i] + tol < x[j]) &&
-           (x[j] < sortedknots[i + support_order] - tol));
-        if (valid_interval) break;
+
+      if (sorted_sites) {
+        // The first site above the left bound is the only one to check.
+        const double lower = sortedknots[i] + tol;
+        j = (int)(std::upper_bound(x.begin(), x.end(), lower) - x.begin());
+        valid_interval = j < data_size && x[j] < sortedknots[i + support_order] - tol;
+      } else {
+        for (j = 0; j < data_size; ++j) {
+          valid_interval = valid_interval ||
+            ((sortedknots[i] + tol < x[j]) &&
+             (x[j] < sortedknots[i + support_order] - tol));
+          if (valid_interval) break;
+        }
       }
-      
+
       is_valid_knot = is_valid_knot && valid_interval;
       if (!is_valid_knot) break;
+    }
+
+    if (is_valid_knot) {
+      is_valid_knot = sorted_sites ?
+        has_ordered_sw_support_sorted(sortedknots, sw_sites, support_order, tol) :
+        has_ordered_sw_support(sortedknots, sw_sites, support_order, tol);
     }
     
     // 5) Check new knot is not a boundary knot
@@ -244,42 +322,7 @@ NumericVector ctrlpolyfun(NumericVector data, NumericVector Xs, NumericVector Ys
     return vector;
     }
 
-// [[Rcpp::export]]
-NumericMatrix makeRatSplines(NumericMatrix matrice, NumericVector h) {
-  int i, j, k, nr=matrice.nrow(), nc=matrice.ncol();
-  NumericVector norm(nc);
-  NumericMatrix matriceb(nr, nc);
-  double s;
-  for (j=k=0; j<nc; j++) {
-    for (i=0, s=0.0; i<nr; i++,k++) {
-      matriceb[k] = matrice[k]*h[i];
-      s += matriceb[k];
-      }
-    norm[j] = s;
-  }
-  for (j=k=0; j<nc; j++) {
-    for (i=0; i<nr; i++,k++) {
-      matriceb[k] = matriceb[k]/norm[j];
-    }
-  }
-  return matriceb;
-}
-
-
-// [[Rcpp::export]]
-NumericVector makeWeights(NumericMatrix x){
-  int i, nr = x.nrow();
-  double r, s, t;
-  NumericVector coseni(nr);
-  for(i=0;i<nr-2;i++){
-    r = (x(i,1)-x(i+1,1))*(x(i+2,1)-x(i+1,1))+(x(i,2)-x(i+1,2))*(x(i+2,2)-x(i+1,2));
-    s = pow((x(i,1)-x(i+1,1)),2)+pow((x(i,2)-x(i+1,2)),2);
-    t = pow((x(i+2,1)-x(i+1,1)),2)+pow((x(i+2,1)-x(i+1,2)),2);
-    coseni(i) = r/(s*t);
-    }
-  return coseni;
-}
-
+// R reference: tensorProd_R() in R/cpp_functions_R.R.
 // [[Rcpp::export]]
 NumericMatrix tensorProd(NumericMatrix Xmat, NumericMatrix Ymat){
   int ii, jjx, jjy, kk, ib = Xmat.nrow(), jx = Xmat.ncol(), jy = Ymat.ncol();
@@ -355,6 +398,7 @@ NumericMatrix makeNewMatrCPP(NumericMatrix matrix, Nullable<IntegerMatrix> tab =
   return ret;
 } 
 
+// R reference: findNewDimKnot_R() in R/cpp_functions_R.R.
 // [[Rcpp::export]]
 List findNewDimKnot(
     IntegerVector dcumFixedDim_Dim,
@@ -445,3 +489,274 @@ List findNewDimKnot(
 
 
 
+// Weighted least-squares fit of a linear spline with breakpoints t (boundary
+// knots first and last, strictly increasing). The hat-function basis makes the
+// normal equations tridiagonal, so they are solved by an LDL' sweep in O(n).
+// Matches splineDesign(ord = 2, outer.ok = TRUE): points outside [t0, tm] have
+// a zero basis row. Returns NULL when the system is singular or poorly
+// conditioned so the caller can fall back to a pivoted QR.
+namespace {
+bool linear_spline_ls_core(const double* x, const double* y, const double* w, int n,
+                           const double* t, int m, std::vector<double>& theta,
+                           std::vector<double>& fitted) {
+  if (m < 2) return false;
+  for (int k = 1; k < m; k++) {
+    if (!(t[k] > t[k - 1])) return false;
+  }
+  std::vector<double> d(m, 0.0), e(m - 1, 0.0), b(m, 0.0), u(n, 0.0);
+  std::vector<int> cell(n, -1);
+  const double *tb = t, *te = t + m;
+  for (int i = 0; i < n; i++) {
+    const double xi = x[i];
+    if (xi < t[0] || xi > t[m - 1]) continue;
+    // Interval k with t[k] <= x < t[k + 1]; the right boundary closes the last.
+    int k = (int)(std::upper_bound(tb, te, xi) - tb) - 1;
+    if (k > m - 2) k = m - 2;
+    const double ui = (xi - t[k]) / (t[k + 1] - t[k]), ai = 1.0 - ui;
+    cell[i] = k;
+    u[i] = ui;
+    const double wi = w[i];
+    if (wi == 0.0) continue;
+    d[k] += wi * ai * ai;
+    d[k + 1] += wi * ui * ui;
+    e[k] += wi * ai * ui;
+    b[k] += wi * ai * y[i];
+    b[k + 1] += wi * ui * y[i];
+  }
+  const double rel_tol = 1e-10;
+  if (!(d[0] > 0.0)) return false;
+  double pivot = d[0];
+  std::vector<double> l(m, 0.0);
+  for (int k = 1; k < m; k++) {
+    l[k] = e[k - 1] / pivot;
+    const double next = d[k] - l[k] * e[k - 1];
+    if (!(d[k] > 0.0) || !(next > rel_tol * d[k])) return false;
+    b[k] -= l[k] * b[k - 1];
+    pivot = d[k] = next;
+  }
+  theta.assign(m, 0.0);
+  theta[m - 1] = b[m - 1] / d[m - 1];
+  for (int k = m - 2; k >= 0; k--) {
+    theta[k] = (b[k] - e[k] * theta[k + 1]) / d[k];
+  }
+  fitted.assign(n, 0.0);
+  for (int i = 0; i < n; i++) {
+    const int k = cell[i];
+    if (k >= 0) fitted[i] = (1.0 - u[i]) * theta[k] + u[i] * theta[k + 1];
+  }
+  return true;
+}
+}
+
+// R reference: .linear_spline_ls_R() in R/cpp_functions_R.R.
+// [[Rcpp::export]]
+SEXP linear_spline_ls(NumericVector x, NumericVector y, NumericVector w,
+                      NumericVector t) {
+  const int n = x.size();
+  if (y.size() != n || w.size() != n) return R_NilValue;
+  std::vector<double> theta, fitted;
+  if (!linear_spline_ls_core(x.begin(), y.begin(), w.begin(), n, t.begin(), t.size(),
+                             theta, fitted)) {
+    return R_NilValue;
+  }
+  return List::create(Named("theta") = NumericVector(theta.begin(), theta.end()),
+                      Named("fitted") = NumericVector(fitted.begin(), fitted.end()));
+}
+
+// One Stage A knot-placement step of the univariate Gaussian fitter
+// (Kaishev et al., 2016, steps 2-7). It reproduces the R implementation
+// operation by operation: weighted residuals at positive-weight sites,
+// averaged over repeated sites with R's long-double sum(), numerical zeros
+// removed, same-sign clusters, normalised cluster means and ranges, and
+// Knotnew(). Returns NA when no valid knot exists or all residuals vanish.
+// R reference: .geds_knot_step_R() in R/cpp_functions_R.R.
+// [[Rcpp::export]]
+double geds_knot_step(NumericVector residuals, LogicalVector positive,
+                      NumericVector placement_weights, IntegerVector site_counts,
+                      bool repeated_sites, NumericVector site_scale,
+                      double geometry_tol, NumericVector sites, double beta,
+                      NumericVector extr, NumericVector intknots, double tol,
+                      int support_order) {
+  const int n_pos = placement_weights.size();
+  std::vector<double> contribution(n_pos);
+  for (int i = 0, k = 0; i < residuals.size(); ++i) {
+    if (positive[i] != TRUE) continue;
+    if (k >= n_pos) stop("Inconsistent positive-weight sites.");
+    contribution[k] = residuals[i] * placement_weights[k];
+    ++k;
+  }
+
+  const int m = sites.size();
+  NumericVector res_w(m);
+  if (repeated_sites) {
+    if (site_counts.size() != m) stop("Inconsistent repeated-site counts.");
+    for (int g = 0, start = 0; g < m; ++g) {
+      long double total = 0.0;
+      for (int k = start; k < start + site_counts[g]; ++k) total += contribution[k];
+      res_w[g] = (double) total / (double) site_counts[g];
+      start += site_counts[g];
+    }
+  } else {
+    if (n_pos != m) stop("Inconsistent placement sites.");
+    for (int g = 0; g < m; ++g) res_w[g] = contribution[g];
+  }
+
+  bool all_zero = true;
+  for (int g = 0; g < m; ++g) {
+    if (std::fabs(res_w[g]) <= geometry_tol * site_scale[g]) res_w[g] = 0.0;
+    if (!(res_w[g] == 0.0)) all_zero = false;
+  }
+  if (all_zero || m == 0) return NA_REAL;
+
+  // Same-sign clusters, as rle(sign(res_w)); NaN never joins a cluster.
+  std::vector<double> sign(m);
+  for (int g = 0; g < m; ++g) {
+    const double v = res_w[g];
+    sign[g] = std::isnan(v) ? v : (v > 0.0) - (v < 0.0);
+  }
+  std::vector<int> ends;
+  for (int g = 1; g < m; ++g) {
+    if (!(sign[g] == sign[g - 1])) ends.push_back(g);
+  }
+  ends.push_back(m);
+  const int u = ends.size();
+
+  // Cluster means from R's cumsum(), which accumulates in long double.
+  std::vector<double> cs(m);
+  long double running = 0.0;
+  for (int g = 0; g < m; ++g) {
+    running += res_w[g];
+    cs[g] = (double) running;
+  }
+  NumericVector dcum(u), weights(u);
+  std::vector<double> means(u), ranges(u);
+  double max_mean = R_NegInf, max_range = R_NegInf;
+  bool mean_nan = false, range_nan = false;
+  for (int c = 0; c < u; ++c) {
+    const int end = ends[c], begin = c == 0 ? 0 : ends[c - 1];
+    dcum[c] = end;
+    const double previous = c == 0 ? 0.0 : cs[begin - 1];
+    means[c] = std::fabs((cs[end - 1] - previous) / (double) (end - begin));
+    ranges[c] = sites[end - 1] - sites[begin];
+    if (std::isnan(means[c])) mean_nan = true; else if (means[c] > max_mean) max_mean = means[c];
+    if (std::isnan(ranges[c])) range_nan = true; else if (ranges[c] > max_range) max_range = ranges[c];
+  }
+  if (mean_nan) max_mean = NA_REAL;
+  if (range_nan) stop("Missing cluster ranges in knot placement.");
+  for (int c = 0; c < u; ++c) {
+    const double mean = means[c] / max_mean;
+    const double range = max_range != 0.0 ? ranges[c] / max_range : ranges[c];
+    weights[c] = beta * mean + (1.0 - beta) * range;
+  }
+
+  const int n_ext = extr.size();
+  NumericVector oldknots(n_ext * support_order + intknots.size());
+  for (int r = 0, k = 0; r < support_order; ++r) {
+    for (int e = 0; e < n_ext; ++e) oldknots[k++] = extr[e];
+  }
+  for (int k = 0; k < intknots.size(); ++k) oldknots[n_ext * support_order + k] = intknots[k];
+
+  return Knotnew(weights, res_w, sites, dcum, oldknots, tol, support_order)[0];
+}
+
+// Empirical semivariance of residuals over nearest neighbours, as
+// colMeans((r - matrix(r[nn], nrow = length(r), byrow = TRUE))^2) / 2, where
+// nn is the p x n matrix of neighbour indices (1-based). Matches R's colMeans,
+// which accumulates in long double and divides before rounding.
+// R reference: .gd_neighbour_semivariance_R() in R/cpp_functions_R.R.
+// [[Rcpp::export]]
+NumericVector gd_neighbour_semivariance(NumericVector r, IntegerMatrix nn) {
+  const int p = nn.nrow(), n = nn.ncol();
+  if (n != r.size()) stop("'nn' must have one column per residual.");
+  NumericVector out(p);
+  for (int j = 0; j < p; ++j) {
+    long double total = 0.0;
+    for (int i = 0; i < n; ++i) {
+      const double d = r[i] - r[nn(j, i) - 1];
+      total += d * d;
+    }
+    total /= n;
+    out[j] = (double) total / 2.0;
+  }
+  return out;
+}
+
+// Stage A of the univariate Gaussian fitter in GD path mode (no parametric
+// terms, finite plain boundaries). Mirrors the R loop in UnivariateFitter():
+// linear least-squares fit, weighted RSS as R's long-double sum(), stop at
+// the knot cap, knot placement (geds_knot_step) and the boundary check.
+// `first_residuals` replaces the first fit when a starting fit or a staged
+// restart supplies it; `append_first_rss` adds its RSS (starting fit only).
+// Returns NULL when the tridiagonal solver declines a fit; the R loop then
+// recomputes the whole path with its pivoted-QR fallback.
+// R reference: the Stage A loop of UnivariateFitter() in R/UnivariateFitter.R.
+// [[Rcpp::export]]
+SEXP gd_stage_a_path(NumericVector X, NumericVector Y, NumericVector offset,
+                     NumericVector weights, LogicalVector positive,
+                     NumericVector placement_weights, IntegerVector site_counts,
+                     bool repeated_sites, NumericVector site_scale, double geometry_tol,
+                     NumericVector sites, double beta, NumericVector extr, double tol,
+                     double max_intknots, NumericVector intknots_start,
+                     NumericVector loss_start, Nullable<NumericVector> first_residuals,
+                     bool append_first_rss, int first_iter, double last_iter) {
+  const int n = X.size();
+  if (Y.size() != n || offset.size() != n || weights.size() != n || extr.size() != 2) {
+    return R_NilValue;
+  }
+  std::vector<double> y0(n);
+  for (int i = 0; i < n; ++i) y0[i] = Y[i] - offset[i];
+  std::vector<double> intknots(intknots_start.begin(), intknots_start.end());
+  std::vector<double> loss(loss_start.begin(), loss_start.end());
+  NumericVector residuals(n);
+  std::vector<double> theta, fitted, full, inner;
+  const double boundary_tolerance = std::sqrt(DBL_EPSILON);
+
+  auto weighted_rss = [&](const NumericVector& r) {
+    long double total = 0.0;
+    for (int i = 0; i < n; ++i) total += weights[i] * (r[i] * r[i]);
+    return (double) total;
+  };
+
+  int j = first_iter;
+  for (; (double) j <= last_iter; ++j) {
+    if (j == first_iter && first_residuals.isNotNull()) {
+      NumericVector start(first_residuals.get());
+      if (start.size() != n) return R_NilValue;
+      for (int i = 0; i < n; ++i) residuals[i] = start[i];
+      if (append_first_rss) loss.push_back(weighted_rss(residuals));
+    } else {
+      // Breakpoints as sort(c(intknots, rep(extr, 2))) without its two ends.
+      full.assign(intknots.begin(), intknots.end());
+      full.push_back(extr[0]); full.push_back(extr[1]);
+      full.push_back(extr[0]); full.push_back(extr[1]);
+      std::sort(full.begin(), full.end());
+      inner.assign(full.begin() + 1, full.end() - 1);
+      if (!linear_spline_ls_core(X.begin(), y0.data(), weights.begin(), n,
+                                 inner.data(), inner.size(), theta, fitted)) {
+        return R_NilValue;
+      }
+      for (int i = 0; i < n; ++i) residuals[i] = Y[i] - (fitted[i] + offset[i]);
+      loss.push_back(weighted_rss(residuals));
+    }
+    if ((double) j == max_intknots + 1.0) break;
+
+    NumericVector current(intknots.begin(), intknots.end());
+    const double newknot = geds_knot_step(residuals, positive, placement_weights,
+                                          site_counts, repeated_sites, site_scale,
+                                          geometry_tol, sites, beta, extr, current,
+                                          tol, 2);
+    if (ISNAN(newknot)) break;
+    if (R_FINITE(newknot)) {
+      const double scale = std::fabs(newknot) > boundary_tolerance ? std::fabs(newknot) : 1.0;
+      if (std::fabs(newknot - extr[0]) / scale <= boundary_tolerance ||
+          std::fabs(newknot - extr[1]) / scale <= boundary_tolerance) break;
+    }
+    intknots.push_back(newknot);
+  }
+  // The R loop leaves j at its last value when it runs to completion.
+  if ((double) j > last_iter) --j;
+
+  return List::create(Named("loss") = NumericVector(loss.begin(), loss.end()),
+                      Named("intknots") = NumericVector(intknots.begin(), intknots.end()),
+                      Named("residuals") = residuals, Named("j") = j);
+}

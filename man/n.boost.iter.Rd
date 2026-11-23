@@ -13,7 +13,10 @@
 \item{...}{Further arguments (ignored).}
 }
 \value{
-An integer indicating the total number of boosting iterations.
+An integer indicating the total number of executed updates in both
+phases (excluding the initial learner), including iterates not retained by
+final-model selection. This equals \code{object$iters} for newly fitted
+objects. Coefficient-update diagnostics are in \code{object$final_model$refinement}.
 }
 \description{
 Method for \code{N.boost.iter} that returns the number of boosting iterations

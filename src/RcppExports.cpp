@@ -77,29 +77,6 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-// makeRatSplines
-NumericMatrix makeRatSplines(NumericMatrix matrice, NumericVector h);
-RcppExport SEXP _GeDS_makeRatSplines(SEXP matriceSEXP, SEXP hSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< NumericMatrix >::type matrice(matriceSEXP);
-    Rcpp::traits::input_parameter< NumericVector >::type h(hSEXP);
-    rcpp_result_gen = Rcpp::wrap(makeRatSplines(matrice, h));
-    return rcpp_result_gen;
-END_RCPP
-}
-// makeWeights
-NumericVector makeWeights(NumericMatrix x);
-RcppExport SEXP _GeDS_makeWeights(SEXP xSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< NumericMatrix >::type x(xSEXP);
-    rcpp_result_gen = Rcpp::wrap(makeWeights(x));
-    return rcpp_result_gen;
-END_RCPP
-}
 // tensorProd
 NumericMatrix tensorProd(NumericMatrix Xmat, NumericMatrix Ymat);
 RcppExport SEXP _GeDS_tensorProd(SEXP XmatSEXP, SEXP YmatSEXP) {
@@ -140,6 +117,116 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// linear_spline_ls
+SEXP linear_spline_ls(NumericVector x, NumericVector y, NumericVector w, NumericVector t);
+RcppExport SEXP _GeDS_linear_spline_ls(SEXP xSEXP, SEXP ySEXP, SEXP wSEXP, SEXP tSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericVector >::type x(xSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type y(ySEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type w(wSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type t(tSEXP);
+    rcpp_result_gen = Rcpp::wrap(linear_spline_ls(x, y, w, t));
+    return rcpp_result_gen;
+END_RCPP
+}
+// geds_knot_step
+double geds_knot_step(NumericVector residuals, LogicalVector positive, NumericVector placement_weights, IntegerVector site_counts, bool repeated_sites, NumericVector site_scale, double geometry_tol, NumericVector sites, double beta, NumericVector extr, NumericVector intknots, double tol, int support_order);
+RcppExport SEXP _GeDS_geds_knot_step(SEXP residualsSEXP, SEXP positiveSEXP, SEXP placement_weightsSEXP, SEXP site_countsSEXP, SEXP repeated_sitesSEXP, SEXP site_scaleSEXP, SEXP geometry_tolSEXP, SEXP sitesSEXP, SEXP betaSEXP, SEXP extrSEXP, SEXP intknotsSEXP, SEXP tolSEXP, SEXP support_orderSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericVector >::type residuals(residualsSEXP);
+    Rcpp::traits::input_parameter< LogicalVector >::type positive(positiveSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type placement_weights(placement_weightsSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type site_counts(site_countsSEXP);
+    Rcpp::traits::input_parameter< bool >::type repeated_sites(repeated_sitesSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type site_scale(site_scaleSEXP);
+    Rcpp::traits::input_parameter< double >::type geometry_tol(geometry_tolSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type sites(sitesSEXP);
+    Rcpp::traits::input_parameter< double >::type beta(betaSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type extr(extrSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type intknots(intknotsSEXP);
+    Rcpp::traits::input_parameter< double >::type tol(tolSEXP);
+    Rcpp::traits::input_parameter< int >::type support_order(support_orderSEXP);
+    rcpp_result_gen = Rcpp::wrap(geds_knot_step(residuals, positive, placement_weights, site_counts, repeated_sites, site_scale, geometry_tol, sites, beta, extr, intknots, tol, support_order));
+    return rcpp_result_gen;
+END_RCPP
+}
+// gd_neighbour_semivariance
+NumericVector gd_neighbour_semivariance(NumericVector r, IntegerMatrix nn);
+RcppExport SEXP _GeDS_gd_neighbour_semivariance(SEXP rSEXP, SEXP nnSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericVector >::type r(rSEXP);
+    Rcpp::traits::input_parameter< IntegerMatrix >::type nn(nnSEXP);
+    rcpp_result_gen = Rcpp::wrap(gd_neighbour_semivariance(r, nn));
+    return rcpp_result_gen;
+END_RCPP
+}
+// gd_stage_a_path
+SEXP gd_stage_a_path(NumericVector X, NumericVector Y, NumericVector offset, NumericVector weights, LogicalVector positive, NumericVector placement_weights, IntegerVector site_counts, bool repeated_sites, NumericVector site_scale, double geometry_tol, NumericVector sites, double beta, NumericVector extr, double tol, double max_intknots, NumericVector intknots_start, NumericVector loss_start, Nullable<NumericVector> first_residuals, bool append_first_rss, int first_iter, double last_iter);
+RcppExport SEXP _GeDS_gd_stage_a_path(SEXP XSEXP, SEXP YSEXP, SEXP offsetSEXP, SEXP weightsSEXP, SEXP positiveSEXP, SEXP placement_weightsSEXP, SEXP site_countsSEXP, SEXP repeated_sitesSEXP, SEXP site_scaleSEXP, SEXP geometry_tolSEXP, SEXP sitesSEXP, SEXP betaSEXP, SEXP extrSEXP, SEXP tolSEXP, SEXP max_intknotsSEXP, SEXP intknots_startSEXP, SEXP loss_startSEXP, SEXP first_residualsSEXP, SEXP append_first_rssSEXP, SEXP first_iterSEXP, SEXP last_iterSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericVector >::type X(XSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type Y(YSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type offset(offsetSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type weights(weightsSEXP);
+    Rcpp::traits::input_parameter< LogicalVector >::type positive(positiveSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type placement_weights(placement_weightsSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type site_counts(site_countsSEXP);
+    Rcpp::traits::input_parameter< bool >::type repeated_sites(repeated_sitesSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type site_scale(site_scaleSEXP);
+    Rcpp::traits::input_parameter< double >::type geometry_tol(geometry_tolSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type sites(sitesSEXP);
+    Rcpp::traits::input_parameter< double >::type beta(betaSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type extr(extrSEXP);
+    Rcpp::traits::input_parameter< double >::type tol(tolSEXP);
+    Rcpp::traits::input_parameter< double >::type max_intknots(max_intknotsSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type intknots_start(intknots_startSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type loss_start(loss_startSEXP);
+    Rcpp::traits::input_parameter< Nullable<NumericVector> >::type first_residuals(first_residualsSEXP);
+    Rcpp::traits::input_parameter< bool >::type append_first_rss(append_first_rssSEXP);
+    Rcpp::traits::input_parameter< int >::type first_iter(first_iterSEXP);
+    Rcpp::traits::input_parameter< double >::type last_iter(last_iterSEXP);
+    rcpp_result_gen = Rcpp::wrap(gd_stage_a_path(X, Y, offset, weights, positive, placement_weights, site_counts, repeated_sites, site_scale, geometry_tol, sites, beta, extr, tol, max_intknots, intknots_start, loss_start, first_residuals, append_first_rss, first_iter, last_iter));
+    return rcpp_result_gen;
+END_RCPP
+}
+// gd_glm_path
+List gd_glm_path(NumericVector X, NumericVector Y, NumericVector offset, NumericVector weights, LogicalVector positive, IntegerVector site_counts, bool repeated_sites, NumericVector sites, double beta, NumericVector extr, double tol, int family, int link, NumericVector intknots_start, NumericVector guess_start, NumericVector residuals_start, NumericVector working_start, int j, double max_intknots, double last_iter);
+RcppExport SEXP _GeDS_gd_glm_path(SEXP XSEXP, SEXP YSEXP, SEXP offsetSEXP, SEXP weightsSEXP, SEXP positiveSEXP, SEXP site_countsSEXP, SEXP repeated_sitesSEXP, SEXP sitesSEXP, SEXP betaSEXP, SEXP extrSEXP, SEXP tolSEXP, SEXP familySEXP, SEXP linkSEXP, SEXP intknots_startSEXP, SEXP guess_startSEXP, SEXP residuals_startSEXP, SEXP working_startSEXP, SEXP jSEXP, SEXP max_intknotsSEXP, SEXP last_iterSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericVector >::type X(XSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type Y(YSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type offset(offsetSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type weights(weightsSEXP);
+    Rcpp::traits::input_parameter< LogicalVector >::type positive(positiveSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type site_counts(site_countsSEXP);
+    Rcpp::traits::input_parameter< bool >::type repeated_sites(repeated_sitesSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type sites(sitesSEXP);
+    Rcpp::traits::input_parameter< double >::type beta(betaSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type extr(extrSEXP);
+    Rcpp::traits::input_parameter< double >::type tol(tolSEXP);
+    Rcpp::traits::input_parameter< int >::type family(familySEXP);
+    Rcpp::traits::input_parameter< int >::type link(linkSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type intknots_start(intknots_startSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type guess_start(guess_startSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type residuals_start(residuals_startSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type working_start(working_startSEXP);
+    Rcpp::traits::input_parameter< int >::type j(jSEXP);
+    Rcpp::traits::input_parameter< double >::type max_intknots(max_intknotsSEXP);
+    Rcpp::traits::input_parameter< double >::type last_iter(last_iterSEXP);
+    rcpp_result_gen = Rcpp::wrap(gd_glm_path(X, Y, offset, weights, positive, site_counts, repeated_sites, sites, beta, extr, tol, family, link, intknots_start, guess_start, residuals_start, working_start, j, max_intknots, last_iter));
+    return rcpp_result_gen;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_GeDS_whmx", (DL_FUNC) &_GeDS_whmx, 1},
@@ -147,11 +234,14 @@ static const R_CallMethodDef CallEntries[] = {
     {"_GeDS_Knotnew", (DL_FUNC) &_GeDS_Knotnew, 7},
     {"_GeDS_makenewknots", (DL_FUNC) &_GeDS_makenewknots, 2},
     {"_GeDS_makeEpsilonsb", (DL_FUNC) &_GeDS_makeEpsilonsb, 4},
-    {"_GeDS_makeRatSplines", (DL_FUNC) &_GeDS_makeRatSplines, 2},
-    {"_GeDS_makeWeights", (DL_FUNC) &_GeDS_makeWeights, 1},
     {"_GeDS_tensorProd", (DL_FUNC) &_GeDS_tensorProd, 2},
     {"_GeDS_makeNewMatrCPP", (DL_FUNC) &_GeDS_makeNewMatrCPP, 3},
     {"_GeDS_findNewDimKnot", (DL_FUNC) &_GeDS_findNewDimKnot, 5},
+    {"_GeDS_linear_spline_ls", (DL_FUNC) &_GeDS_linear_spline_ls, 4},
+    {"_GeDS_geds_knot_step", (DL_FUNC) &_GeDS_geds_knot_step, 13},
+    {"_GeDS_gd_neighbour_semivariance", (DL_FUNC) &_GeDS_gd_neighbour_semivariance, 2},
+    {"_GeDS_gd_stage_a_path", (DL_FUNC) &_GeDS_gd_stage_a_path, 21},
+    {"_GeDS_gd_glm_path", (DL_FUNC) &_GeDS_gd_glm_path, 20},
     {NULL, NULL, 0}
 };
 

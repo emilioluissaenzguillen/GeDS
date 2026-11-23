@@ -195,6 +195,10 @@ coef.GeDSfitND <- function(object, n = 3L, onlySpline = TRUE, ...)
 #' @return A matrix with columns giving lower and upper confidence limits for
 #' each spline coefficient of the selected GeDS model (by default 2.5\% and 97.5\%).
 #'
+#' @details Confidence intervals are not implemented for component-REML Stage B
+#' refits or their binomial Firth fallbacks. For the default \code{NGeDSgam}
+#' fit, use \code{n = 2} to request intervals for the linear fit.
+#'
 #' @seealso \code{\link[stats]{confint.default}}, \code{\link{NGeDS}}, \code{\link{GGeDS}},
 #' \code{\link{NGeDSgam}}, \code{\link{NGeDSboost}}
 #'
@@ -232,6 +236,10 @@ confint.GeDS <- function(object, parm, level = 0.95, n = 3L, ...) {
   } else if (inherits(object, "GeDSboost") || inherits(object, "GeDSgam")){
     fit_obj <- object$final_model[[fit_name]]
     names <- names(fit_obj$theta)
+  }
+  if (!is.null(fit_obj$penalty)) {
+    stop("Confidence intervals for penalised Stage B coefficients are not implemented.",
+         call. = FALSE)
   }
   if (is.null(fit_obj) || is.null(fit_obj$temporary)) {
     stop("The requested model (", fit_name, ") is not available in the GeDS object.")
@@ -639,10 +647,28 @@ logLik.GeDS <- function(object, n = 3L, ...) {
 #' GeD spline component or the parametric component of the predictor model. In
 #' this case the returned result is a matrix whose columns correspond to the
 #' terms supplied via \code{newdata} or extracted from the \code{object}.
+#' Contributions are on the link scale, with one \code{"Spline"} column and
+#' one column per parametric design column (including factor contrasts).
+#' Offsets are excluded: adding the offset to the row sums reconstructs the
+#' complete linear predictor.
 #'
 #' As GeDS objects contain three different fits (linear, quadratic and cubic),
 #' it is possible to specify the order for which GeDS predictions are required
 #' via the input argument \code{n}.
+#'
+#' For \code{"GeDS"}, \code{"GeDSgam"} and \code{"GeDSboost"} objects, predictions at
+#' \code{newdata} retain the fitted knots and coefficients. Linear spline
+#' components (\code{n = 2}) continue their boundary segments linearly;
+#' joint smoothers continue linearly in each coordinate, giving a bilinear
+#' continuation when both coordinates of a bivariate smoother are outside.
+#' Quadratic and cubic spline components (\code{n = 3} or \code{n = 4})
+#' clamp each coordinate to its fitted boundary range. Predictions inside
+#' these ranges and explicitly linear parametric terms are unchanged.
+#' For the Gamma family with the inverse link, spline components of all
+#' orders clamp to the fitted boundary ranges. Extension is applied on the
+#' link scale before the inverse link. Parametric terms and offsets are not
+#' clamped; an error is raised if they yield a non-positive or non-finite
+#' complete linear predictor for this family and link.
 #'
 #' @return A numeric vector corresponding to the predicted values (if
 #' \code{type = "link"} or \code{type = "response"}). If \code{type = "terms"}, a
@@ -695,9 +721,9 @@ predict.GeDS <- function(object, newdata,
       offset <- rep(0, NROW(X))
       if (!is.null(off.num <- attr(mt, "offset")))
         for (i in off.num) offset <- offset + eval(attr(mt, "variables")[[i + 1]], newdata)
-      # A formula offset has already been evaluated above. The fitter's call
-      # also records its offset argument, so adding both counts it twice.
-      if (is.null(off.num) && !is.null(object$call$offset))
+      # Formula-interface fits obtain their offset from the prediction data.
+      # A direct fitter call can supply an offset without a formula term.
+      if (is.null(off.num) && is.null(object$extcall) && !is.null(object$call$offset))
         offset <- offset + eval(object$call$offset, newdata)
       }
 
@@ -705,7 +731,8 @@ predict.GeDS <- function(object, newdata,
     kn <- knots(object, n = n, options = "all")
     if (min(X) < min(kn) || max(X) > max(kn)) warning("Input values out of the boundary knots")
     # Design matrix
-    basisMatrix <- splineDesign(knots = kn, derivs = rep(0,length(X)), x = X, ord = n, outer.ok = T)
+    basisMatrix <- .prediction_spline_basis(kn, X, n,
+      clamp_linear = .prediction_clamp_linear(object$args$family))
 
     type <- match.arg(type)
 
@@ -714,6 +741,8 @@ predict.GeDS <- function(object, newdata,
       coefs <- coef(object,n=n, onlySpline = FALSE)
       basisMatrix2 <- cbind(basisMatrix,Z)
       predicted <- basisMatrix2 %*% coefs + offset
+
+      .validate_prediction_link(predicted, object$args$family)
 
       if(type=="response" & !is.null(object$args$family)) {
         predicted <- object$args$family$linkinv(predicted)
@@ -726,8 +755,7 @@ predict.GeDS <- function(object, newdata,
         predicted <- basisMatrix %*% coefs
         colnames(predicted) <- "Spline"
         predicted1 <- if(!is.null(Z)) {
-          Z*matrix(coefs1[-c(1:length(coefs))],
-                   ncol = length(coefs1[-c(1:length(coefs))]), nrow=NROW(Z))
+          sweep(as.matrix(Z), 2L, coefs1[-seq_along(coefs)], "*")
           } else NULL
 
         if(!is.null(predicted1)) {
@@ -746,6 +774,8 @@ predict.GeDS <- function(object, newdata,
       X <- object$args$X
       Y <- object$args$Y
       W <- object$args$W
+      offset <- object$args$offset
+      if (is.null(offset)) offset <- rep(0, NROW(X))
 
     # If newdata was provided
     } else {
@@ -758,6 +788,8 @@ predict.GeDS <- function(object, newdata,
       X <- mf[,spec][, 1]
       Y <- mf[,spec][, 2]
       W <- getParametricMatrix(mt, mm)
+      offset <- stats::model.offset(mf)
+      if (is.null(offset)) offset <- rep(0, NROW(X))
     }
 
     # Knots
@@ -765,8 +797,9 @@ predict.GeDS <- function(object, newdata,
     if(min(X) < min(kn$Xk) || max(X) > max(kn$Xk) || min(Y) < min(kn$Yk) | max(Y) > max(kn$Yk))
       warning("Input values out of the boundary knots")
     # Design matrix
-    basisMatrixX <- splineDesign(knots = kn$Xk, derivs = rep(0, length(X)), x = X, ord = n, outer.ok = T)
-    basisMatrixY <- splineDesign(knots = kn$Yk, derivs = rep(0, length(Y)), x = Y, ord = n, outer.ok = T)
+    clamp_linear <- .prediction_clamp_linear(object$args$family)
+    basisMatrixX <- .prediction_spline_basis(kn$Xk, X, n, clamp_linear)
+    basisMatrixY <- .prediction_spline_basis(kn$Yk, Y, n, clamp_linear)
 
     basisMatrixbiv <- tensorProd(basisMatrixX, basisMatrixY)
 
@@ -777,7 +810,9 @@ predict.GeDS <- function(object, newdata,
       coefs <- coef(object, n = n, onlySpline = FALSE)
       coefs[is.na(coefs)] <- 0
       basisMatrixbiv2 <- cbind(basisMatrixbiv,W)
-      predicted <- basisMatrixbiv2 %*% coefs
+      predicted <- basisMatrixbiv2 %*% coefs + offset
+
+      .validate_prediction_link(predicted, object$args$family)
 
       if(type == "response" & !is.null(object$args$family)) {
         predicted <- object$args$family$linkinv(predicted)
@@ -795,8 +830,7 @@ predict.GeDS <- function(object, newdata,
       colnames(predicted) <- "Spline"
       # Linear prediction
       predicted1 <- if(!is.null(W)) {
-        W*matrix(coefs1[-c(1:length(coefs))],
-                 ncol = length(coefs1[-c(1:length(coefs))]), nrow=NROW(W))
+        sweep(as.matrix(W), 2L, coefs1[-seq_along(coefs)], "*")
         } else NULL
 
       if(!is.null(predicted1)) {
@@ -1048,18 +1082,18 @@ summary.GeDSfitND <- function(
   cat("  Knot-placement beta: ",
       format(object$args$beta, digits = digits), "\n", sep = "")
   cat("  Fitted iterations: ", object$iters, "\n", sep = "")
-  cat("  Selected iteration: ", object$selected.iteration, "\n", sep = "")
+  cat("  Selected iteration: ", object$stopinfo$selected.iteration, "\n", sep = "")
   cat("  Maximum coefficients: ",
       format(object$args$max.coef, scientific = FALSE), "\n", sep = "")
-  if (length(object$stageA$basis.sizes)) {
+  if (length(object$stopinfo$basis.sizes)) {
     cat("  Largest fitted tensor basis: ",
-        format(max(object$stageA$basis.sizes), scientific = FALSE),
+        format(max(object$stopinfo$basis.sizes), scientific = FALSE),
         " coefficients\n", sep = "")
   }
-  if (!is.null(object$stageA$stop.reason)) {
-    cat("  Termination: ", object$stageA$stop.reason, "\n", sep = "")
+  if (!is.null(object$stopinfo$stop.reason)) {
+    cat("  Termination: ", object$stopinfo$stop.reason, "\n", sep = "")
   }
-  skipped <- object$stageB$skipped
+  skipped <- object$stopinfo$omitted.fits
   if (length(skipped) && any(!is.na(skipped))) {
     cat("\nStage B fits omitted by max.coef:\n")
     for (fit.name in names(skipped)[!is.na(skipped)]) {

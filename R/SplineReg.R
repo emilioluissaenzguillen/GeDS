@@ -1,3 +1,122 @@
+.gd_linear_basis <- local({
+  evaluator <- NULL
+  sparse_template <- NULL
+  rows <- offsets <- integer()
+
+  function(knots, x, ord, derivs, outer.ok, sparse = FALSE) {
+    if (is.null(evaluator)) {
+      evaluator <<- get0("C_spline_basis", envir = asNamespace("splines"),
+                         inherits = FALSE, ifnotfound = FALSE)
+    }
+    nx <- length(x)
+    nk <- length(knots)
+    if (!inherits(evaluator, "NativeSymbolInfo") ||
+        !isTRUE(nx > 0L && nk >= 4L && all(x >= knots[2L] & x <= knots[nk - 1L]))) {
+      return(splineDesign(knots, x, ord, derivs, outer.ok, sparse))
+    }
+
+    # Use the same evaluator as splineDesign. A linear basis contributes two
+    # consecutive entries per row, including structural zeros at the knots.
+    # Call through an alias: Rcpp::compileAttributes() registers literal
+    # .Call(symbol) sites as GeDS routines, and this one belongs to splines.
+    call_native <- .Call
+    values <- call_native(evaluator, as.numeric(knots), 2L, as.numeric(x), 0L)
+    if (length(rows) != 2L * nx) {
+      rows <<- rep(seq_len(nx) - 1L, each = 2L)
+      offsets <<- rep.int(0:1, nx)
+    }
+    cols <- rep(attr(values, "Offsets"), each = 2L) + offsets
+    ncoef <- nk - 2L
+    if (!sparse) {
+      result <- matrix(0, nx, ncoef)
+      result[rows + 1L + nx * cols] <- values
+      return(result)
+    }
+
+    # Stable column sorting keeps row indices ordered within each column.
+    index <- order(cols, method = "radix")
+    if (is.null(sparse_template)) sparse_template <<- methods::new("dgCMatrix")
+    result <- sparse_template
+    result@p <- c(0L, cumsum(tabulate(cols + 1L, nbins = ncoef)))
+    result@i <- rows[index]
+    result@x <- as.vector(values)[index]
+    result@Dim <- c(nx, ncoef)
+    result
+  }
+})
+
+.spline_reg_lm_fast <- function(X, Y, Z, offset, weights, InterKnots, n, extr,
+                                gd_path = FALSE) {
+  build_basis <- if (gd_path && n == 2L) .gd_linear_basis else splineDesign
+  knots_full <- sort(c(InterKnots, rep(extr, n)))
+  nz <- if (is.null(Z)) 0L else NCOL(Z)
+  p  <- (length(knots_full) - n) + nz          # number of regression columns
+  Y0 <- Y - offset
+  unit_w <- all(weights == 1)
+
+  if (gd_path && n == 2L && nz == 0L) {
+    # GD paths only need the loss and residuals of a linear spline, whose
+    # normal equations are tridiagonal. A NULL result (repeated or outlying
+    # knots, singular or ill-conditioned system) falls back to the QR below.
+    tri <- linear_spline_ls(as.numeric(X), as.numeric(Y0), as.numeric(weights),
+                            knots_full[-c(1L, length(knots_full))])
+    if (!is.null(tri)) {
+      predicted <- tri$fitted + offset
+      resid <- Y - predicted
+      return(list("theta" = tri$theta, "predicted" = predicted, "residuals" = resid,
+                  "rss" = .weighted_rss(resid, weights), "basis" = NULL,
+                  "temporary" = NULL))
+    }
+  }
+
+  use_sparse <- p >= 50L || length(X) >= 5000L
+  if (!use_sparse) {
+    # Small basis: a dense .lm.fit beats building sparse structures (and is the
+    # original, bit-identical path). This covers the many tiny boosting fits.
+    basisMatrix  <- build_basis(knots = knots_full, derivs = rep(0, length(X)),
+                                 x = X, ord = n, outer.ok = TRUE)
+    basisMatrix2 <- cbind(basisMatrix, Z)
+    tmp   <- if (unit_w) .lm.fit.ordered(basisMatrix2, Y0) else lm.wfit.light(basisMatrix2, Y0, weights)
+    theta <- coef(tmp)
+  } else {
+    # Large basis: each row has only n nonzero entries, so X'WX is banded and
+    # factorizes in ~O(N) instead of the O(N p^2) of a dense QR.
+    basisMatrix  <- build_basis(knots = knots_full, derivs = rep(0, length(X)),
+                                 x = X, ord = n, outer.ok = TRUE, sparse = TRUE)
+    basisMatrix2 <- if (is.null(Z)) basisMatrix
+    else cbind(basisMatrix, Matrix(as.matrix(Z), sparse = TRUE))
+    xtprod <- crossprod
+    solve_system <- solve
+    if (gd_path) {
+      # Explicit dispatch keeps GD path regressions sparse even when only
+      # the Matrix namespace is loaded.
+      xtprod <- Matrix::crossprod
+      solve_system <- Matrix::solve
+    }
+    theta <- tryCatch({
+      if (unit_w) {
+        XtX <- xtprod(basisMatrix2)
+        Xty <- xtprod(basisMatrix2, Y0)
+      } else {
+        rw  <- sqrt(weights)
+        Xw <- basisMatrix2 * rw
+        XtX <- xtprod(Xw)
+        Xty <- xtprod(Xw, rw * Y0)
+      }
+      as.numeric(solve_system(XtX, Xty))
+    }, error = function(e) {
+      bm  <- as.matrix(basisMatrix2)
+      tmp <- if (unit_w) .lm.fit.ordered(bm, Y0) else lm.wfit.light(bm, Y0, weights)
+      coef(tmp)
+    })
+  }
+  predicted <- as.numeric(basisMatrix2 %*% theta) + offset
+  resid <- Y - predicted
+  return(list("theta" = theta, "predicted" = predicted, "residuals" = resid,
+              "rss" = .weighted_rss(resid, weights), "basis" = basisMatrix2,
+              "temporary" = NULL))
+}
+
 ################################################################################
 ################################################################################
 ################################### SplineReg ##################################
@@ -165,52 +284,8 @@ SplineReg_LM <- function(X, Y, Z = NULL, offset = rep(0,length(X)), weights = re
   # Convert spline order to integer
   n <- as.integer(n)
 
-  if(fast){
-
-    knots_full <- sort(c(InterKnots, rep(extr, n)))
-    nz <- if (is.null(Z)) 0L else NCOL(Z)
-    p  <- (length(knots_full) - n) + nz          # number of regression columns
-    Y0 <- Y - offset
-    unit_w <- all(weights == 1)
-
-    use_sparse <- p >= 50L || length(X) >= 5000L
-    if (!use_sparse) {
-      # Small basis: a dense .lm.fit beats building sparse structures (and is the
-      # original, bit-identical path). This covers the many tiny boosting fits.
-      basisMatrix  <- splineDesign(knots = knots_full, derivs = rep(0, length(X)),
-                                   x = X, ord = n, outer.ok = TRUE)
-      basisMatrix2 <- cbind(basisMatrix, Z)
-      tmp   <- if (unit_w) .lm.fit(basisMatrix2, Y0) else lm.wfit.light(basisMatrix2, Y0, weights)
-      theta <- coef(tmp)
-    } else {
-      # Large basis: each row has only n nonzero entries, so X'WX is banded and
-      # factorizes in ~O(N) instead of the O(N p^2) of a dense QR.
-      basisMatrix  <- splineDesign(knots = knots_full, derivs = rep(0, length(X)),
-                                   x = X, ord = n, outer.ok = TRUE, sparse = TRUE)
-      basisMatrix2 <- if (is.null(Z)) basisMatrix
-      else cbind(basisMatrix, Matrix(as.matrix(Z), sparse = TRUE))
-      theta <- tryCatch({
-        if (unit_w) {
-          XtX <- crossprod(basisMatrix2)
-          Xty <- crossprod(basisMatrix2, Y0)
-        } else {
-          rw  <- sqrt(weights)
-          Xw <- basisMatrix2 * rw
-          XtX <- crossprod(Xw)
-          Xty <- crossprod(Xw, rw * Y0)
-        }
-        as.numeric(solve(XtX, Xty))
-      }, error = function(e) {
-        bm  <- as.matrix(basisMatrix2)
-        tmp <- if (unit_w) .lm.fit(bm, Y0) else lm.wfit.light(bm, Y0, weights)
-        coef(tmp)
-      })
-    }
-    predicted <- as.numeric(basisMatrix2 %*% theta) + offset
-    resid <- Y - predicted
-    return(list("theta" = theta, "predicted" = predicted, "residuals" = resid,
-                "rss" = .weighted_rss(resid, weights), "basis" = basisMatrix2,
-                "temporary" = NULL))
+  if (fast) {
+    return(.spline_reg_lm_fast(X, Y, Z, offset, weights, InterKnots, n, extr))
   }
 
   # Create spline basis matrix using specified knots, evaluation points and order
@@ -275,6 +350,27 @@ SplineReg_LM <- function(X, Y, Z = NULL, offset = rep(0,length(X)), weights = re
   return(out)
 }
 
+.geds_irls_failure <- function(e) {
+  grepl("^inner loop [12]; cannot correct step size|^no valid set of coefficients has been found",
+        conditionMessage(e))
+}
+
+.retry_ig_zero_start <- function(fit, start, y, weights) {
+  warnings <- list()
+  result <- withCallingHandlers(tryCatch(fit(start), error = identity),
+    warning = function(w) {
+      warnings[[length(warnings) + 1L]] <<- w
+      invokeRestart("muffleWarning")
+    })
+  if (inherits(result, "error") && .geds_irls_failure(result)) {
+    center <- if (all(weights == 1)) mean(y) else stats::weighted.mean(y, weights)
+    retry <- rep(center, length(y))
+    if (!identical(start, retry)) return(fit(retry))
+  }
+  for (w in warnings) warning(w)
+  if (inherits(result, "error")) stop(result)
+  result
+}
 
 #' @importFrom splines splineDesign
 #' @importFrom stats glm glm.fit coef
@@ -306,11 +402,22 @@ SplineReg_GLM <- function(X, Y, Z, offset = rep(0,nobs), weights = rep(1,length(
   # Create spline basis matrix using specified knots, order, and evaluation points
   basisMatrix <- splineDesign(knots = sort(c(InterKnots,rep(extr,n))), x = X, ord = n,
                           derivs = rep(0,length(X)), outer.ok = T)
+  # Ignored rows outside the fitting support still need the package's usual
+  # prediction basis, rather than an all-zero row (invalid for an inverse link).
+  outside.zero <- weights == 0 & (X < extr[1L] | X > extr[2L])
+  if (any(outside.zero)) {
+    basisMatrix[outside.zero, ] <- .prediction_spline_basis(
+      sort(c(InterKnots, rep(extr, n))), X[outside.zero], n,
+      clamp_linear = .prediction_clamp_linear(family)
+    )
+  }
   # Combine spline basis with parametric design matrix (if provided)
   basisMatrix2 <- cbind(basisMatrix,Z)
 
   # Initialize mustart based on input or defaults
+  warm <- FALSE
   if (missing(mustart) || is.null(mustart)) {
+    warm <- !is.null(inits)
 
     if (is.null(inits)) {
       # Set environment to parent frame
@@ -327,9 +434,46 @@ SplineReg_GLM <- function(X, Y, Z, offset = rep(0,nobs), weights = rep(1,length(
 
   # Stage-A fast path: glm.fit (no formula parsing) and no CI/polygon.
   # glm() forwards to glm.fit() with the same mustart, so the fit is identical.
+  # A warm start from 'inits' reproduces the previous (smaller) model, so a valid
+  # fit cannot have larger deviance. glm.fit() takes full Newton steps without a
+  # deviance check and can diverge from such a start; refit from the family's
+  # default start in that case and keep the better fit.
+  start_deviance <- if (warm) sum(family$dev.resids(Y, as.vector(mustart), weights)) else NA_real_
+  needs_cold <- function(fit) {
+    inherits(fit, "error") || !isTRUE(fit$converged) || !is.finite(fit$deviance) ||
+      fit$deviance > start_deviance + 1e-8 * max(1, abs(start_deviance))
+  }
+  prefer_cold <- function(warm_fit, cold_fit) {
+    if (inherits(cold_fit, "error") || !is.finite(cold_fit$deviance)) return(FALSE)
+    inherits(warm_fit, "error") || !is.finite(warm_fit$deviance) ||
+      cold_fit$deviance < warm_fit$deviance
+  }
+  # Run one IRLS attempt, holding back its warnings until a fit is chosen.
+  attempt <- function(fit_call) {
+    held <- list()
+    value <- withCallingHandlers(tryCatch(fit_call(), error = identity),
+      warning = function(w) {
+        held[[length(held) + 1L]] <<- w
+        invokeRestart("muffleWarning")
+      })
+    list(value = value, warnings = held)
+  }
+  # Warm attempt, cold retry if needed; only the returned fit's warnings are reported.
+  fit_with_retry <- function(warm_call, cold_call) {
+    chosen <- attempt(warm_call)
+    if (needs_cold(chosen$value)) {
+      cold <- attempt(cold_call)
+      if (prefer_cold(chosen$value, cold$value)) chosen <- cold
+    }
+    for (w in chosen$warnings) warning(w)
+    if (inherits(chosen$value, "error")) stop(chosen$value)
+    chosen$value
+  }
+
   if (fast) {
-    tmp <- glm.fit(basisMatrix2, Y, family = family, weights = weights,
-                   offset = offset, mustart = mustart, intercept = FALSE)
+    irls <- function(ms) glm.fit(basisMatrix2, Y, family = family, weights = weights,
+                                 offset = offset, mustart = ms, intercept = FALSE)
+    tmp <- if (warm) fit_with_retry(function() irls(mustart), function() irls(NULL)) else irls(mustart)
     return(list("theta" = tmp$coefficients, "residuals" = tmp$residuals,
                 "basis" = basisMatrix,
                 "temporary" = list("iter" = tmp$iter, "deviance" = tmp$deviance,
@@ -337,8 +481,16 @@ SplineReg_GLM <- function(X, Y, Z, offset = rep(0,nobs), weights = rep(1,length(
   }
 
   # Fit linear model without intercept, using weights
-  tmp <- glm(Y ~ -1 + basisMatrix2, family = family, weights = weights,
-             offset = offset, mustart = mustart)
+  tmp <- if (warm) {
+    fit_with_retry(
+      function() glm(Y ~ -1 + basisMatrix2, family = family, weights = weights,
+                     offset = offset, mustart = mustart),
+      function() glm(Y ~ -1 + basisMatrix2, family = family, weights = weights,
+                     offset = offset))
+  } else {
+    glm(Y ~ -1 + basisMatrix2, family = family, weights = weights,
+        offset = offset, mustart = mustart)
+  }
 
   # Extract fitted coefficients
   theta <- coef(tmp)
@@ -361,55 +513,4 @@ SplineReg_GLM <- function(X, Y, Z, offset = rep(0,nobs), weights = rep(1,length(
   return(out)
 }
 
-
-# this is an unexported function.
-# it may be useful in case knots are seleced according to some other algorithms (e.g. package earth?)
-# and then one want to use GeDS to get higher order spline fits
-#' @importFrom splines splineDesign
-#' @importFrom stats glm.fit coef
-SplineReg_GLM2 <- function(X,Y,Z,offset=rep(0,nobs),
-                          weights=rep(1,length(X)),InterKnots,n,extr=range(X),family,
-                          inits = NULL,mustart){
-  X <- as.numeric(X)
-  Y <- as.numeric(Y)
-  #Z <- as.numeric(Z)
-  nobs <- NROW(Y)
-  y <- Y
-  if(length(X) != length(Y)) stop("length of 'X' must match length of 'Y'")
-  InterKnots <- as.numeric(InterKnots)
-  if(length(n) != 1) stop("'n' must have length 1")
-  n <- as.integer(n)
-  extr <- as.numeric(extr)
-  basisMatrix <- splineDesign(knots=sort(c(InterKnots,rep(extr,n))),
-                           derivs=rep(0,length(X)),x=X,ord=n,outer.ok = T)
-  basisMatrix2 <- cbind(basisMatrix,Z)
-  ord <- n #may cause problem the use of family$initialize e.g. binomial()
-  if(missing(mustart)||is.null(mustart)){
-
-    env <- parent.frame()
-    if(is.null(weights)) weights <- rep(1,length(y))
-    if (is.null(inits)) {
-      eval(family$initialize)
-
-      mustart <- env$mustart
-    } else {
-      if(length(inits)!= NCOL(basisMatrix2)) stop("'inits' must be of length length(InterKnots) + n + NCOL(Z)")
-      mustart <- family$linkinv(basisMatrix2 %*% inits)
-    }
-  }
-
-  tmp <- glm.fit(basisMatrix2, Y,
-                 family=family)
-  theta <- coef(tmp)
-  nodes <-sort(c(InterKnots,rep(extr,ord)))[-c(1,NCOL(basisMatrix)+1)]
-  polyknots <- makenewknots(nodes,degree=ord)
-  predicted <- basisMatrix2 %*% theta + offset
-  resid <- tmp$res2
-  out <- list("theta" = theta,"predicted" = predicted,
-              "residuals" = resid, "rss" = tmp$lastdeviance,
-              "basis"= basisMatrix,
-              "polygon" = list("kn" = polyknots, "thetas" = theta[1:NCOL(basisMatrix)]),
-              "temporary" = tmp, "deviance" = tmp$deviance)
-  return(out)
-}
 

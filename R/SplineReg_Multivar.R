@@ -294,7 +294,8 @@ SplineReg_Multivar <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)), base_le
 # }
 
 jointSplineBasisMultivar <- function(X, base_learners, InterKnotsList, n,
-                                     extrList = lapply(X, range)) {
+                                     extrList = lapply(X, range), prediction = FALSE,
+                                     clamp_linear = FALSE) {
   learners <- base_learners[vapply(base_learners, function(x) x$type == "GeDS", logical(1))]
   matrices <- axis.matrices <- list()
   for (learner_name in intersect(names(InterKnotsList), names(learners))) {
@@ -314,6 +315,10 @@ jointSplineBasisMultivar <- function(X, base_learners, InterKnotsList, n,
       xj <- X[[vars[j]]]
       boundary <- extrList[[vars[j]]]
       if (is.null(boundary)) boundary <- range(xj)
+      if (prediction) {
+        return(.prediction_spline_basis(sort(c(knots[[j]], rep(boundary, n))), xj, n,
+                                        clamp_linear = clamp_linear))
+      }
       splines::splineDesign(
         knots = sort(c(knots[[j]], rep(boundary, n))),
         derivs = rep(0, length(xj)), x = xj, ord = n, outer.ok = TRUE
@@ -450,29 +455,10 @@ SplineReg_LM_Multivar <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)), base
     # the ‘-1’ serving to suppress the redundant extra intercept that would be added by default
     # 'splineDesign' already includes a basis that accounts for the intercept
     theta <- coef(tmp)
-    # Check if any coefficient is NA, which indicates a rank deficiency and recover theta
-    if (any(is.na(theta))) {
-      # # Compute the minimal-norm solution for theta using the Moore-Penrose generalized inverse.
-      # theta <- as.numeric(ginv(basisMatrix2) %*% Y0)
-      # # Now theta contains the computed coefficients that reproduce lm()'s fitted values.
-
-      # Alternative 1
-      # # Compute t(basisMatrix2) %*% basisMatrix2 using crossprod (more efficient)
-      # matcb <- crossprod(basisMatrix2)
-      # matcbinv <- ginv(matcb)
-      # theta <- as.numeric(matcbinv %*% crossprod(basisMatrix2, tmp$fitted.values))
-
-      # Alternative 2
-      w_sqrt <- sqrt(as.numeric(weights))
-      Xw <- sweep(basisMatrix2, 1, w_sqrt, "*")
-      yw <- Y0 * w_sqrt
-      theta <- drop(MASS::ginv(Xw) %*% yw)
-
-    }
+    # Preserve lm()'s QR solution, including predictions on zero-weight rows.
+    theta[is.na(theta)] <- 0
     names(theta) <- sub("basisMatrix2", "", names(coef(tmp)))
     predicted <- tmp$fitted.values + offset
-
-    # check: as.numeric(basisMatrix2 %*% theta - predicted)
 
     # Reset environment of lm object
     f <- tmp$terms
@@ -776,7 +762,8 @@ SplineReg_GLM_Multivar <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)), bas
     names(theta) <- sub("basisMatrix2", "", names(theta))
     # Compute predicted mean values of the response variable
     # predicted <- family$linkinv(basisMatrix2 %*% theta + offset)
-    predicted <- family$linkinv(tmp$linear.predictors + offset)
+    # glm and IRLSfit both return linear predictors including the offset.
+    predicted <- family$linkinv(tmp$linear.predictors)
 
     # 2) If coefficients are provided, use them to compute predicted values directly
   } else {

@@ -12,11 +12,7 @@ SplineReg_biv <- function(X ,Y , Z = NULL, W = NULL, offset = rep(0,length(X)), 
   basisMatrixY <- splineDesign(knots=sort(c(InterKnotsY,rep(Yextr,n))),derivs=rep(0,length(Y)),
                            x=Y,ord=n,outer.ok = T)
 
-  basisMatrixbiv <- tensorProd(basisMatrixX,basisMatrixY)
-  # basisMatrixbivbis <- tensorProd_R(basisMatrixX,basisMatrixY)
-  # any(basisMatrixbiv-basisMatrixbivbis!=0)
-  # basisMatrixXbis <- recoverXmat(basisMatrixbiv, basisMatrixY, basisMatrixX)
-  # any(basisMatrixX-basisMatrixXbis!=0)
+  basisMatrixbiv <- tensorProd(basisMatrixX,basisMatrixY) # R reference: tensorProd_R()
 
   # Combine spline basis with parametric design matrix (if provided)
   basisMatrixbiv2 <- cbind(basisMatrixbiv, W)

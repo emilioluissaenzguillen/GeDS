@@ -17,8 +17,9 @@ GGeDS(
   Xextr = NULL,
   Yextr = NULL,
   show.iters = FALSE,
-  stoptype = "SR",
-  higher_order = TRUE
+  stoptype = "GD",
+  higher_order = TRUE,
+  gd_draws = 10L
 )
 }
 \arguments{
@@ -40,7 +41,9 @@ typically the environment from which \code{GGeDS} is called.}
 
 \item{weights}{An optional vector of "prior weights" to be put on the
 observations during the fitting process in case the user requires weighted GeDS
-fitting. It is \code{NULL} by default.}
+fitting. It is \code{NULL} by default. In univariate fits, zero-weight rows
+do not contribute to residual clusters, knot support or default boundary
+selection, but are retained for prediction. Explicit boundaries are respected.}
 
 \item{beta}{Numeric parameter in the interval \eqn{[0,1]} tuning the knot
 placement in stage A of GeDS. See Details below.}
@@ -54,9 +57,11 @@ number of internal knots to be fit in stage A. By default equal to zero.}
 
 \item{max.intknots}{Optional parameter allowing the user to set a maximum
 number of internal knots to be added by stage A's GeDS estimation
-algorithm. By default equal to the number of knots \eqn{\kappa} for the saturated
-GeDS model (i.e., \eqn{\kappa=N-2}, where \eqn{N} is the number
-of observations).}
+algorithm. Univariate defaults use the per-spline sample-and-support
+Stage A coefficient budget described for \code{\link{NGeDS}}. An explicit
+value overrides this safeguard. Bivariate fits retain their previous knot
+limit without an automatic coefficient cap. Experimental fits in more than two dimensions
+retain their default of 300.}
 
 \item{q}{Numeric parameter which allows to fine-tune the stopping rule of
 stage A of GeDS, by default equal to \code{2L}. See Details below.}
@@ -72,17 +77,33 @@ independent variable (if bivariate GeDS is run). See Details.}
 \item{show.iters}{Logical variable indicating whether or not to print
 information of the fit at each GeDS iteration. By default equal to \code{FALSE}.}
 
-\item{stoptype}{A character string indicating the type of GeDS stopping rule
-to be used. It should be either one of \code{"SR"}, \code{"RD"} or
-\code{"LR"}, partial match allowed. The default is \code{"SR"} for any
-smoother dimension. See Details below.}
+\item{stoptype}{Stage A stopping rule. Gamma dynamic (\code{"GD"}) is the default
+for univariate Gaussian, Poisson, Gamma, binomial and inverse Gaussian
+smoothers without parametric terms. Offsets are held fixed throughout
+bootstrap calibration. The Gaussian and Gamma bootstraps treat
+positive weights as precision weights (variance inversely proportional to
+the weight) and excludes zero-weight observations from calibration.
+Grouped binomial responses must be numeric proportions with positive integer
+trial counts supplied as \code{weights}. Poisson and inverse Gaussian
+fits must be unweighted for GD.
+It calibrates the stopping thresholds by
+bootstrap. Use \code{"RD"} to set the threshold explicitly with \code{phi}.
+Other choices are \code{"SR"} and \code{"LR"}. For bivariate fits, use
+\code{"SR-post"} to compare the \eqn{q}th root of the smoothed ratio with
+\code{phi}. If omitted for other model specifications, the rule is
+\code{"SR"}. Use the full name \code{"SR-post"}.}
 
 \item{higher_order}{Logical; if \code{TRUE}, the function proceeds to Stage B,
 fitting higher-order models (quadratic and cubic), after completing Stage A.
 Default is \code{TRUE}.}
+
+\item{gd_draws}{Integer from 10 to 100 giving the number of valid bootstrap
+paths for univariate Gamma dynamic. Defaults to 10. Larger values give
+finer calibration of the cutoff at the cost of more computation.}
 }
 \value{
-An object of class \code{"GeDS"} (a named list) with similar components
+An object of class \code{"GeDS"}, or \code{"GeDSfitND"} for a joint
+spline with more than two covariates, with the components
 described under \code{\link{NGeDS}}’s \code{@return} plus the following slots:
 \describe{
 \item{type}{Character string indicating the type of regression performed.
@@ -92,7 +113,8 @@ by \code{\link{GGeDS}}).}
 \item{guesses}{Initial values for the estimation of the spline coefficients
 at each iteration of stage A. Since the initial values are used only in the
 IRLS procedure, this slot applies only to objects created by \code{\link{GGeDS}},
-\code{\link{GenUnivariateFitter}} or \code{\link{GenBivariateFitter}} functions.}
+\code{\link{GenUnivariateFitter}} or \code{\link{GenBivariateFitter}} functions.
+Higher-dimensional fits use the default IRLS initialization and return NULL.}
 \item{iterIrls}{Vector containing the numbers of IRLS iterations for all
 iterations of stage A cumulatively. Since the IRLS procedure is used only in
 \code{\link{GGeDS}}, \code{\link{GenUnivariateFitter}} or \code{\link{GenBivariateFitter}},
@@ -153,11 +175,11 @@ Kaishev et al., 2016, for further details).
 
 The default values of \code{beta} are \code{beta = 0.5} if the response is
 assumed to be Gaussian, \code{beta = 0.2} if it is Poisson (or Quasipoisson),
-while if it is Binomial, Quasibinomial or Gamma \code{beta = 0.1}, which
-reflect our experience of running GeDS for different underlying functional
-dependencies.
+\code{beta = 0.1} if it is Binomial or Quasibinomial, and \code{beta = 0.3}
+if it is Gamma. These are starting settings and may be adjusted for the
+underlying functional dependence.
 
-The argument \code{stoptype} allows to choose between three alternative
+The argument \code{stoptype} also accepts the following fixed-threshold
 stopping rules for the knot selection in stage A of GeDS: \code{"RD"},
 that stands for \emph{Ratio of Deviances}; \code{"SR"}, that stands for
 \emph{Smoothed Ratio} of deviances; and \code{"LR"}, that stands for
@@ -167,6 +189,24 @@ Therefore \code{"LR"} can be viewed as a log likelihood ratio test performed
 at each iteration of the knot placement. In each of these cases the
 corresponding stopping criterion is compared with a threshold value
 \code{phi} (see below).
+
+The Gamma-dynamic rule tests whether to add any internal knots, then
+compares the smoothed per-knot gains with thresholds calibrated from
+valid bootstrap paths, ten by default. Path lengths are increased as needed,
+and bootstrap fits resume from their last fitted knot. Each gain uses a lookback of \code{q}
+(default \code{2L}). After two consecutive checks below the cutoff,
+the model \code{q} steps before the second check is retained.
+Bootstrap calibration uses an internal seed and restores the caller's
+random-number state.
+For Poisson and binomial responses GD fixes dispersion at one. For binomial
+responses it simulates successes with the original trial counts.
+For inverse Gaussian responses it
+estimates dispersion from Pearson residuals, retains valid shorter paths,
+and starts both zero-knot fits on each bootstrap sample at its response
+mean. Under GD or SR, a failed initial zero-knot IRLS fit is retried
+from the weighted response mean. Quasi-families do not use GD.
+If bootstrap calibration cannot be completed, the fit warns and uses
+the corresponding fixed-threshold default.
 
 The argument \code{phi} provides a threshold value required for the stopping
 rule to exit the knot placement in stage A of GeDS. The higher the value of

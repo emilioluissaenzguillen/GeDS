@@ -27,6 +27,10 @@ extracted.
  for each iteration where the corresponding bivariate base-learner was selected are
  provided; for bivariate base-learners and \code{class(object) == "GeDSgam"},
  the final local-scoring B-spline coefficients are provided.
+ For two-phase boosting, these include coefficient refinement; tensor
+ learners store its aggregate increment under \code{phase2}, with the
+ same shrinkage convention as other non-initial iterations. The native
+ frozen-basis increment is in \code{object$final_model$refinement$selected$delta}.
   \item If \code{n = 3L} or \code{n = 4L}: B-spline coefficients are provided
  for both univariate and bivariate GeDS learners.
 }

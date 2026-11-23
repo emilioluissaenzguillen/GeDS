@@ -52,10 +52,28 @@ values separately for each single independent variable which enter either the
 GeD spline component or the parametric component of the predictor model. In
 this case the returned result is a matrix whose columns correspond to the
 terms supplied via \code{newdata} or extracted from the \code{object}.
+Contributions are on the link scale, with one \code{"Spline"} column and
+one column per parametric design column (including factor contrasts).
+Offsets are excluded: adding the offset to the row sums reconstructs the
+complete linear predictor.
 
 As GeDS objects contain three different fits (linear, quadratic and cubic),
 it is possible to specify the order for which GeDS predictions are required
 via the input argument \code{n}.
+
+For \code{"GeDS"}, \code{"GeDSgam"} and \code{"GeDSboost"} objects, predictions at
+\code{newdata} retain the fitted knots and coefficients. Linear spline
+components (\code{n = 2}) continue their boundary segments linearly;
+joint smoothers continue linearly in each coordinate, giving a bilinear
+continuation when both coordinates of a bivariate smoother are outside.
+Quadratic and cubic spline components (\code{n = 3} or \code{n = 4})
+clamp each coordinate to its fitted boundary range. Predictions inside
+these ranges and explicitly linear parametric terms are unchanged.
+For the Gamma family with the inverse link, spline components of all
+orders clamp to the fitted boundary ranges. Extension is applied on the
+link scale before the inverse link. Parametric terms and offsets are not
+clamped; an error is raised if they yield a non-positive or non-finite
+complete linear predictor for this family and link.
 }
 \seealso{
 \code{\link[stats]{predict}} for the standard definition;

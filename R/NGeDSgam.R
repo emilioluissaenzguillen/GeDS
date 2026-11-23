@@ -52,7 +52,10 @@
 #' @param internal_knots The maximum number of internal knots that can be added
 #' by the GeDS smoothers at each backfitting iteration, effectively setting the
 #' value of \code{max.intknots} in \code{\link{NGeDS}} at each backfitting
-#' iteration. Default is \code{500L}.
+#' iteration. When omitted, univariate smoothers use the per-spline
+#' sample-and-support Stage A coefficient budget described for \code{\link{NGeDS}};
+#' bivariate and experimental higher-dimensional smoothers retain 500. An explicit value
+#' overrides the safeguard. There is no shared cap across additive components.
 #' @param q Numeric parameter which allows to fine-tune the stopping rule of
 #' stage A of GeDS, for each of the GeD spline components of the model. By
 #' default equal to \code{2L}. See Details in \code{\link{NGeDS}}.
@@ -61,6 +64,60 @@
 #' is \code{TRUE}.
 #' Joint smoothers can contain more than two predictors, for example
 #' \code{Y ~ f(X1, X2, X3)}.
+#' @param penalty Stage B curvature penalisation. The default is
+#' \code{"component"} when \code{higher_order = TRUE}, and \code{"none"}
+#' otherwise. \code{"none"} uses unpenalised fits; \code{"component"} estimates a separate
+#' REML smoothing parameter for each selected spline component. Only quadratic
+#' and cubic fits change; Stage A and the linear fit are unchanged.
+#' REML fits require \pkg{mgcv}. Explicit choices override the default.
+#' @param stoptype Stage A stopping rule for GeDS smoothers.
+#' \code{"GD"} uses Gamma dynamic calibration on the weighted
+#' partial residuals and calibrates its threshold internally instead of
+#' using \code{phi}. \code{"RD"} uses relative deviance and \code{"SR"}
+#' uses the smoothed ratio. Univariate GD retains valid shorter bootstrap
+#' paths, with zero improvement beyond their last fitted knot count.
+#' If omitted, univariate smoothers use GD and
+#' joint smoothers use SR. Bivariate SR uses \code{phi = 0.99} and
+#' \code{q = 2L} by default. An explicit choice applies to all GeDS
+#' smoothers; GD is supported for at most two predictors per smoother.
+#' @details
+#' With \code{penalty = "none"}, quadratic and cubic Stage B refits use the
+#' averaged knots without the stability simplification used by
+#' \code{\link{NGeDSboost}}.
+#'
+#' With \code{penalty != "none"}, the selected Stage B knots are fixed and
+#' coefficients are estimated using \code{mgcv::gam} with parametric penalties.
+#' The penalty integrates squared second derivatives on predictor coordinates
+#' scaled to the unit interval. Bivariate components use the integrated squared
+#' Hessian (including twice the squared mixed derivative). Affine functions and
+#' ordinary linear terms are unpenalised. Component constants are centred using
+#' the fitting weights, with one overall intercept retained. Curvature roots and
+#' singular-value decompositions avoid forming ill-conditioned penalty Gram
+#' matrices. Unobserved penalised directions have zero conditional modes.
+#'
+#' Positive weights are treated as relative fitting weights and normalised to
+#' sum to the number of positive-weight observations; zero-weight observations
+#' do not contribute to REML. They still contribute to predictor boundary ranges,
+#' as in the original Stage B fit. The existing spline extrapolation convention
+#' is retained. This is not a frequency-weight or grouped-binomial likelihood.
+#'
+#' Penalisation currently supports univariate and bivariate spline components,
+#' Gaussian identity, Gamma log, Poisson log and individual binary logit responses,
+#' with \code{normalize_data = FALSE} and no formula offsets. Unreliable REML
+#' convergence or saturated training predictions in a binomial REML refit trigger
+#' Firth bias-reduced logistic regression on the same selected spline basis.
+#' This fallback replaces curvature penalisation; it does not estimate REML
+#' smoothing parameters. It emits a \code{geds_stageB_firth_warning} and records
+#' \code{method = "Firth"}, the original failure reason and solver diagnostics
+#' in the fit's \code{penalty} component. Other families do not use this fallback.
+#' If a higher-order refit still fails, that order is omitted with a warning,
+#' without substituting a lower-order prediction. The linear fit is retained and each higher order is
+#' attempted independently. Predictions for a failed order are \code{NA}; the
+#' failure messages are stored in \code{final_model$stageB_errors}.
+#' Smoothing parameters, effective degrees of freedom, scale and convergence
+#' information are stored in \code{final_model$quadratic.fit$penalty} and
+#' \code{final_model$cubic.fit$penalty}. Confidence intervals and likelihood
+#' methods for penalised fits are not currently implemented.
 #'
 #' @return An object of class \code{"GeDSgam"} (a named list) with components:
 #' \describe{
@@ -102,7 +159,9 @@
 #'
 #'   \item{final_model}{A list detailing the final \code{"GeDSgam"} model selected after
 #'   running the local scoring algorithm. The chosen model minimizes deviance
-#'   across all models generated by each local-scoring iteration. This list includes:
+#'   among the final \code{q_gam + 1} local-scoring fits, or all available fits
+#'   if fewer were generated. With \code{q_gam = NULL}, all fits are considered.
+#'   This list includes:
 #'     \describe{
 #'     \item{\code{model_name}}{Local-scoring iteration that yielded the "best"
 #'     model. Note that when \code{family = "gaussian"}, it will always correspond
@@ -118,8 +177,10 @@
 #'     \item{\code{base_learners}}{A list containing, for each base-learner, the
 #'     corresponding linear fit piecewise polynomial coefficients. It includes the
 #'     knots for each order fit, resulting from computing the averaging knot
-#'     location. Although if the number of internal knots of the final linear fit
-#'     is less than \eqn{n-1}, the averaging knot location is not computed.}
+#'     location.
+#'     Although if the number of internal knots of the final linear fit
+#'     is less than \eqn{n-1}, the higher-order fit uses zero internal knots
+#'     in that dimension.}
 #'     \item{\code{linear.fit}}{Final linear fit in B-spline form (see \code{\link{SplineReg}}).}
 #'     \item{\code{quadratic.fit}}{Quadratic fit obtained via Schoenberg
 #'     variation diminishing approximation (see \code{\link{SplineReg}}).}
@@ -200,7 +261,7 @@
 #'
 #' formula = Ozone ~ f(Solar.R) + f(Wind, Temp)
 #' Gmodgam <- NGeDSgam(formula = formula, data = data,
-#' phi = 0.8)
+#' stoptype = "RD", phi = 0.8)
 #' MSE_Gmodgam_linear <- mean((data$Ozone - Gmodgam$predictions$pred_linear)^2)
 #' MSE_Gmodgam_quadratic <- mean((data$Ozone - Gmodgam$predictions$pred_quadratic)^2)
 #' MSE_Gmodgam_cubic <- mean((data$Ozone - Gmodgam$predictions$pred_cubic)^2)
@@ -221,10 +282,9 @@
 #' coef(Gmodgam, n = 2)
 #' coef(Gmodgam, n = 3)
 #' coef(Gmodgam, n = 4)
-#' # Wald-type confidence intervals
+#' # Wald-type confidence intervals for the linear fit
 #' confint(Gmodgam, n = 2)
-#' confint(Gmodgam, n = 3)
-#' confint(Gmodgam, n = 4)
+#' # Confidence intervals for the REML quadratic and cubic fits are not implemented.
 #' # Deviances
 #' deviance(Gmodgam, n = 2)
 #' deviance(Gmodgam, n = 3)
@@ -253,11 +313,17 @@ NGeDSgam <- function(formula, family = "gaussian", data, weights = NULL,
                      normalize_data = FALSE, min_iterations, max_iterations,
                      phi_gam_exit = 0.99, q_gam = 2L,
                      beta = 0.5, phi = 0.99, internal_knots = 500L, q = 2L,
-                     higher_order = TRUE)
+                     higher_order = TRUE, penalty = if (higher_order) "component" else "none",
+                     stoptype = c("GD", "RD", "SR"))
 {
+  stoptype_missing <- missing(stoptype)
+  stoptype <- match.arg(stoptype)
+  joint_stoptype <- if (stoptype_missing) "SR" else stoptype
+  penalty <- .stageB_validate_penalty(penalty, normalize_data, higher_order)
 
   # Capture the function call
   extcall <- match.call()
+  default_spline_cap <- missing(internal_knots)
   if (missing(data))
     data <- environment(formula)
 
@@ -270,6 +336,12 @@ NGeDSgam <- function(formula, family = "gaussian", data, weights = NULL,
   response <- read.formula$response
   predictors <- read.formula$predictors
   base_learners <- read.formula$base_learners
+  if (joint_stoptype == "GD" && any(vapply(base_learners, function(bl) {
+    bl$type == "GeDS" && length(bl$variables) > 2L
+  }, logical(1)))) {
+    stop("The GD stopping rule is not supported for smoothers with more than two predictors.",
+         call. = FALSE)
+  }
 
   # Weights and offset
   nobs = length(data[[response]])
@@ -464,14 +536,16 @@ NGeDSgam <- function(formula, family = "gaussian", data, weights = NULL,
     bf <- backfitting(z = z, base_learners = base_learners, base_learners_list = base_learners_list,
                       data = data, wz = wz, phi_gam_exit = phi_gam_exit, q_gam = q_gam, iter = iter,
                       internal_knots = internal_knots, beta = beta, phi = phi, q = q,
-                      univ_geds_cache = univ_geds_cache, max.coef = 100000L)
+                      univ_geds_cache = univ_geds_cache, max.coef = 100000L,
+                      default_spline_cap = default_spline_cap, stoptype = stoptype,
+                      joint_stoptype = joint_stoptype)
 
     eta <- bf$z_hat + offset
     mu <- linkinv(eta)
     base_learners_list <- bf$base_learners_list
     n_iters <- c(n_iters, bf$n_iters)
 
-    models[[paste0("iter", iter)]] <- list(Y_hat = list(eta = eta, mu = mu, z = z),
+    models[[paste0("iter", iter)]] <- list(Y_hat = list(eta = eta, mu = mu, z = z, z_hat = bf$z_hat),
                                            base_learners = base_learners_list)
 
     # 3. UNTIL
@@ -515,11 +589,16 @@ NGeDSgam <- function(formula, family = "gaussian", data, weights = NULL,
     mu <- model$Y_hat$mu
     sum(dev.resids(args$response[[response]], mu, weights))
   })
-  # 4.3. Find the model with the smallest deviance
-  model_min_deviance <- names(models)[which.min(deviances)]
+  # 4.3. Select within the final stopping window.
+  candidate_deviances <- if (is.null(q_gam)) {
+    deviances
+  } else {
+    tail(deviances, q_gam + 1L)
+  }
+  model_min_deviance <- names(candidate_deviances)[which.min(candidate_deviances)]
   final_model <- list(
     model_name = model_min_deviance,
-    dev = min(deviances),
+    dev = min(candidate_deviances),
     Y_hat = models[[model_min_deviance]]$Y_hat,
     base_learners = models[[model_min_deviance]]$base_learners
   )
@@ -562,7 +641,7 @@ NGeDSgam <- function(formula, family = "gaussian", data, weights = NULL,
   linear_fit <- tryCatch({
     suppressMessages(
       SplineReg_Multivar(X = args$predictors[GeDS_variables], Y = args$response[[response]],
-                         Z = args$predictors[linear_variables], offset = args$offset + mean(final_model$Y_hat$z),
+                         Z = args$predictors[linear_variables], offset = args$offset + .gam_linear_intercept(final_model$Y_hat),
                          base_learners = args$base_learners, weights = weights,
                          InterKnotsList = ll_list, n = 2, family = args$family,
                          coefficients = theta, linear_intercept = TRUE, de_mean = TRUE)
@@ -588,13 +667,24 @@ NGeDSgam <- function(formula, family = "gaussian", data, weights = NULL,
 
     higher_order_fits <- lapply(
       c(quadratic = 3, cubic = 4),
-      function(n) stageB_fit(n, args, GeDS_variables, linear_variables,
+      function(n) tryCatch(stageB_fit(n, args, GeDS_variables, linear_variables,
                              response, final_model, normalize_data,
                              weights = TRUE,      # pull args$weights
                              offset  = TRUE,      # pull args$offset
                              link    = FALSE,     # don't pass link separately
-                             only_pred = TRUE)
+                             only_pred = TRUE, penalty = penalty, stabilise = FALSE),
+        error = function(e) {
+          warning(warningCondition(
+            paste0("The order-", n, " Stage B fit failed: ", conditionMessage(e),
+                   " The linear fit and other spline orders are retained."),
+            class = "geds_stageB_fit_warning", order = n,
+            parent = e))
+          list(fit = NULL, preds = rep(NA_real_, length(pred_linear)),
+               int.knots = list(), error = conditionMessage(e))
+        })
     )
+
+    final_model$stageB_errors <- lapply(higher_order_fits, `[[`, "error")
 
     # Save models + predictions
     final_model$quadratic.fit <- higher_order_fits$quadratic$fit
@@ -658,7 +748,8 @@ NGeDSgam <- function(formula, family = "gaussian", data, weights = NULL,
 
 backfitting <- function(z, base_learners, base_learners_list, data, wz, phi_gam_exit, q_gam,
                         iter, internal_knots, beta, phi, q, univ_geds_cache = NULL,
-                        max.coef = 100000L)
+                        max.coef = 100000L, default_spline_cap = FALSE, stoptype = "RD",
+                        joint_stoptype = "SR")
 {
   # 1. Initialize
   weighted_mean <- function(x) {
@@ -695,6 +786,9 @@ backfitting <- function(z, base_learners, base_learners_list, data, wz, phi_gam_
         } else {
           max.intknots <- internal_knots
         }
+        if (default_spline_cap && length(pred_vars) == 1L) {
+          max.intknots <- .geds_spline_cap(data[pred_vars], wz)$max.intknots
+        }
 
         # model_formula <- formula(paste0(model_formula_template, bl_name))
         # error <- FALSE
@@ -717,22 +811,30 @@ backfitting <- function(z, base_learners, base_learners_list, data, wz, phi_gam_
             if (!is.null(cache)) {
               # Direct univariate fit on the pre-sorted covariate: bypasses the
               # NGeDS() formula wrapper. Equivalent to NGeDS(model_formula, ...).
-              uf <- UnivariateFitter(X = cache$xs, Y = partial_resid[cache$ord], Z = NULL,
-                                     offset = rep(0, length(cache$ord)), weights = wz[cache$ord],
-                                     beta = beta, phi = phi, min.intknots = 0,
-                                     max.intknots = max.intknots, q = q, extr = cache$extr,
-                                     show.iters = FALSE, stoptype = "RD", higher_order = FALSE,
-                                     only_pred = TRUE)
+              fit_args <- list(X = cache$xs, Y = partial_resid[cache$ord], Z = NULL,
+                               offset = rep(0, length(cache$ord)), weights = wz[cache$ord],
+                               beta = beta, phi = phi, min.intknots = 0,
+                               max.intknots = max.intknots, q = q, extr = cache$extr,
+                               show.iters = FALSE, higher_order = FALSE, only_pred = TRUE)
+              uf <- if (stoptype == "GD") {
+                .gamma_dynamic_fit(UnivariateFitter, fit_args, stats::gaussian(), "RD",
+                                   allow_short_paths = TRUE, draws = 10L, staged = TRUE)
+              } else {
+                do.call(UnivariateFitter, c(fit_args, list(stoptype = stoptype)))
+              }
               uf$formula <- model_formula   # predict_GeDS_linear() reads all.vars(formula)
               uf
             } else if (length(pred_vars) == 2L) {
-              NGeDS(model_formula, data = data_loop, weights = wz, beta = beta, phi = phi,
-                    min.intknots = 0, max.intknots = max.intknots, q = q, Xextr = NULL, Yextr = NULL,
-                    show.iters = FALSE, higher_order = FALSE, only_pred = TRUE)
+              fit_args <- list(formula = model_formula, data = data_loop, weights = wz,
+                               beta = beta, phi = phi, min.intknots = 0, q = q,
+                               show.iters = FALSE, stoptype = joint_stoptype,
+                               higher_order = FALSE, only_pred = TRUE)
+              if (!default_spline_cap || length(pred_vars) > 1L) fit_args$max.intknots <- max.intknots
+              do.call(NGeDS, fit_args)
             } else {
               fit_joint_GeDS_linear(
                 data_loop, "partial_resid", pred_vars, wz, beta, phi, q,
-                max.intknots, max.coef
+                max.intknots, max.coef, stoptype = joint_stoptype
               )
             },
             error = function(e) {

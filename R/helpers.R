@@ -1,5 +1,14 @@
 ################################################################################
 #' @importFrom stats .lm.fit
+.lm.fit.ordered <- function(x, y, tol = 1e-07) {
+  out <- .lm.fit(x, y, tol)
+  # .lm.fit returns coefficients in pivot order when columns are dependent.
+  if (isTRUE(out$pivoted)) {
+    out$coefficients[out$pivot] <- out$coefficients
+  }
+  out
+}
+
 lm.wfit.light <- function (x, y, w, tol = 1e-07) {
   x.asgn <- attr(x, "assign")
   zero.weights <- any(w == 0)
@@ -16,7 +25,7 @@ lm.wfit.light <- function (x, y, w, tol = 1e-07) {
     y <-y[ok]
   }
   wts <- sqrt(w)
-  out <- .lm.fit(x * as.numeric(wts), y * wts, tol)
+  out <- .lm.fit.ordered(x * as.numeric(wts), y * wts, tol)
   out$residuals <- save.r - save.f%*%out$coef
   return(out)
 }
@@ -29,26 +38,6 @@ lm.wfit.light <- function (x, y, w, tol = 1e-07) {
 
 ################################################################################
 
-makeNewMatr <- function(basisMatrix, tab, by.row=F){
-  if(is.null(tab)){
-    ret <- basisMatrix
-  } else {
-    recurr <- if(by.row) c(t(tab)) else c(tab)
-    recurr <- recurr[recurr!=0]
-    ids <- cumsum(recurr)
-    ids<- c(0,ids)
-    newres <- numeric((length(ids)-1))
-    newX <- numeric((length(ids)-1))
-    newY <- numeric((length(ids)-1))
-    for(i in 1:(length(ids)-1)){
-      newres[i] <- sum(basisMatrix[(ids[i]+1):ids[i+1],3])
-      newX[i] <- basisMatrix[i,1]
-      newY[i] <- basisMatrix[i,2]
-    }
-    ret <- cbind(newX,newY,newres)
-  }
-  return(ret)
-}
 
 ################################################################################
 # already fast - useless to do in C++
@@ -189,7 +178,6 @@ ci <- function(tmp, resid, prob = 0.95, basisMatrix, basisMatrix2, predicted,
       aci = list("Upp" = predicted + band_width_huang,
                  "Low" = predicted - band_width_huang)
     }
-
 
 
   } else if (type == "glm") {
@@ -474,4 +462,25 @@ constrained_wls <- function(X, y, weights = rep(1, length(y)),
   )
 
   as.numeric(fit$solution)
+}
+
+################################################################################
+# Automatic spline caps (knot and coefficient budgets)
+################################################################################
+.geds_spline_cap <- function(X, weights, nparam = 0L) {
+  X <- as.matrix(X)
+  positive <- weights > 0
+  support <- unique(X[positive, , drop = FALSE])
+  if (NCOL(X) != 1L) stop("The automatic spline cap is univariate only.", call. = FALSE)
+  minimum <- 2L + nparam
+  budget <- max(minimum, min(NROW(support) + nparam, floor(sum(positive) / 2)))
+  max.knots <- budget - nparam - 2L
+  list(max.intknots = as.integer(max.knots), max.coef = budget)
+}
+
+.geds_bivariate_cap_flags <- function(flagX, flagY, nx, ny, nparam, max.coef) {
+  blockedX <- !flagX && (nx + 3L) * (ny + 2L) + nparam > max.coef
+  blockedY <- !flagY && (nx + 2L) * (ny + 3L) + nparam > max.coef
+  list(flagX = flagX || blockedX, flagY = flagY || blockedY,
+       capped = blockedX || blockedY)
 }

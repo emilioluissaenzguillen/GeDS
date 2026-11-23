@@ -10,7 +10,7 @@ crossv_GeDS(
   model_fun,
   n = 2L,
   n_folds = 5L,
-  parameters,
+  parameters = list(),
   n_cores = NULL,
   ...
 )
@@ -28,37 +28,41 @@ including the dependent and independent variables.}
 \eqn{+ 1}) of the spline fit evaluated during cross-validation. The default
 is \code{2L}.}
 
-\item{n_folds}{Positive integer specifying the number of cross-validation
-folds. The default is \code{5L}.}
+\item{n_folds}{Integer from 2 to the number of observations specifying the
+number of cross-validation folds. The default is \code{5L}. For \code{GGeDS} and \code{NGeDSgam},
+binomial responses are stratified across folds.}
 
-\item{parameters}{A set of parameters to be tuned via cross-validation.
-These are: \code{beta}, \code{phi} and \code{q} in the case of \code{NGeDS},
-\code{GGeDS} and \code{NGeDSgam}. In addition, for \code{NGeDSboost},
-\code{int.knots_init} and \code{shrinkage} can also be tuned. Default values
-are:
-\itemize{
-\item \code{int.knots_init_grid = c(0, 1, 2)},
-\item \code{shrinkage_grid = c(0.1, 0.5, 1)},
-\item \code{beta_grid = c(0.3, 0.5, 0.7)},
-\item \code{phi_grid = c(0.9, 0.95, 0.99)} and
-\item \code{q_grid = c(2, 3))}.
-}}
+\item{parameters}{A named list of numeric grids to be tuned. The supported
+grids are \code{beta_grid}, \code{phi_grid}, and \code{q_grid} for
+\code{NGeDS}, \code{GGeDS}, and \code{NGeDSgam}; \code{NGeDSboost} also
+supports \code{int.knots_init_grid} and \code{shrinkage_grid}. Omitted
+parameters retain the fitting function's defaults and are not shown in the
+results. The default is an empty list, which evaluates the default fit.
+Select \code{stoptype = "RD"} in
+\code{...} to tune its threshold with \code{phi_grid}. If a threshold grid
+is supplied without a rule, cross-validation uses the previous default
+(univariate \code{NGeDS}, \code{NGeDSgam} smoothers and \code{NGeDSboost} use RD, and joint
+\code{NGeDS} and \code{GGeDS} use SR). Use the same rule when refitting
+with the selected parameters. An explicit \code{stoptype = "GD"} cannot
+be combined with \code{phi_grid}, since GD does not use \code{phi}.}
 
 \item{n_cores}{Integer specifying the number of cores to use for parallel
 cross-validation. If \code{NULL}, the function uses one fewer than the number
 of detected cores, subject to CRAN check limits.}
 
-\item{...}{Additional arguments passed to the internal cross-validation
-method. For \code{NGeDSboost}, these are forwarded to the fitting function.}
+\item{...}{Additional arguments forwarded to the fitting function in each
+fold, such as \code{family = binomial()} for \code{NGeDSgam} or \code{GGeDS}.}
 }
 \value{
 Two data frames, \code{best_params} and \code{results}.
-\code{best_params} contains the best combination of parameters according to
-the cross-validated MSE. \code{results} presents the cross-validated MSE and
-the average number of internal knots across the folds for each possible
-combination of parameters, given the input \code{parameters}. In the case of
-\code{model_fun = NGeDSboost}, it also provides the cross-validated number of
-boosting iterations.
+\code{best_params} contains the best parameter combination and its scores.
+Only supplied parameter grids appear as parameter columns. For
+\code{NGeDS}, \code{GGeDS}, and \code{NGeDSgam}, \code{results} reports
+cross-validated mean squared error (\code{cv_mse}) for Gaussian fits or
+mean deviance (\code{cv_deviance}) for non-Gaussian fits. For
+\code{NGeDSboost}, it reports \code{cv_mse} and the cross-validated number
+of boosting iterations. Average internal-knot counts are included where
+available.
 }
 \description{
 \code{crossv_GeDS} performs k-fold cross-validation for tuning the relevant

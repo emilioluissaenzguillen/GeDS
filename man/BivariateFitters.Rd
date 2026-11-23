@@ -18,14 +18,16 @@ BivariateFitter(
   min.intknots = 0L,
   max.intknots = 300L,
   q = 2L,
-  Xextr = range(X),
-  Yextr = range(Y),
+  Xextr = range(X[weights > 0]),
+  Yextr = range(Y[weights > 0]),
   show.iters = TRUE,
   tol = as.double(1e-12),
   stoptype = c("SR", "RD", "LR"),
   higher_order = TRUE,
   Xintknots = NULL,
-  Yintknots = NULL
+  Yintknots = NULL,
+  offset = rep(0, length(X)),
+  max.coef = NULL
 )
 
 GenBivariateFitter(
@@ -41,12 +43,14 @@ GenBivariateFitter(
   min.intknots = 0L,
   max.intknots = 300L,
   q = 2L,
-  Xextr = range(X),
-  Yextr = range(Y),
+  Xextr = range(X[weights > 0]),
+  Yextr = range(Y[weights > 0]),
   show.iters = TRUE,
   tol = as.double(1e-12),
   stoptype = c("SR", "RD", "LR"),
-  higher_order = TRUE
+  higher_order = TRUE,
+  offset = rep(0, length(X)),
+  max.coef = NULL
 )
 }
 \arguments{
@@ -87,7 +91,7 @@ internal knots required in Stage A's fit. Default is \code{0L}.}
 
 \item{max.intknots}{Optional parameter allowing the user to set a maximum
 number of internal knots to be added in Stage A by the GeDS estimation
-algorithm. Default equals \code{300L}.}
+algorithm. Defaults to \code{300L} in these low-level fitters.}
 
 \item{q}{Numeric parameter which allows to fine-tune the stopping rule of
 stage A of GeDS, by default equal to 2. See Details in the description of
@@ -107,9 +111,10 @@ whether two knots should be considered different during the knot placement
 steps in stage A.}
 
 \item{stoptype}{A character string indicating the type of GeDS stopping rule
-to be used. It should be either \code{"SR"}, \code{"RD"} or \code{"LR"},
-partial match allowed. See details of \code{\link{NGeDS}} or
-\code{\link{GGeDS}}.}
+to be used. Choose \code{"SR"}, \code{"RD"}, \code{"LR"} or
+\code{"SR-post"}. For SR-post, the \eqn{q}th root of the smoothed ratio is
+compared with \code{phi}. Use the full name \code{"SR-post"}. See details
+in \code{\link{NGeDS}} or \code{\link{GGeDS}}.}
 
 \item{higher_order}{A logical defining whether to compute the higher
 order fits (quadratic and cubic) after stage A is run. Default is
@@ -126,6 +131,14 @@ Allows the user to begin Stage A's GeDS algorithm with a linear (least-squares)
 spline fit using a predefined vector of internal \code{Y} knots, instead of
 starting with a straight line fit (i.e., with zero internal knots). Note that
 this is not available for \code{GenBivariateFitter}. Default is \code{NULL}.}
+
+\item{offset}{A numeric vector of length \eqn{N} added to the linear
+predictor with coefficient fixed at one. Defaults to zero.}
+
+\item{max.coef}{Optional upper bound on the number of linear Stage A
+tensor-product coefficients plus parametric columns. Defaults to no
+coefficient cap. An explicit limit does not cap a complete additive model
+or its higher-order refits.}
 
 \item{family}{A description of the error distribution and link function to be
 used in the model. This can be a character string naming a family function

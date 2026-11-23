@@ -22,7 +22,7 @@ test_that("Knotnew handles empty residual clusters", {
   expect_equal(result, c(NA_real_, NA_real_))
 })
 
-test_that("Knotnew uses the CRAN-era strict support intervals", {
+test_that("Knotnew retains strict minimum-support intervals", {
   x <- 1:5
   residuals <- rep(1, length(x))
   oldknots <- c(1, 5, 1, 5, 3)
@@ -71,7 +71,7 @@ test_that("Knotnew uses the CRAN-era strict support intervals", {
   expect_equal(c(right_R$newknot, right_R$cluster_index), right)
 })
 
-test_that("Knotnew checks every CRAN-era support interval independently", {
+test_that("Knotnew rejects an empty support before distinct-site matching", {
   x <- c(0, 0.25, 0.5, 3, 4)
   weights <- c(0.1, 0.7, 0.8, 1, 0.9)
   residuals <- rep(1, length(x))
@@ -101,7 +101,7 @@ test_that("Knotnew checks every CRAN-era support interval independently", {
   expect_equal(c(result_R$newknot, result_R$cluster_index), result)
 })
 
-test_that("Knotnew may reuse observations across overlapping support intervals", {
+test_that("Knotnew rejects reuse without a distinct supporting-site matching", {
   x <- c(0.5, 2, 3.5)
   weights <- c(0.1, 1, 0.2)
   residuals <- rep(1, length(x))
@@ -126,9 +126,9 @@ test_that("Knotnew may reuse observations across overlapping support intervals",
     support_order = 2L
   )
 
-  # For sorted knots 0, 0, 1, 2, 3, 4, 4, x = 0.5 supports the
-  # first two overlapping intervals and x = 3.5 supports the last two.
-  expect_equal(result, c(2, 2))
+  # Each support contains an observation, but the five basis functions
+  # cannot be matched to distinct sites among these three observations.
+  expect_equal(result, c(NA_real_, NA_real_))
   expect_equal(c(result_R$newknot, result_R$cluster_index), result)
 })
 

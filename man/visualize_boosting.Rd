@@ -10,7 +10,8 @@
 \arguments{
 \item{object}{A \code{"GeDSboost"} class object.}
 
-\item{iters}{Numeric, specifies the iteration(s) number.}
+\item{iters}{Numeric, specifies the iteration(s) to plot, from zero through
+\code{N.boost.iter(object)} (equal to \code{object$iters} for newly fitted objects).}
 
 \item{final_fits}{Logical indicating whether the final linear, quadratic and
 cubic fits should be plotted.}
@@ -21,6 +22,10 @@ beginning of a given boosting iteration and then plots the subsequent
 \code{\link{NGeDS}} fit on the corresponding negative gradient.
 Note that this is only applicable to \code{\link{NGeDSboost}} models with a
 single univariate base-learner.
+Coefficient-update iterations retain the same panel numbering and knot titles:
+each fit is followed by the gradient fit for the next update, using fixed knots.
+To display all iterations and the final fits on one page, use
+\code{par(mfrow = c(N.boost.iter(object) + 1, 2))} and a suitably tall device.
 }
 \examples{
 # Load packages

@@ -29,8 +29,16 @@
 #' number of internal knots required. By default equal to zero.
 #' @param max.intknots Optional parameter allowing the user to set a maximum
 #' number of internal knots to be added by the GeDS estimation algorithm. By
-#' default equal to the number of knots for the saturated GeDS model
-#' (i.e., \eqn{\kappa = N - 2}); experimental multivariate fits use 300.
+#' default, the univariate Stage A internal-knot limit is
+#' \eqn{\max(0,\min(U_+-2,\lfloor N_+/2\rfloor-r-2))}, where
+#' \eqn{N_+} counts positive-weight observations, \eqn{U_+} counts their
+#' distinct covariate values, and \eqn{r} is the number of parametric columns.
+#' Thus the coefficient budget is based on half the positive-weight sample,
+#' subject to distinct spline support, and always allows the no-internal-knot
+#' basis plus parametric terms. Weight magnitudes do not affect this limit.
+#' An explicit value overrides this default safeguard. Bivariate fits retain
+#' their previous knot limit without an automatic coefficient cap.
+#' Experimental fits in more than two dimensions use 300.
 #' @param q Numeric parameter which allows to fine-tune the stopping rule of
 #' stage A of GeDS, by default equal to \code{2L}. See Details.
 #' @param Xextr Numeric vector of 2 elements representing the left-most and
@@ -41,11 +49,29 @@
 #' independent variable (if bivariate GeDS is run). See Details.
 #' @param show.iters Logical variable indicating whether or not to print
 #' information about the fitting at each step.
-#' @param stoptype A character string indicating the type of GeDS stopping rule
-#' to be used. It should be either one of \code{"SR"}, \code{"RD"} or
-#' \code{"LR"}, partial match allowed. The default is \code{"RD"} for a
-#' univariate smoother and \code{"SR"} for a joint smoother in two or more
-#' dimensions. See Details.
+#' @param gd_draws Integer from 10 to 100 giving the number of valid bootstrap
+#' paths for univariate Gamma dynamic. Defaults to 10. Larger values give
+#' finer calibration of the cutoff at the cost of more computation.
+#' @param stoptype Stage A stopping rule. Gamma dynamic (\code{"GD"}) is the default
+#' for a univariate smoother without parametric terms or an initial
+#' fit or knots. In weighted fits, the bootstrap treats positive weights as
+#' precision weights (variance inversely proportional to the weight) and
+#' excludes zero-weight observations from calibration. Offsets are held fixed
+#' throughout bootstrap calibration.
+#' It calibrates the stopping thresholds by
+#' bootstrap. Use \code{"RD"} to set the threshold explicitly with \code{phi}.
+#' For bivariate Gaussian smoothers, explicitly request \code{"GD"} to
+#' calibrate the native bivariate search using up to 20 additional knots
+#' across both axes. This supports prior weights and inherited knots.
+#' The bootstrap uses the available part of each search path and assigns
+#' zero further gain after it ends. If calibration fails, the fit warns
+#' and uses \code{"SR"}.
+#' Bivariate fits default to the smoothed ratio (\code{"SR"}), with
+#' \code{phi = 0.99} and \code{q = 2L}. Use \code{"SR-post"} to compare the
+#' \eqn{q}th root of the smoothed ratio with \code{phi} for a bivariate
+#' fit. Other choices include \code{"LR"}. If omitted, other univariate
+#' specifications use \code{"RD"} and fits with more than two predictors
+#' use \code{"SR"}. Use the full name \code{"SR-post"}.
 #' @param higher_order Logical. If \code{TRUE}, after completing stage A, the
 #' function proceeds to stage B and fits higher-order models (quadratic and cubic).
 #' Default is \code{TRUE}.
@@ -109,7 +135,7 @@
 #' range of their corresponding x-values. The default value of \code{beta} is
 #' \code{0.5}.
 #'
-#' The argument \code{stoptype} allows to choose between three alternative
+#' The argument \code{stoptype} also accepts the following fixed-threshold
 #' stopping rules for the knot selection in stage A of GeDS: \code{"RD"},
 #' that stands for \emph{Ratio of Deviances}, \code{"SR"}, that stands for
 #' \emph{Smoothed Ratio} of deviances and \code{"LR"}, that stands for
@@ -121,6 +147,17 @@
 #' \code{phi}.
 #' In bivariate Normal fits, a rank-deficient selected linear tensor fit is
 #' replaced by the latest full-rank Stage A fit.
+#'
+#' The Gamma-dynamic rule tests whether to add any internal knots, then
+#' compares the smoothed per-knot gains with thresholds calibrated from
+#' valid bootstrap paths, ten by default. Path lengths are increased as needed,
+#' and bootstrap fits resume from their last fitted knot. Each gain uses a lookback of \code{q}
+#' (default \code{2L}). After two consecutive checks below the cutoff,
+#' the model \code{q} steps before the second check is retained.
+#' Bootstrap calibration uses an internal seed and restores the caller's
+#' random-number state.
+#' If bootstrap calibration cannot be completed, the fit warns and uses
+#' the corresponding fixed-threshold default.
 #'
 #' The argument \code{phi} provides a threshold value required for the stopping
 #' rule to exit the knot placement in stage A of GeDS. The higher the value of
@@ -166,8 +203,9 @@
 #' function to fit the third order spline fit of stage B.}
 #' \item{cubic.fit}{List containing the results from running \code{\link{SplineReg}}
 #' function to fit the fourth order spline fit of stage B.}
-#' \item{stored}{Matrix containing the knot locations estimated at each iteration
-#' of stage A.}
+#' \item{stored}{Knot-history matrix for a univariate fit, or a list of
+#' knot-history matrices, one per covariate, for a joint fit. Each row contains
+#' the full linear knot vector at an iteration of stage A, padded with NAs.}
 #' \item{args}{List containing the input arguments passed on the
 #' \code{\link{Fitters}} functions.}
 #' \item{call}{\code{call} to the \code{\link{Fitters}} functions.}
@@ -187,7 +225,11 @@
 #' slots if the \code{SR} stopping rule was chosen. These respectively contain
 #' the values at each iteration of stage A of \eqn{\hat{\phi}_{\kappa}},
 #' \eqn{\hat{\gamma}_0} and \eqn{\hat{\gamma}_1}. See Dimitrova et al. (2023)
-#' for further details on these parameters.}
+#' for further details on these parameters. For higher-dimensional fits,
+#' this component also records the selected iteration, insertion sequence,
+#' termination reason, solver and basis-size information, and reasons for
+#' omitting higher-order fits. Final fits remain in \code{linear.fit},
+#' \code{quadratic.fit} and \code{cubic.fit}; grid details are in \code{args}.}
 #' \item{formula}{The model \code{\link[=formula.GeDS]{formula}}.}
 #' \item{extcall}{\code{call} to the \code{\link{NGeDS}} functions.}
 #' \item{terms}{\code{terms} object containing information on the model frame.}
@@ -286,7 +328,7 @@
 #' Z <- doublesin(cbind(X,Y))
 #' Z <- Z+rnorm(400, 0, sd = 0.1)
 #' # Fit a two dimensional GeDS model using NGeDS
-#'(BivGeDS <- NGeDS(Z ~ f(X, Y), phi = 0.9))
+#'(BivGeDS <- NGeDS(Z ~ f(X, Y)))
 #'
 #' # Extract quadratic coefficients/knots/deviance
 #' coef(BivGeDS, n = 3)
@@ -310,19 +352,19 @@
 
 NGeDS <- function(formula, data, weights, beta = 0.5, phi = 0.99, min.intknots,
                   max.intknots, q = 2L, Xextr = NULL, Yextr = NULL,
-                  show.iters = FALSE, stoptype = "RD", higher_order = TRUE,
+                  show.iters = FALSE, stoptype = "GD", higher_order = TRUE,
                   intknots_init = NULL, fit_init = NULL, only_pred = FALSE,
-                  max.coef = 100000L)
+                  max.coef = 100000L, gd_draws = 10L)
   {
   # 1. Capture current function call and use formula's environment if 'data' is missing
   save <- match.call()
+  default_max.intknots <- missing(max.intknots)
   stoptype_missing <- missing(stoptype)
   if (missing(data)) data <- environment(formula)
 
   # 2. formula
   newdata <- read.formula(formula, data)
   X <- newdata$X                                    # GeDS covariates
-  if (stoptype_missing && ncol(X) >= 2L) stoptype <- "SR"
   Y <- newdata$Y                                    # response
   offset <- newdata$offset                          # offset
   Z <- newdata$Z; if(!is.null(Z)) Z <- as.matrix(Z) # linear covariates
@@ -362,7 +404,7 @@ NGeDS <- function(formula, data, weights, beta = 0.5, phi = 0.99, min.intknots,
   if(missing(min.intknots)) min.intknots <- 0
   min.intknots <- as.integer(min.intknots)
   if(missing(max.intknots)) {
-    max.intknots <- if (ncol(X) > 2L) 300L else length(unique(X)) - 2 - ncz
+    max.intknots <- 300L
   }
   max.intknots <- as.integer(max.intknots)
   # q
@@ -389,15 +431,37 @@ NGeDS <- function(formula, data, weights, beta = 0.5, phi = 0.99, min.intknots,
     tmp <- tmp | is.na(Y) | is.na(weights) | is.na(offset)
     if (!is.null(Z)) tmp <- tmp | apply(Z, 1, anyNA)
     # Remove rows with NAs
-    if (is.matrix(X) || is.data.frame(X)) X <- X[!tmp, ]
+    if (is.matrix(X) || is.data.frame(X)) X <- X[!tmp, , drop = FALSE]
     else X <- X[!tmp]
     Y <- Y[!tmp]
-    if (!is.null(Z)) Z <- Z[!tmp, ]
+    if (!is.null(Z)) Z <- Z[!tmp, , drop = FALSE]
     weights <- weights[!tmp]
     offset <- offset[!tmp]
   }
   if (!any(weights > 0)) {
     stop("'weights' must contain at least one positive value.", call. = FALSE)
+  }
+  if (ncol(X) == 2L && default_max.intknots) {
+    max.intknots <- length(unique(X)) - 2L - ncz
+  }
+  spline_cap <- if (ncol(X) == 1L && default_max.intknots) {
+    .geds_spline_cap(X, weights, ncz)
+  } else NULL
+  if (!is.null(spline_cap)) max.intknots <- spline_cap$max.intknots
+
+  legacy <- if (ncol(X) == 1L) "RD" else "SR"
+  if (ncol(X) != 2L || !identical(stoptype, "SR-post")) {
+    stoptype <- match.arg(stoptype, c("GD", "RD", "SR", "LR"))
+  }
+  if (ncol(X) == 2L && !stoptype_missing && stoptype == "GD") {
+    if (!is.null(Z) || any(offset != 0) || !is.null(fit_init)) {
+      stop("Bivariate 'GD' requires a spline without parametric terms, offsets or an initial fit.",
+           call. = FALSE)
+    }
+  } else {
+    stoptype <- .gamma_dynamic_rule(stoptype, stoptype_missing, legacy, X, Y, Z, offset, weights,
+                                    "gaussian", initial = length(intknots_init) > 0L ||
+                                      !is.null(fit_init))
   }
 
   #####################
@@ -411,33 +475,42 @@ NGeDS <- function(formula, data, weights, beta = 0.5, phi = 0.99, min.intknots,
     Y <- Y[idx]
     weights <- weights[idx]
     offset <- offset[idx]
-    if (!is.null(Z)) Z <- Z[idx, ]
+    if (!is.null(Z)) Z <- Z[idx, , drop = FALSE]
 
     Xextr <- if (is.null(Xextr)) range(X[weights > 0]) else as.numeric(Xextr)
 
-    out <- UnivariateFitter(X = X, Y = Y, Z = Z, offset = offset, weights = weights,
-                            beta = beta, phi = phi, min.intknots = min.intknots,
-                            max.intknots = max.intknots, q = q, extr = Xextr,
-                            show.iters = show.iters, stoptype = stoptype,
-                            higher_order = higher_order, intknots_init = intknots_init,
-                            fit_init = fit_init, only_pred = only_pred)
+    fit_args <- list(X = X, Y = Y, Z = Z, offset = offset, weights = weights,
+                     beta = beta, phi = phi, min.intknots = min.intknots,
+                     max.intknots = max.intknots, q = q, extr = Xextr,
+                     show.iters = show.iters, stoptype = stoptype,
+                     higher_order = higher_order, intknots_init = intknots_init,
+                     fit_init = fit_init, only_pred = only_pred)
+    out <- if (stoptype == "GD") {
+      .gamma_dynamic_fit(UnivariateFitter, fit_args, gaussian(), legacy,
+                         draws = gd_draws, staged = TRUE)
+    } else {
+      do.call(UnivariateFitter, fit_args)
+    }
   ####################
   ## BIVARIATE GeDS ##
   ####################
   } else if (ncol(X) == 2) {
 
     indicator <- if(any(duplicated(X))) table(X[,1], X[,2]) else NULL
-    Xextr     <- if (is.null(Xextr)) range(X[,1]) else as.numeric(Xextr)
-    Yextr     <- if (is.null(Yextr)) range(X[,2]) else as.numeric(Yextr)
+    Xextr     <- if (is.null(Xextr)) range(X[weights > 0, 1]) else as.numeric(Xextr)
+    Yextr     <- if (is.null(Yextr)) range(X[weights > 0, 2]) else as.numeric(Yextr)
     Xintknots <- intknots_init$ikX
     Yintknots <- intknots_init$ikY
 
-    out <- BivariateFitter(X = X[,1], Y = X[,2], W = Z, Z = Y, weights = weights,
+    fit_args <- list(X = X[,1], Y = X[,2], W = Z, Z = Y, weights = weights,
                            indicator = indicator, beta = beta, phi = phi,
                            min.intknots = min.intknots, max.intknots = max.intknots,
                            q = q, Xextr = Xextr, Yextr = Yextr, show.iters = show.iters,
                            stoptype = stoptype, higher_order = higher_order,
-                           Xintknots = Xintknots, Yintknots = Yintknots)
+                           Xintknots = Xintknots, Yintknots = Yintknots, offset = offset,
+                           max.coef = if (is.null(spline_cap)) Inf else spline_cap$max.coef)
+    out <- if (stoptype == "GD") .bivariate_gamma_dynamic_fit(fit_args) else
+      do.call(BivariateFitter, fit_args)
 
   ######################
   ## MULTIVARIATE GeDS ##

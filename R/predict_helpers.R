@@ -9,9 +9,9 @@ predict_all_orders <- function(object, newdata = NULL, type = c("response", "lin
     }
 
     return(list(
-      pred_linear    = extract_link_pred(model$linear.fit$temporary),
-      pred_quadratic = extract_link_pred(model$quadratic.fit$temporary),
-      pred_cubic     = extract_link_pred(model$cubic.fit$temporary)
+      pred_linear    = predict_training_data(object, model, 2L, "link"),
+      pred_quadratic = predict_training_data(object, model, 3L, "link"),
+      pred_cubic     = predict_training_data(object, model, 4L, "link")
     ))
   }
 
@@ -28,6 +28,10 @@ predict_all_orders <- function(object, newdata = NULL, type = c("response", "lin
 
 predict_training_data <- function(object, model, n, type) {
 
+  failed_order <- switch(as.character(n), "3" = "quadratic", "4" = "cubic")
+  if (!is.null(failed_order) && !is.null(model$stageB_errors[[failed_order]]))
+    return(rep(NA_real_, length(object$predictions$pred_linear)))
+
   if (type == "response") {
     key <- .prediction_key(n)
     pred <- object$predictions[[key]]
@@ -39,7 +43,25 @@ predict_training_data <- function(object, model, n, type) {
     return(pred)
   }
 
+  if (n == 2L && inherits(object, "GeDSboost") && !is.null(model$refinement)) {
+    pred <- model$F_hat
+    if (object$args$normalize_data && .prediction_family(object)$family != "binomial") {
+      pred <- pred * object$args$Y_sd + object$args$Y_mean
+    }
+    return(as.numeric(pred))
+  }
+
+  # Linear GeDSgam fit: the local-scoring predictor itself (intercept and formula
+  # offset included), matching the response-scale training predictions.
+  if (n == 2L && inherits(object, "GeDSgam") && !is.null(model$Y_hat$eta)) {
+    return(as.numeric(model$Y_hat$eta))
+  }
+
   key <- .fit_key(n)
+  if (!is.null(model[[key]]$linear.predictors))
+    return(as.numeric(model[[key]]$linear.predictors))
+  if (identical(model[[key]]$penalty$method, "REML"))
+    return(as.numeric(.prediction_family(object)$linkfun(model[[key]]$predicted)))
   Fit <- model[[key]]$temporary
 
   if (inherits(Fit, "glm")) {
@@ -74,7 +96,70 @@ predict_training_data <- function(object, model, n, type) {
 }
 
 
+.prediction_family <- function(object) {
+  family <- object$args$family
+  if (inherits(object, "GeDSboost")) {
+    family <- get_mboost_family(family@name)
+    if (!is.null(object$args$link)) family <- get(family$family)(link = object$args$link)
+  }
+  family
+}
+
+.prediction_clamp_linear <- function(family) {
+  identical(family$family, "Gamma") && identical(family$link, "inverse")
+}
+
+# Evaluate formula offsets on the prediction rows, independently of the
+# response and smooth terms. Boosting deliberately ignores formula offsets.
+.gam_prediction_offset <- function(object, newdata) {
+  mt <- stats::terms(object$formula)
+  index <- attr(mt, "offset")
+  result <- numeric(nrow(newdata))
+  for (i in index) {
+    expression <- attr(mt, "variables")[[i + 1L]][[2L]]
+    value <- eval(expression, newdata, environment(object$formula))
+    if (!is.numeric(value) || !length(value) %in% c(1L, nrow(newdata)) ||
+        any(!is.finite(value))) {
+      stop("Formula offsets must provide one finite numeric value per prediction row.",
+           call. = FALSE)
+    }
+    result <- result + value
+  }
+  result
+}
+
+.validate_prediction_link <- function(eta, family) {
+  if (.prediction_clamp_linear(family) &&
+      any(!is.na(eta) & (!is.finite(eta) | eta <= 0))) {
+    stop("Gamma predictions with the inverse link require a positive finite linear predictor; ",
+         "check the parametric terms and offsets in 'newdata'.", call. = FALSE)
+  }
+  invisible(NULL)
+}
+
+.prediction_spline_basis <- function(knots, x, n, clamp_linear = FALSE) {
+  x <- as.numeric(x)
+  lower <- knots[n]
+  upper <- knots[length(knots) - n + 1L]
+  clipped <- pmax(lower, pmin(upper, x))
+  basis <- splines::splineDesign(knots, clipped, ord = n, outer.ok = TRUE)
+  outside <- x < lower | x > upper
+  if (n == 2L && !clamp_linear && any(outside)) {
+    # Use the one-sided segment slopes, including at the right endpoint.
+    slope_x <- clipped
+    slope_x[x < lower] <- (lower + min(knots[knots > lower])) / 2
+    slope_x[x > upper] <- (upper + max(knots[knots < upper])) / 2
+    slope <- splines::splineDesign(knots, slope_x, ord = n,
+                                   derivs = 1L, outer.ok = TRUE)
+    basis <- basis + slope * (x - clipped)
+  }
+  basis
+}
+
 predict_newdata_full_model <- function(object, model, newdata, n, type) {
+
+  prediction_family <- .prediction_family(object)
+  clamp_linear <- .prediction_clamp_linear(prediction_family)
 
   if (!all(names(object$args$predictors) %in% colnames(newdata))) {
     missing_vars <- setdiff(names(object$args$predictors), colnames(newdata))
@@ -95,7 +180,22 @@ predict_newdata_full_model <- function(object, model, newdata, n, type) {
 
   base_learners <- object$args$base_learners[selected_bl]
 
-  offset <- rep(0, nobs)
+  if (n == 2L && inherits(object, "GeDSboost") && !is.null(model$refinement) &&
+      !isFALSE(model$refinement$prediction_active)) {
+    anchor <- model
+    anchor$base_learners <- model$refinement$anchor
+    anchor$refinement <- NULL
+    pred <- predict_newdata_full_model(object, anchor, newdata, n, "link")
+    correction <- .boost_refinement_prediction(object, model, newdata)
+    if (object$args$normalize_data && prediction_family$family != "binomial") {
+      correction <- correction * object$args$Y_sd
+    }
+    pred <- pred + correction
+    .validate_prediction_link(pred, prediction_family)
+    return(as.numeric(if (type == "response") object$args$family@response(pred) else pred))
+  }
+
+  offset <- if (inherits(object, "GeDSgam")) .gam_prediction_offset(object, newdata) else rep(0, nobs)
 
   if (n == 2L) {
 
@@ -155,13 +255,14 @@ predict_newdata_full_model <- function(object, model, newdata, n, type) {
       }
       # 1.2 GeDS univariate base learners
       if (length(univariate_bl)!=0) {
-        pred_univ <- piecewise_multivar_linear_model(X = X_df, model, base_learners = univariate_bl)
+        pred_univ <- piecewise_multivar_linear_model(X = X_df, model, base_learners = univariate_bl,
+                                                     clamp_linear = clamp_linear, extr = object$args$extr)
       }
       # 1.3 GeDS bivariate base learners
       if (length(bivariate_bl) != 0) {
         pred_biv <- bivariate_bl_linear_model(pred_vars = X_df, model,
                                               shrinkage, base_learners = bivariate_bl,
-                                              extr = object$args$extr)
+                                              extr = object$args$extr, clamp_linear = clamp_linear)
       }
 
       if (object$args$normalize_data && family_name != "binomial") {
@@ -170,6 +271,7 @@ predict_newdata_full_model <- function(object, model, newdata, n, type) {
         pred <- pred0 + pred_lin + pred_univ + pred_biv
       }
 
+      .validate_prediction_link(pred, prediction_family)
       pred <- if (type == "response") object$args$family@response(pred) else if (type == "link") pred
 
       return(as.numeric(pred))
@@ -180,7 +282,7 @@ predict_newdata_full_model <- function(object, model, newdata, n, type) {
     } else if (inherits(object, "GeDSgam")) {
 
       # 1.0 Initial learner
-      pred0 <- rep(mean(model$Y_hat$z), nrow(newdata))
+      pred0 <- rep(.gam_linear_intercept(model$Y_hat), nrow(newdata)) + offset
       # 1.1 Linear base learners
       if (length(lin_bl)!=0) {
         pred_lin <- lin_model(X_df, model, lin_bl)
@@ -198,7 +300,8 @@ predict_newdata_full_model <- function(object, model, newdata, n, type) {
       }
       # 1.2 GeDS univariate base learners
       if (length(univariate_bl)!= 0) {
-        pred_univ <- piecewise_multivar_linear_model(X_df, model, base_learners = univariate_bl)
+        pred_univ <- piecewise_multivar_linear_model(X_df, model, base_learners = univariate_bl,
+                                                     clamp_linear = clamp_linear, extr = object$args$extr)
         if (object$args$normalize_data) {
           alpha_univ <- mean(piecewise_multivar_linear_model(scale(object$args$predictors[numeric_predictors]),
                                                              model, base_learners = univariate_bl))
@@ -212,7 +315,7 @@ predict_newdata_full_model <- function(object, model, newdata, n, type) {
       # 1.3 GeDS bivariate base learners
       if (length(bivariate_bl) != 0) {
         pred_biv <- bivariate_bl_linear_model(X_df, model, base_learners = bivariate_bl,
-                                              extr = object$args$extr, type = "gam")
+                                              extr = object$args$extr, type = "gam", clamp_linear = clamp_linear)
         if (object$args$normalize_data) {
           alpha_biv <- mean(bivariate_bl_linear_model(scale(object$args$predictors[numeric_predictors]),
                                                       model, base_learners = bivariate_bl,
@@ -232,6 +335,7 @@ predict_newdata_full_model <- function(object, model, newdata, n, type) {
         pred <- pred0 + pred_lin + pred_univ + pred_biv
       }
 
+      .validate_prediction_link(pred, prediction_family)
       pred <- if (type == "response") object$args$family$linkinv(pred) else if (type == "link") pred
 
       return(as.numeric(pred))
@@ -263,6 +367,10 @@ predict_newdata_full_model <- function(object, model, newdata, n, type) {
       int.knots <- "cubic.int.knots"
       Fit <- "cubic.fit"
     }
+
+    failed_order <- if (n == 3L) "quadratic" else "cubic"
+    if (!is.null(model$stageB_errors[[failed_order]]))
+      return(rep(NA_real_, nrow(newdata)))
 
     # Internal Knots
     InterKnotsList <- if (length(object$internal_knots[[int.knots]]) == 0) {
@@ -306,8 +414,9 @@ predict_newdata_full_model <- function(object, model, newdata, n, type) {
       matrices_univ_list <- vector("list", length = ncol(X_univ))
       # Generate design matrices for each predictor
       for (j in 1:ncol(X_univ)) {
-        matrices_univ_list[[j]] <- splineDesign(knots = sort(c(InterKnotsList_univ[[j]], rep(extrList[[j]], n))),
-                                                derivs = rep(0, length(X_univ[,j])), x = X_univ[,j], ord = n, outer.ok = TRUE)
+        matrices_univ_list[[j]] <- .prediction_spline_basis(
+          sort(c(InterKnotsList_univ[[j]], rep(extrList[[j]], n))), X_univ[,j], n
+        )
       }
       names(matrices_univ_list) <- names(univariate_learners)
     } else {
@@ -327,7 +436,7 @@ predict_newdata_full_model <- function(object, model, newdata, n, type) {
           base_learners = bivariate_learners[learner_name],
           InterKnotsList = InterKnotsList_biv[learner_name],
           n = n,
-          extrList = lapply(object$args$predictors[vars], range)
+          extrList = lapply(object$args$predictors[vars], range), prediction = TRUE
         )$basis
       }
     } else {
@@ -360,6 +469,7 @@ predict_newdata_full_model <- function(object, model, newdata, n, type) {
     coefs[is.na(coefs)] <- 0
     pred <- basisMatrix2 %*% coefs + offset
 
+    .validate_prediction_link(pred, family)
     pred <- if (type == "response") family$linkinv(pred) else if (type == "link") pred
 
     return(as.numeric(pred))
@@ -370,6 +480,8 @@ predict_newdata_full_model <- function(object, model, newdata, n, type) {
 predict_newdata_base_learner <- function(object, model, newdata, n,
                                          base_learner, type) {
 
+  clamp_linear <- .prediction_clamp_linear(.prediction_family(object))
+
   # Single base-learner prediction
   bl_name <-  gsub(",\\s*", ", ", as.character(base_learner))
   bl <- object$args$base_learners[[bl_name]]
@@ -379,6 +491,24 @@ predict_newdata_base_learner <- function(object, model, newdata, n,
   # boosting algorithm, its contribution to the fitted predictor is zero.
   if (inherits(object, "GeDSboost") && !bl_name %in% names(model$base_learners)) {
     return(rep(0, nrow(newdata)))
+  }
+
+  if (n == 2L && inherits(object, "GeDSboost") && !is.null(model$refinement) &&
+      !isFALSE(model$refinement$prediction_active)) {
+    anchor <- model
+    anchor$base_learners <- model$refinement$anchor
+    anchor$linear.fit$theta <- model$refinement$anchor_theta
+    anchor$refinement <- NULL
+    anchor_object <- object
+    anchor_object$final_model <- anchor
+    pred <- predict_newdata_base_learner(anchor_object, anchor, newdata, n, bl_name, type)
+    correction <- .boost_refinement_prediction(object, model, newdata, bl_name)
+    if (bl$type == "GeDS" && length(bl$variables) == 1L &&
+        !is.character(model$refinement$anchor_theta)) {
+      reference <- .boost_refinement_prediction(object, model, object$args$predictors, bl_name)
+      correction <- correction - mean(reference)
+    }
+    return(as.numeric(pred + correction))
   }
 
   Y <- object$args$response[[1]]
@@ -435,12 +565,13 @@ predict_newdata_base_learner <- function(object, model, newdata, n,
       pred <- lin_model(X_df, model, selected_bl)
       alpha <- mean(lin_model(reference_X, model, selected_bl))
     } else if (length(bl$variables) == 1L) {
-      pred <- piecewise_multivar_linear_model(X_df, model, selected_bl)
+      pred <- piecewise_multivar_linear_model(X_df, model, selected_bl,
+                                               clamp_linear = clamp_linear, extr = object$args$extr)
       alpha <- mean(piecewise_multivar_linear_model(reference_X, model, selected_bl))
     } else {
       pred <- bivariate_bl_linear_model(
         X_df, model, base_learners = selected_bl,
-        extr = object$args$extr, type = "gam"
+        extr = object$args$extr, type = "gam", clamp_linear = clamp_linear
       )
       alpha <- mean(bivariate_bl_linear_model(
         reference_X, model, base_learners = selected_bl,
@@ -462,6 +593,12 @@ predict_newdata_base_learner <- function(object, model, newdata, n,
       if(object$args$normalize_data) {
         object$args$X_mean <- object$args$X_mean[names(pred_vars)]
         object$args$X_sd <- object$args$X_sd[names(pred_vars)]
+      }
+      if (clamp_linear) {
+        for (variable in bl$variables) {
+          boundary <- range(object$args$predictors[[variable]])
+          newdata[[variable]] <- pmax(boundary[1], pmin(boundary[2], newdata[[variable]]))
+        }
       }
       object$args$family <- mboost::Gaussian() # to guarantee pred is returned at the linear predictor level
 
@@ -518,11 +655,19 @@ predict_newdata_base_learner <- function(object, model, newdata, n,
       # }
 
       # Create spline basis matrix using specified knots, evaluation points and order
-      basisMatrix <- splineDesign(knots = sort(c(int.knt,rep(extr,n))),
-                                  x = X_df[,1], ord = n, derivs = rep(0,length(X_df[,1])),
-                                  outer.ok = T)
+      basisMatrix <- .prediction_spline_basis(sort(c(int.knt, rep(extr, n))), X_df[,1], n,
+                                               clamp_linear = clamp_linear)
       # To recover backfitting predictions need de_mean
-      pred <- if (n == 2) basisMatrix %*% theta - mean(basisMatrix %*% theta) else basisMatrix %*% theta
+      pred <- basisMatrix %*% theta
+      if (n == 2) {
+        reference_x <- object$args$predictors[[bl$variables]]
+        if (object$args$normalize_data) {
+          reference_x <- (reference_x - object$args$X_mean[[bl$variables]]) /
+            object$args$X_sd[[bl$variables]]
+        }
+        reference <- .prediction_spline_basis(sort(c(int.knt, rep(extr, n))), reference_x, n)
+        pred <- pred - mean(reference %*% theta)
+      }
 
     } else if (bl$type == "linear") {
       # Linear
@@ -556,10 +701,10 @@ predict_newdata_base_learner <- function(object, model, newdata, n,
     # }
 
     # Generate spline basis matrix for X and Y dimensions using object knots and given order
-    basisMatrixX <- splineDesign(knots = sort(c(int.knt$ikX,rep(Xextr,n))), derivs = rep(0,length(X_df[,1])),
-                                 x = X_df[,1], ord = n, outer.ok = T)
-    basisMatrixY <- splineDesign(knots = sort(c(int.knt$ikY,rep(Yextr,n))), derivs = rep(0,length(X_df[,2])),
-                                 x = X_df[,2], ord = n, outer.ok = T)
+    basisMatrixX <- .prediction_spline_basis(sort(c(int.knt$ikX, rep(Xextr, n))), X_df[,1], n,
+                                             clamp_linear = clamp_linear)
+    basisMatrixY <- .prediction_spline_basis(sort(c(int.knt$ikY, rep(Yextr, n))), X_df[,2], n,
+                                             clamp_linear = clamp_linear)
     # Calculate the tensor product of X and Y spline matrices to create a bivariate spline basis
     basisMatrixbiv <- tensorProd(basisMatrixX, basisMatrixY)
     # Multiply the bivariate spline basis by model coefficients to get fitted values
@@ -567,6 +712,14 @@ predict_newdata_base_learner <- function(object, model, newdata, n,
 
     return(as.numeric(f_hat_XY_val))
 
+  } else if (NCOL(X_df) > 2 && bl$type == "GeDS") {
+    boundary <- if (n == 2L) object$args$extr[bl$variables] else lapply(pred_vars, range)
+    basis <- jointSplineBasisMultivar(
+      X_df, object$args$base_learners[bl_name],
+      setNames(list(int.knt), bl_name), n, boundary, prediction = TRUE,
+      clamp_linear = clamp_linear
+    )$basis
+    return(as.numeric(basis %*% theta))
   }
 
 }

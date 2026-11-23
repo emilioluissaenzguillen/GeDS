@@ -451,7 +451,7 @@ test_that("the early two-dimensional Stage A loop matches BivariateFitter", {
   )
   expect_s3_class(multivariate, "GeDSfitND")
   expect_equal(multivariate$iters, fit$iters)
-  expect_equal(multivariate$selected.iteration, fit$iters - 2L)
+  expect_equal(multivariate$stopinfo$selected.iteration, fit$iters - 2L)
   expect_equal(multivariate$Nintknots,
                c(X = length(fit$linear.intknots$Xk),
                  Y = length(fit$linear.intknots$Yk)))
@@ -530,7 +530,7 @@ test_that("the early two-dimensional Stage A loop matches BivariateFitter", {
     coordinate.ranges = list(c(0, 3), c(0, 3)),
     nint = 20L
   )
-  expect_equal(multivariate_rd$stageA$stop.reason, "RD threshold reached")
+  expect_equal(multivariate_rd$stopinfo$stop.reason, "RD threshold reached")
   expect_equal(multivariate_rd$Nintknots,
                c(X = length(fit_rd$linear.intknots$Xk),
                  Y = length(fit_rd$linear.intknots$Yk)))
@@ -688,13 +688,15 @@ test_that("the three-dimensional Stage A loop inserts successive knots", {
                c(X1 = 3L, X2 = 0L, X3 = 1L))
   expect_equal(lengths(stage_b$intknots$cubic),
                c(X1 = 2L, X2 = 0L, X3 = 0L))
+  for (order in c("quadratic", "cubic")) {
+    expect_null(stage_b$fits[[order]]$stability)
+  }
   expect_equal(
     lapply(stage_b$fits, `[[`, "design.dim"),
     list(linear = c(125L, 72L), quadratic = c(125L, 72L),
          cubic = c(125L, 96L))
   )
-  # The selected X1 bases are wider than the five mesh levels, so the
-  # rank-checked mesh solver must fall back to dense least squares here.
+  # The X1 bases exceed the five mesh levels, so all orders use the dense solver.
   expect_identical(
     vapply(stage_b$fits, `[[`, character(1), "solver"),
     c(linear = "dense", quadratic = "dense", cubic = "dense")
@@ -724,18 +726,25 @@ test_that("the three-dimensional Stage A loop inserts successive knots", {
   expect_s3_class(fit, "GeDSfitND")
   expect_equal(fit$dimensions, c("X1", "X2", "X3"))
   expect_equal(fit$iters, 10L)
-  expect_equal(fit$selected.iteration, 8L)
-  expect_equal(fit$stageA$stop.reason, "SR threshold reached")
-  expect_true(any(vapply(
-    fit$stageA$history,
-    function(step) identical(step$solver, "tensor-mesh-qr"),
-    logical(1)
-  )))
-  expect_true(any(vapply(
-    fit$stageA$history,
-    function(step) identical(step$solver, "dense"),
-    logical(1)
-  )))
+  expect_false(any(c("stageA", "stageB", "grid", "selected.iteration") %in% names(fit)))
+  expect_named(fit$stored, fit$dimensions)
+  expect_length(fit$rss, fit$iters)
+  expect_equal(nrow(fit$coefficients), fit$iters)
+  # Reconstruct every Stage A regression from the public history components.
+  for (i in seq_len(fit$iters)) {
+    bases <- lapply(seq_along(fit$stored), function(j) {
+      knots <- fit$stored[[j]][i, ]
+      splines::splineDesign(knots[!is.na(knots)], coordinates[, j], ord = 2,
+                            outer.ok = TRUE)
+    })
+    coefficient <- fit$coefficients[i, seq_len(fit$stopinfo$ncoef[i])]
+    fitted <- GeDS:::tensorProdND(bases) %*% coefficient
+    expect_equal(sum((response - fitted)^2), fit$rss[i], tolerance = 1e-10)
+  }
+  expect_equal(fit$stopinfo$selected.iteration, 8L)
+  expect_equal(fit$stopinfo$stop.reason, "SR threshold reached")
+  expect_true("tensor-mesh-qr" %in% fit$stopinfo$solvers)
+  expect_true("dense" %in% fit$stopinfo$solvers)
   expect_equal(fit$Nintknots, c(X1 = 4L, X2 = 1L, X3 = 2L))
   expect_equal(
     c(fit$dev.linear, fit$dev.quadratic, fit$dev.cubic),
@@ -756,13 +765,13 @@ test_that("the three-dimensional Stage A loop inserts successive knots", {
     fit_name <- c("linear", "quadratic", "cubic")[spline_order - 1L]
     expect_equal(
       predict(fit, n = spline_order),
-      fit$stageB$fits[[fit_name]]$predicted,
+      fit[[paste0(fit_name, ".fit")]]$predicted,
       tolerance = 1e-10
     )
     coefficients <- coef(fit, n = spline_order)
     basis_index <- attr(coefficients, "basis.index")
     basis_counts <- vapply(
-      fit$stageB$fits[[fit_name]]$basis.matrices,
+      fit[[paste0(fit_name, ".fit")]]$basis.matrices,
       NCOL,
       integer(1)
     )
@@ -774,9 +783,9 @@ test_that("the three-dimensional Stage A loop inserts successive knots", {
     )
     expect_equal(
       as.numeric(GeDS:::tensorProdND(
-        fit$stageB$fits[[fit_name]]$basis.matrices
+        fit[[paste0(fit_name, ".fit")]]$basis.matrices
       ) %*% coefficients),
-      fit$stageB$fits[[fit_name]]$predicted,
+      fit[[paste0(fit_name, ".fit")]]$predicted,
       tolerance = 1e-10
     )
   }
@@ -1004,6 +1013,40 @@ test_that("a four-dimensional complete mesh uses separable least squares", {
   expect_equal(length(fit$predicted), 256L)
 })
 
+test_that("NGeDSgam passes explicit stopping rules to both Airquality smoothers", {
+  dat <- utils::head(stats::na.omit(datasets::airquality), 40L)
+  dat$Ozone <- dat$Ozone^(1 / 3)
+  univariate <- UnivariateFitter
+  bivariate <- NGeDS
+  rules <- character()
+  local_mocked_bindings(
+    UnivariateFitter = function(..., stoptype) {
+      rules <<- c(rules, paste0("univariate:", stoptype))
+      univariate(..., stoptype = stoptype)
+    },
+    NGeDS = function(..., stoptype) {
+      rules <<- c(rules, paste0("bivariate:", stoptype))
+      bivariate(..., stoptype = stoptype)
+    }
+  )
+
+  for (rule in c("RD", "SR")) {
+    rules <- character()
+    fit <- suppressWarnings(NGeDSgam(
+      Ozone ~ f(Solar.R) + f(Wind, Temp), data = dat,
+      stoptype = rule, internal_knots = 4L, max_iterations = 1L,
+      higher_order = FALSE
+    ))
+    expect_setequal(rules, paste(c("univariate", "bivariate"), rule, sep = ":"))
+    expect_true(all(is.finite(predict(fit, n = 2))))
+  }
+
+  expect_error(
+    NGeDSgam(Ozone ~ f(Solar.R, Wind, Temp), data = dat, stoptype = "GD"),
+    "GD stopping rule is not supported"
+  )
+})
+
 test_that("the multivariate fitter agrees with a bivariate NGeDSgam learner", {
   dat <- stats::na.omit(datasets::airquality)
   dat$Ozone <- dat$Ozone^(1 / 3)
@@ -1012,7 +1055,7 @@ test_that("the multivariate fitter agrees with a bivariate NGeDSgam learner", {
     NGeDSgam(
       Ozone ~ f(Wind, Temp),
       data = dat,
-      phi = 0.8
+      phi = 0.8, penalty = "none"
     )
   ))
   multivariate <- GeDS:::MultivariateFitter(
@@ -1062,7 +1105,8 @@ test_that("a joint fit captures a pure three-way interaction", {
   dat <- data.frame(y, x0, x1, x2)
 
   additive <- suppressMessages(suppressWarnings(
-    NGeDSgam(y ~ f(x0) + f(x1) + f(x2), data = dat)
+    NGeDSgam(y ~ f(x0) + f(x1) + f(x2), data = dat, stoptype = "RD",
+             penalty = "none")
   ))
   joint <- NGeDS(y ~ f(x0, x1, x2), data = dat)
   expect_s3_class(joint, "GeDSfitND")
@@ -1179,7 +1223,7 @@ test_that("multivariate boosting memory retains supplied coordinate knots", {
     max.steps = 2L, stoptype = "RD", spline.orders = 2L, max.coef = 500L
   )
   expect_true(all(vapply(seq_along(initial), function(j) {
-    all(initial[[j]] %in% fit$stageA$history[[1L]]$intknots[[j]])
+    all(initial[[j]] %in% fit$stored[[j]][1L, ])
   }, logical(1))))
 })
 
@@ -1396,6 +1440,7 @@ test_that("bivariate SR is the default and rank-deficient RD selections are avoi
   explicit.sr <- NGeDS(y ~ f(x, z), data = train, Xextr = c(0, 1),
                        Yextr = c(0, 1), stoptype = "SR", higher_order = FALSE)
   expect_equal(coef(default, n = 2L), coef(explicit.sr, n = 2L))
+  expect_identical(default$linear.intknots, explicit.sr$linear.intknots)
 
   warnings <- character()
   rd <- withCallingHandlers(
@@ -1411,4 +1456,32 @@ test_that("bivariate SR is the default and rank-deficient RD selections are avoi
   expect_equal(qr(design)$rank, NCOL(design))
   expect_true(any(grepl("rank deficient", warnings)))
   expect_lt(max(abs(coef(rd, n = 2L))), 10)
+})
+
+test_that("bivariate GAM and boosting learners select SR with the Stage A defaults", {
+  d <- expand.grid(x = seq(0, 1, length.out = 8L), z = seq(0, 1, length.out = 8L))
+  d$y <- with(d, sin(2 * pi * x) * sin(2 * pi * z) + x)
+  native <- GeDS:::BivariateFitter
+  settings <- list()
+  local_mocked_bindings(BivariateFitter = function(..., stoptype, phi, q) {
+    settings[[length(settings) + 1L]] <<- list(stoptype = stoptype, phi = phi, q = q)
+    native(..., stoptype = stoptype, phi = phi, q = q)
+  }, .package = "GeDS")
+  expected <- list(stoptype = "SR", phi = 0.99, q = 2L)
+
+  invisible(capture.output(gam <- suppressWarnings(NGeDSgam(
+    y ~ f(x, z) + x, data = d, higher_order = FALSE, internal_knots = 6L
+  ))))
+  expect_true(all(is.finite(predict(gam, newdata = d, n = 2L))))
+  expect_gt(length(settings), 0L)
+  expect_true(all(vapply(settings, identical, logical(1), y = expected)))
+
+  settings <- list()
+  invisible(capture.output(boost <- suppressWarnings(NGeDSboost(
+    y ~ f(x, z) + x, data = d, initial_learner = FALSE, higher_order = FALSE,
+    max_iterations = 2L, int.knots_boost = 6L
+  ))))
+  expect_true(all(is.finite(predict(boost, newdata = d, n = 2L))))
+  expect_gt(length(settings), 0L)
+  expect_true(all(vapply(settings, identical, logical(1), y = expected)))
 })

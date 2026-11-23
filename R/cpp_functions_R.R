@@ -1,3 +1,21 @@
+################################################################################
+# R reference implementations of the C++ functions in src/GeDS1.cpp.
+#
+# None of these is called by the fitters. They are kept for debugging and so
+# that tests can compare them with the compiled versions. Each C++ function
+# names its R reference in a comment.
+#
+#   C++                          R reference
+#   Knotnew()                    Knotnew_R_clean() (current), Knotnew_R() (original)
+#   findNewDimKnot()             findNewDimKnot_R()
+#   tensorProd()                 tensorProd_R()
+#   linear_spline_ls()           .linear_spline_ls_R()
+#   geds_knot_step()             .geds_knot_step_R()
+#   gd_neighbour_semivariance()  .gd_neighbour_semivariance_R()
+#   gd_stage_a_path()            the Stage A loop of UnivariateFitter() (R/UnivariateFitter.R),
+#                                which still runs whenever the C++ path does not apply
+################################################################################
+
 Knotnew_R_clean <- function(wht, restmp, x, dcm, oldknots, tol, support_order = 2) {
 
   # Number of residual clusters
@@ -7,6 +25,7 @@ Knotnew_R_clean <- function(wht, restmp, x, dcm, oldknots, tol, support_order = 
   }
 
   candidate_wht <- as.numeric(wht)
+  sw_sites <- sort(unique(x))
   # Number of old knots and internal knots
   noldint <- length(oldknots) - 2*support_order
   # Dimension of the x vector
@@ -60,10 +79,7 @@ Knotnew_R_clean <- function(wht, restmp, x, dcm, oldknots, tol, support_order = 
 
     sortedknots <- sort(c(oldknots, newknot))
 
-    # --- 3. GeDS/CRAN minimum-support check ---
-    # Each support interval is checked independently. This is not a global
-    # Schoenberg-Whitney matching test: the same observation may satisfy more
-    # than one overlapping interval.
+    # --- 3. Minimum support followed by distinct-site SW matching ---
     support_valid <- all(vapply(
       seq_len(length(sortedknots) - support_order),
       function(i) {
@@ -72,6 +88,26 @@ Knotnew_R_clean <- function(wht, restmp, x, dcm, oldknots, tol, support_order = 
       },
       logical(1)
     ))
+
+    if (support_valid) {
+      previous_site <- 0L
+      n_basis <- length(sortedknots) - support_order
+      for (i in seq_len(n_basis)) {
+        interior <- sw_sites > sortedknots[i] + tol &
+          sw_sites < sortedknots[i + support_order] - tol
+        left_endpoint <- i == 1L && sortedknots[support_order] == sortedknots[1L]
+        right_endpoint <- i == n_basis && sortedknots[n_basis + 1L] == tail(sortedknots, 1L)
+        available <- interior |
+          (left_endpoint & sw_sites == sortedknots[1L]) |
+          (right_endpoint & sw_sites == tail(sortedknots, 1L))
+        candidates <- which(seq_along(sw_sites) > previous_site & available)
+        if (!length(candidates)) {
+          support_valid <- FALSE
+          break
+        }
+        previous_site <- candidates[1L]
+      }
+    }
 
     # --- 4. Check new knot is not a boundary knot ---
     newknot_is_internal <- isTRUE(
@@ -264,5 +300,86 @@ findNewDimKnot_R <- function(dcumFixedDim.Dim, Dim.weights, Dim.oldknots,
               dcumInf = dcumInf,
               dcumSup = dcumSup))
 
+}
+
+
+################################################################################
+# Tensor product of two basis matrices, row by row.
+tensorProd_R <- function(Xmat, Ymat) {
+  # Get the number of rows and columns for both matrices
+  ib <- nrow(Xmat)
+  jx <- ncol(Xmat)
+  jy <- ncol(Ymat)
+
+  # Initialize the result matrix with the appropriate size
+  ris <- matrix(0, nrow = ib, ncol = jx * jy)
+  # Index kk to keep track of the column in the result matrix
+  kk <- 1
+
+  # Loop through columns of Xmat and Ymat
+  for (jjx in 1:jx) {
+    for (jjy in 1:jy) {
+      for (ii in 1:ib) {
+        # Fill in the result matrix with the product of elements from Xmat and Ymat
+        ris[ii, kk] <- Xmat[ii, jjx] * Ymat[ii, jjy]
+      }
+      # Increment kk for the next column
+      kk <- kk + 1
+    }
+  }
+
+  return(ris)
+}
+
+################################################################################
+# R reference for geds_knot_step() (Stage A steps 2 to 7 of UnivariateFitter).
+# Inputs are prepared by UnivariateFitter() exactly as for the C++ call.
+.geds_knot_step_R <- function(res.tmp, positive.weight, placement.weights,
+                              Indicator, has_repeated_x, site_weight_scale,
+                              geometry_tol, distinctX, beta, extr, intknots,
+                              tol, support_order = 2) {
+  weighted.contributions <- res.tmp[positive.weight] * placement.weights
+  res.weighted <- if (has_repeated_x) {
+    makeNewRes(resold = weighted.contributions, recurr = as.numeric(Indicator))
+  } else weighted.contributions
+  # Numerical zeros must not split geometric clusters after response centering.
+  res.weighted[abs(res.weighted) <= geometry_tol * site_weight_scale] <- 0
+  if (all(res.weighted == 0)) return(NA_real_)
+  # Same-sign clusters, their mean residuals and their x-ranges
+  d <- rle(sign(res.weighted))$lengths
+  u <- length(d)
+  dcum <- cumsum(d)
+  cs <- cumsum(res.weighted)
+  means <- abs((cs[dcum] - c(0, cs[dcum[-u]])) / d)
+  left_idx <- c(1, dcum[-u] + 1)
+  wc.range <- distinctX[dcum] - distinctX[left_idx]
+  # Normalised cluster weights
+  means <- means / max(means)
+  if (max(wc.range) != 0) wc.range <- wc.range / max(wc.range)
+  w <- beta * means + (1 - beta) * wc.range
+  Knotnew(weights = w, residuals = res.weighted, x = distinctX, dcum = dcum,
+          oldknots = c(rep(extr, support_order), intknots), tol = tol,
+          support_order = support_order)[1]
+}
+
+################################################################################
+# Weighted least-squares linear spline with breakpoints t (the boundary knots
+# first and last, internal knots in between). The C++ version solves the
+# tridiagonal normal equations and returns NULL for repeated breakpoints or an
+# ill-conditioned system; this reference uses a QR fit, so results agree to
+# rounding rather than bit for bit.
+.linear_spline_ls_R <- function(x, y, w, t) {
+  if (anyDuplicated(t)) return(NULL)
+  B <- splines::splineDesign(c(t[1L], t, t[length(t)]), x, ord = 2L, outer.ok = TRUE)
+  fit <- stats::lm.wfit(B, y, w)
+  theta <- unname(fit$coefficients)
+  list(theta = theta, fitted = as.vector(B %*% theta))
+}
+
+################################################################################
+# Empirical semivariance of residuals over nearest neighbours, used by the GD
+# noise estimator. nn is the p x n matrix of neighbour indices (1-based).
+.gd_neighbour_semivariance_R <- function(r, nn) {
+  colMeans((r - matrix(r[nn], nrow = length(r), byrow = TRUE))^2) / 2
 }
 

@@ -70,6 +70,10 @@ coef.GeDSgam_GeDSboost <- function(object, n = 3L, ...)
 #'  for each iteration where the corresponding bivariate base-learner was selected are
 #'  provided; for bivariate base-learners and \code{class(object) == "GeDSgam"},
 #'  the final local-scoring B-spline coefficients are provided.
+#'  For two-phase boosting, these include coefficient refinement; tensor
+#'  learners store its aggregate increment under \code{phase2}, with the
+#'  same shrinkage convention as other non-initial iterations. The native
+#'  frozen-basis increment is in \code{object$final_model$refinement$selected$delta}.
 #'   \item If \code{n = 3L} or \code{n = 4L}: B-spline coefficients are provided
 #'  for both univariate and bivariate GeDS learners.
 #' }
@@ -287,7 +291,10 @@ logLik.GeDSboost <- logLik.GeDS
 #' @param object A \code{"GeDSboost"} class object.
 #' @param ... Further arguments (ignored).
 #'
-#' @return An integer indicating the total number of boosting iterations.
+#' @return An integer indicating the total number of executed updates in both
+#' phases (excluding the initial learner), including iterates not retained by
+#' final-model selection. This equals \code{object$iters} for newly fitted
+#' objects. Coefficient-update diagnostics are in \code{object$final_model$refinement}.
 #'
 #' @method N.boost.iter GeDSboost
 #'
@@ -297,7 +304,11 @@ logLik.GeDSboost <- logLik.GeDS
 #' @export
 
 N.boost.iter.GeDSboost <- function(object, ...) {
-  object$iters
+  refinement <- object$final_model$refinement$iterations
+  # Derive the first count from stored models, also supporting older objects
+  # whose iters field excluded coefficient updates.
+  updates <- if (is.null(object$models)) object$iters else length(object$models) - 1L
+  updates + if (is.null(refinement)) 0L else refinement
 }
 #' @export
 N.boost.iter <- N.boost.iter.GeDSboost
@@ -351,6 +362,12 @@ predict.GeDSgam_GeDSboost <- function(object, newdata, n = 3L,
 
   ## 2. Specific n -------------------------------------------------------------
   n <- validate_GeDS_order(n)
+
+  failed_order <- switch(as.character(n), "3" = "quadratic", "4" = "cubic")
+  if (!is.null(failed_order) && !is.null(model$stageB_errors[[failed_order]])) {
+    size <- if (missing(newdata)) length(object$predictions$pred_linear) else NROW(newdata)
+    return(rep(NA_real_, size))
+  }
 
   if (is.null(model[[.fit_key(n)]])) {
     available <- c(2L, 3L, 4L)[!vapply(
@@ -975,6 +992,23 @@ predict.GeDSgam_GeDSboost <- function(object, newdata, n = 3L,
 #'
 #' @return Numeric vector (or list) of predictions.
 #'
+#' @details
+#' Fitted knots and coefficients remain fixed when predicting at \code{newdata}.
+#' Linear spline components (\code{n = 2}) continue their boundary segments
+#' linearly. Joint smoothers continue linearly in each coordinate; a bivariate
+#' smoother therefore has a bilinear continuation when both coordinates are
+#' outside their fitted ranges. Quadratic and cubic spline components
+#' (\code{n = 3} or \code{n = 4}) clamp each coordinate to its fitted boundary
+#' range. Full-model interior predictions and explicitly linear parametric terms are
+#' unchanged. These rules also apply to individual base-learner predictions,
+#' and do not depend on the other observations supplied in \code{newdata}.
+#' Linear component centering uses the training observations, not the
+#' observations in the prediction batch.
+#' For Gamma models with the inverse link, all spline orders clamp each
+#' coordinate to its fitted boundary range. Parametric terms remain unchanged.
+#' The complete linear predictor must be positive and finite for this family
+#' and link; otherwise full-model prediction raises an error.
+#'
 #' @references
 #' Gu, C. and Wahba, G. (1991).
 #' Minimizing GCV/GML Scores with Multiple Smoothing Parameters via the Newton Method.
@@ -1145,8 +1179,11 @@ summary.GeDSgam_GeDSboost <- function(object, ...)
   if (inherits(object, "GeDSboost")) {
     cat("\nBoosting details:\n")
     print(family.GeDSboost(object,...),...)
-    cat("Number of boosting iterations:", object$iters, "\n")
-    cat("Final model corresponds to boosting iteration", sub("^model", "", object$final_model$model_name), "\n")
+    cat("Number of boosting iterations:", N.boost.iter(object), "\n")
+    cat("Phase 1 selected iteration:", sub("^model", "", object$final_model$model_name), "\n")
+    if (!is.null(object$final_model$refinement)) {
+      cat("Phase 2 selected iteration:", object$final_model$refinement$selected$step, "\n")
+    }
     if (object$args$initial_learner) {
       if (object$args$family@name == "Squared Error (Regression)") {
         cat("A NGeDS() initial learner was used; ")
@@ -1227,7 +1264,12 @@ split_into_lines <- function(text, max_length)
 #' \code{\link{NGeDS}} fit on the corresponding negative gradient.
 #' Note that this is only applicable to \code{\link{NGeDSboost}} models with a
 #' single univariate base-learner.
-#' @param iters Numeric, specifies the iteration(s) number.
+#' Coefficient-update iterations retain the same panel numbering and knot titles:
+#' each fit is followed by the gradient fit for the next update, using fixed knots.
+#' To display all iterations and the final fits on one page, use
+#' \code{par(mfrow = c(N.boost.iter(object) + 1, 2))} and a suitably tall device.
+#' @param iters Numeric, specifies the iteration(s) to plot, from zero through
+#' \code{N.boost.iter(object)} (equal to \code{object$iters} for newly fitted objects).
 #' @param object A \code{"GeDSboost"} class object.
 #' @param final_fits Logical indicating whether the final linear, quadratic and
 #' cubic fits should be plotted.
@@ -1288,14 +1330,90 @@ visualize_boosting.GeDSboost <- function(object, iters = NULL, final_fits = FALS
   }
   # If M is NULL, set it to be the initial model
   if (is.null(iters)) iters <- 0
-  # Check if M > than # of boosting iterations
-  if(any(iters > object$iters)) {
-    stop(paste0("iters = ", iters, " but only ", object$iters, " boosting iterations were run."))
+  total <- N.boost.iter(object)
+  if (!is.numeric(iters) || anyNA(iters) ||
+      any(!is.finite(iters) | iters < 0 | iters > total | iters != floor(iters))) {
+    stop("'iters' must contain whole numbers from 0 to ", total, ".", call. = FALSE)
   }
 
   Y <- object$args$response[[1]]; X <- object$args$predictors[[1]]
+  stored_updates <- length(object$models) - 1L
+  ref <- object$final_model$refinement
+  if (total > stored_updates && any(iters >= stored_updates)) {
+    if (is.null(ref$coefficient_path)) {
+      stop("This object has no stored coefficient-update history; refit it to plot all iterations.",
+           call. = FALSE)
+    }
+    plot_data <- object$args$predictors
+    if (object$args$normalize_data) {
+      variable <- names(plot_data)[1L]
+      plot_data[[variable]] <- (X - object$args$X_mean[[variable]]) / object$args$X_sd[[variable]]
+    }
+    design <- .boost_fixed_basis(plot_data, object$args$base_learners[names(ref$anchor)],
+                                ref$knots, object$args$extr, ref$levels, ref$contrasts)
+    fixed_knots <- unlist(ref$knots, use.names = FALSE)
+    if (object$args$normalize_data) {
+      fixed_knots <- fixed_knots * object$args$X_sd[[1L]] + object$args$X_mean[[1L]]
+    }
+  }
+
+  plot_fixed_panel <- function(values, fitted, M, gradient = FALSE) {
+    ord <- order(X)
+    plot(X, values, pch = 20, col = "darkgrey", main = "",
+         ylim = range(values, fitted), ylab = if (gradient) "negative_gradient" else "Y",
+         tck = 0.02, cex.axis = 1.5, cex.lab = 1.5)
+    lines(X[ord], fitted[ord], col = if (gradient) "blue" else "black",
+          lty = if (gradient) 2 else 1, lwd = if (gradient) 1 else 2)
+    legend("topleft", legend = 2 * M + as.integer(gradient),
+           bty = "n", text.font = 2, cex = 1.5)
+    if (length(fixed_knots) < 20L) {
+      for (knot in fixed_knots) abline(v = knot, col = "gray", lty = 2)
+    } else {
+      rug(fixed_knots)
+    }
+    knot_lines <- split_into_lines(paste(round(fixed_knots, 2), collapse = ", "), 65)
+    label <- if (gradient) {
+      bquote(atop(bold(delta)[.(M) * ",2"] == .(knot_lines[1L])))
+    } else {
+      bquote(atop(bold(Delta)[.(M) * ",2"] == .(knot_lines[1L])))
+    }
+    title_lines <- switch(as.character(length(knot_lines)),
+                          "1" = -0.5, "2" = c(0, 0.5),
+                          "3" = c(0.75, 1.4, 0.5), "4" = c(1, 1.8, 0.9, 0),
+                          rev(seq_len(length(knot_lines))) * 0.8)
+    title_cex <- if (length(knot_lines) > 2L) 0.9 else 1.15
+    mtext(label, side = 3, line = title_lines[1L], cex = title_cex)
+    if (length(knot_lines) > 1L) {
+      for (j in 2:length(knot_lines)) {
+        mtext(knot_lines[j], side = 3, line = title_lines[j], cex = title_cex)
+      }
+    }
+  }
+
+  plot_fixed_gradient <- function(step, M) {
+    before <- ref$initial_F_hat + as.numeric(design$B %*% ref$coefficient_path[[step + 1L]])
+    after <- ref$initial_F_hat + as.numeric(design$B %*% ref$coefficient_path[[step + 2L]])
+    response <- Y
+    if (object$args$normalize_data && !is.null(object$args$Y_sd)) {
+      response <- (Y - object$args$Y_mean) / object$args$Y_sd
+    }
+    gradient <- object$args$family@ngradient(y = response, f = before, w = object$args$weights)
+    plot_fixed_panel(gradient, (after - before) / ref$shrinkage, M, gradient = TRUE)
+  }
 
   for (M in iters) {
+
+    if (M > stored_updates) {
+      step <- M - stored_updates
+      after <- ref$initial_F_hat + as.numeric(design$B %*% ref$coefficient_path[[step + 1L]])
+      fitted <- as.numeric(object$args$family@response(after))
+      if (object$args$normalize_data && !is.null(object$args$Y_sd)) {
+        fitted <- fitted * object$args$Y_sd + object$args$Y_mean
+      }
+      plot_fixed_panel(Y, fitted, M)
+      if (M < total) plot_fixed_gradient(step, M)
+      next
+    }
 
     model <- object$models[[paste0("model", M)]]
     Y_hat <- model$Y_hat
@@ -1408,6 +1526,8 @@ visualize_boosting.GeDSboost <- function(object, iters = NULL, final_fits = FALS
         mtext(int.knots_lines[3], side = 3, line = 0.9, cex = 0.9)
         mtext(int.knots_lines[4], side = 3, line = 0, cex = 0.9)
       }
+    } else if (total > stored_updates) {
+      if (M < total) plot_fixed_gradient(0L, M)
     }
   }
 
@@ -1530,13 +1650,13 @@ bl_imp.GeDSboost <- function(object, boosting_iter_only = FALSE, ...)
   # Get the riskdiff of model0
   model0_risk <- risk(y = object$args$response[[response]],
                       f = object$models[[paste0("model", 0)]]$F_hat, w = object$args$weights)
-  first_riskdiff <- initial_risk - model0_risk
+  first_riskdiff <- (initial_risk - model0_risk) /
+    length(object$args$response[[response]])
 
   # Get the number of models
   n_models <- length(object$models)
-  if (!object$args$initial_learner) n_models <- n_models - 1
   # Initialize an empty vector to store the inbag risks
-  inbag_risks <- vector(mode = "numeric", length = n_models)
+  inbag_risks <- numeric(n_models - 1L)
   # Loop over each model from model1 onwards
   for (i in seq_len(n_models - 1)) {
     # Extract the selected predictor for each model
@@ -1820,6 +1940,9 @@ bl_imp <- bl_imp.GeDSboost
       object$final_model$F_hat <- new_pred
     }
     object$final_model$dev <- rss
+    if (!is.null(object$final_model$refinement)) {
+      object$final_model$refinement$prediction_active <- FALSE
+    }
   }
 
   object$shape_constraint <- list(

@@ -11,19 +11,22 @@ NGeDSboost(
   normalize_data = FALSE,
   family = mboost::Gaussian(),
   link = NULL,
-  initial_learner = TRUE,
+  initial_learner = length(base_learners) == 1L,
   int.knots_init = 2L,
   min_iterations,
   max_iterations,
   shrinkage = 1,
-  phi_boost_exit = 0.99,
+  phi_boost_exit = if (high_dim_fit) 0.95 else 0.99,
   q_boost = 2L,
   beta = 0.5,
   phi = 0.99,
   int.knots_boost,
   q = 2L,
-  higher_order = TRUE,
-  boosting_with_memory = FALSE
+  higher_order = !high_dim_fit,
+  boosting_with_memory = TRUE,
+  penalty = if (higher_order && length(base_learners) > 1L) "component" else "none",
+  high_dim_fit = FALSE,
+  stoptype = c("GD", "RD")
 )
 }
 \arguments{
@@ -62,17 +65,18 @@ Must correspond to a valid link in \code{\link[stats]{family}}.}
 \item{initial_learner}{A logical value. If set to \code{TRUE}, the model's
 initial learner will be a GeD spline. If set to \code{FALSE}, then the
 initial predictor will consist of the empirical risk minimizer corresponding
-to the specified \code{family}.}
+to the specified \code{family}. Defaults to \code{TRUE} for one base learner
+and \code{FALSE} for multiple base learners.}
 
 \item{int.knots_init}{Optional parameter allowing the user to set a
 maximum number of internal knots to be added by the initial GeDS learner in
 case \code{initial_learner = TRUE}. Default is equal to \code{2L}.}
 
 \item{min_iterations}{Optional parameter to manually set a minimum number of
-boosting iterations to be run. If not specified, it defaults to 0L.}
+boosting iterations in each phase. If not specified, it defaults to 0L.}
 
 \item{max_iterations}{Optional parameter to manually set the maximum number
-of boosting iterations to be run. If not specified, it defaults to \code{500L}.
+of boosting iterations in each phase. If not specified, it defaults to \code{500L}.
 This setting serves as a fallback when the stopping rule, based on
 consecutive deviances and tuned by \code{phi_boost_exit} and \code{q_boost},
 does not trigger an earlier termination (see Dimitrova et al. (2025)).
@@ -86,8 +90,10 @@ magnitude of the update each new iteration contributes to the final model.
 Default is equal to \code{1}.}
 
 \item{phi_boost_exit}{Numeric parameter in the interval \eqn{(0,1)}
-specifying the threshold for the boosting iterations stopping rule. Default
-is equal to \code{0.99}.}
+specifying the threshold for the ratio of weighted family deviances at the
+current iteration and \code{q_boost} iterations earlier. Defaults to
+\code{0.95} when \code{high_dim_fit = TRUE} and \code{0.99} otherwise.
+An explicitly supplied value overrides this default.}
 
 \item{q_boost}{Numeric parameter which allows to fine-tune the boosting
 iterations stopping rule. Default is equal to \code{2L}.}
@@ -100,10 +106,13 @@ is equal to \code{0.5}. See Details in \code{\link{NGeDS}}.}
 threshold for the stopping rule (model selector) in stage A of the GeDS
 base-learner. Default is equal to \code{0.99}. See Details in \code{\link{NGeDS}}.}
 
-\item{int.knots_boost}{The maximum number of internal knots that each GeDS base-learner
-may have at each boosting iteration, effectively setting the value of
-\code{max.intknots} in \code{\link{NGeDS}}. By default equal to the
-number of knots for the saturated GeDS model (i.e., \eqn{\kappa = N - 2}).
+\item{int.knots_boost}{Maximum number of new internal knots a GeDS learner may
+consider per boosting iteration. When omitted, univariate gradient learners
+using GD consider up to three new knots per iteration, subject to the
+per-spline sample-and-support budget. Other learners use their usual budgets.
+An explicit value sets the per-iteration limit but does not override the
+accumulated univariate-component cap described in Details. The initial
+learner is also limited by that cap and by \code{int.knots_init}.
 Increasing or decreasing \code{phi} and/or \code{q} should suffice to regulate
 the base-learner strength (i.e., the number of internal knots).}
 
@@ -112,14 +121,44 @@ stage A of the GeDS base-learner. Default is equal to \code{2L}. See Details in
 \code{\link{NGeDS}}.}
 
 \item{higher_order}{A logical that defines whether to compute the higher
-order fits (quadratic and cubic) after the FGB algorithm is run. Default is
-\code{TRUE}.}
+order fits (quadratic and cubic) after the FGB algorithm is run. Defaults to
+\code{FALSE} when \code{high_dim_fit = TRUE} and to \code{TRUE} otherwise.
+An explicitly supplied value overrides this default.}
 
-\item{boosting_with_memory}{Logical value. If \code{TRUE}, boosting is
-performed taking into account previously fitted knots when fitting a GeDS
-learner at each new boosting iteration. If \code{boosting_with_memory} is
-\code{TRUE}, we recommend setting \code{int.knots_init = 1} and
+\item{boosting_with_memory}{Logical value, defaulting to \code{TRUE}.
+If \code{TRUE}, each GeDS learner starts from its previously fitted knots
+at each boosting iteration. With memory, we recommend setting
+\code{int.knots_init = 1} and
 \code{int.knots_boost = 1}.}
+
+\item{penalty}{Stage B curvature penalisation: \code{"component"}
+or \code{"none"}. Defaults to \code{"component"} when
+higher-order fits are requested and the formula has more than one base
+learner, and to \code{"none"} otherwise. Single-learner fits therefore
+remain unpenalised. Explicit choices override the default. Only quadratic
+and cubic refits change; knot selection and the linear fit are unchanged.
+If no spline learner is selected, no curvature penalty is applied by default.}
+
+\item{high_dim_fit}{Logical; default \code{FALSE}. Opt-in fitting mode
+for high-dimensional data. Enables the 99\% shared
+first-knot screen for unweighted binomial logit models with an intercept-only
+initial fit and univariate spline learners. The cutoff is calibrated once
+on the training data: for each of 199 intercept-only bootstrap samples,
+take the largest relative RSS reduction from adding one knot across all
+learners. The cutoff is the 198th smallest of these maxima. A learner below or at the cutoff
+remains eligible as a straight line; above it, Gamma dynamic determines the
+knot count. With memory, screened learners without knots can be screened
+again on later gradients. This cutoff is not calibrated over boosting iterations.
+This mode requires \code{stoptype = "GD"} and skips Phase 2 coefficient
+refinement. It is never activated by predictor count.}
+
+\item{stoptype}{Stage A stopping rule for univariate spline base learners
+only. The default is Gamma dynamic (\code{"GD"}). Choose \code{"RD"} to use
+the deviance ratio with threshold \code{phi}. Bivariate learners use
+the smoothed ratio (SR) with \code{phi = 0.99} and \code{q = 2L}
+by default.
+Overall boosting and coefficient refinement use RD, controlled by
+\code{phi_boost_exit} and \code{q_boost}.}
 }
 \value{
 An object of class \code{"GeDSboost"} (a named list) with components:
@@ -168,7 +207,8 @@ An object of class \code{"GeDSboost"} (a named list) with components:
     }
   }
 
-  \item{models}{A list containing the model generated at each boosting iteration.
+  \item{iters}{Total number of executed boosting updates, excluding the initial learner.}
+  \item{models}{A list containing the models from knot selection.
   Each of these \code{models} includes:
     \describe{
       \item{\code{best_bl}}{Fit of the base learner that minimized the residual
@@ -183,8 +223,11 @@ An object of class \code{"GeDSboost"} (a named list) with components:
   \item{final_model}{A list detailing the final GeDSboost model after the
   gradient descent algorithm is run:
     \describe{
-      \item{\code{model_name}}{The boosting iteration corresponding to the final
-       model.}
+      \item{\code{model_name}}{The selected Phase 1 iteration, before
+       fixed-basis coefficient refinement.}
+      \item{\code{refinement}}{Phase 2 selected predictor and coefficient
+       increment, executed iterations, stopping reason, deviance trace,
+       numerical rank and SVD cutoff.}
       \item{\code{dev}}{Deviance of the final model.}
       \item{\code{Y_hat}}{Fitted values.}
       \item{\code{base_learners}}{A list containing, for each base-learner
@@ -193,9 +236,10 @@ An object of class \code{"GeDSboost"} (a named list) with components:
       defined by the piecewise linear fit and its corresponding polynomial
       coefficients. It also includes the knots corresponding to each order
       fit, which result from computing the corresponding averaging knot
-      location. See Kaishev et al. (2016) for details. If the number of
+      location, followed by any stability simplification for unpenalised fits.
+      See Kaishev et al. (2016) for averaging details. If the number of
       internal knots of the final linear fit is less than \eqn{n-1}, the
-      averaging knot location is not computed. Base-learners present in the
+      higher-order fit uses zero internal knots in that dimension. Base-learners present in the
       model formula but never selected during boosting are not included.}
       \item{\code{linear.fit}/\code{quadratic.fit}/\code{cubic.fit}}{Final
       linear, quadratic and cubic fits in B-spline form. These include the
@@ -219,6 +263,83 @@ piecewise polynomial update of the coefficients at each iteration, yielding a
 final fit in the form of a single spline model.
 }
 \details{
+For univariate gradient fits, the Gamma-dynamic bootstrap
+is calibrated from the spline with the inherited knots when memory is used.
+Shorter bootstrap paths contribute zero gain beyond their last usable fit.
+Each univariate GD calibration uses 10 valid bootstrap paths.
+Bootstrap calibration uses an internal seed and restores the caller's
+random-number state.
+During serial boosting, a univariate GD candidate can skip bootstrap
+calibration if its observed path cannot improve on a learner already fitted
+for the same update.
+Under the default, generalized initial learners use Gamma dynamic for the supported families.
+
+Fitting has two phases. Phase 1 selects learners and knots using the
+component-wise updates. With memory and no shared screen, each spline learner's knots are
+frozen after two successive wins by that learner without adding a knot.
+A win with a new knot resets its count. A frozen learner remains eligible
+for selection on its fixed basis. Phase 1 can end once all spline learners
+have frozen their knots, subject to \code{min_iterations}.
+Unless \code{high_dim_fit = TRUE}, the selected Phase 1 model starts Phase 2,
+which fits the negative gradient in the frozen
+linear-spline basis by weighted least squares. A single SVD factorisation
+supplies minimum-norm coefficient updates, discarding singular values no
+larger than \eqn{\max(\dim(A))\epsilon\sigma_{\max}}, where
+\eqn{A = W^{1/2}B}. These updates are unpenalised and use the original
+\code{shrinkage}, without line search. Both phases use the same weighted
+deviance-ratio (RD) stopping settings. Phase 2 starts a fresh deviance
+history and stops when its first eligible RD check triggers. Both phases
+retain the minimum-deviance model among their last \code{q_boost + 1}
+iterates. With \code{q_boost = NULL}, selection uses all iterates;
+\code{phi_boost_exit = NULL} disables RD stopping. The numerical near-zero
+deviance check also applies in both phases. A non-finite Phase 2 update
+is rejected with a warning. RD stopping does not guarantee coefficient
+convergence. Quadratic and cubic Stage B refits still use the original
+response and the Phase 1 knots, not the refined linear coefficients.
+Predictions retain the Phase 1 predictor as an anchor and evaluate the
+frozen-basis coefficient increment directly, including at repeated knots.
+
+\code{models} and \code{final_model$model_name} retain the
+Phase 1 knot-selection history. Phase 2 diagnostics, including its selected
+step, coefficient increment, deviance trace and numerical rank, are stored
+in \code{final_model$refinement}. Both \code{iters} and
+\code{N.boost.iter()} count all executed boosting updates, excluding the
+initial learner. Variable-selection importance describes knot selection;
+iteration visualisations and final-fit predictions include coefficient updates.
+
+Each univariate GeDS component has an accumulated Stage A internal-knot cap
+\eqn{\max(2, \min(U, \lfloor N_+/2 \rfloor)) - 2}, where \eqn{U} is its
+number of distinct predictor values with positive weight and \eqn{N_+} is
+the number of positive-weight observations. This is a practical coefficient
+budget, not a guarantee of numerical conditioning or optimal complexity.
+New gradient learners are restricted to the remaining allowance before
+fitting. When an accepted update reaches any component's cap, the entire
+Phase 1 boosting loop stops, even before \code{min_iterations}; saturated components
+are not excluded so that other components can continue. The same check applies
+to the selected initial learner. Final-model selection from the last
+\code{q_boost + 1} models is unchanged. There is no shared additive-model
+cap, and no accumulated cap for joint multivariate components. The limits and
+any cap-triggered stop are recorded in \code{args$component_knot_caps} and
+\code{args$knot_cap_stop}, respectively.
+
+With \code{penalty = "none"}, quadratic and cubic Stage B refits automatically
+simplify unstable averaged-knot designs; see \code{\link{StageB_stability}}.
+Stage A, linear fits and REML fits are unchanged by this safeguard.
+
+\code{penalty = "component"} uses
+REML curvature penalisation for the quadratic and cubic Stage B refits only.
+Failed binomial REML refits use Firth bias-reduced logistic regression on
+the same spline basis, with a warning and recorded fallback diagnostics.
+Firth replaces the curvature penalty for the affected order.
+If a Stage B order still fails, a \code{geds_stageB_fit_warning} is issued;
+the linear fit and other successful orders are retained. Predictions for
+the failed order are \code{NA}, and its error message is stored in
+\code{final_model$stageB_errors}.
+See \code{\link{NGeDSgam}} for the penalty, weight convention, supported
+families and restrictions. The boosting path and selected base-learners are
+unchanged. Default \code{mboost::Binomial()} responses are converted from
+the boosting encoding to individual zero/one responses for this refit.
+
 The  \code{NGeDSboost} function implements functional gradient boosting
 algorithm for some pre-defined loss function, using linear GeD splines as
 base learners. At each boosting iteration, the negative gradient vector is
@@ -256,6 +377,13 @@ stopping rule of \code{\link{NGeDS}}\code{\link{GGeDS}}, \code{phi_boost_exit} a
 \code{q_boost} tune the stopping rule of \code{NGeDSboost}. The user can also
 manually control the number of boosting iterations through
 \code{min_iterations} and \code{max_iterations}.
+
+With at least 1,000 base-learners and at least three detected CPU cores,
+candidate learners are fitted in parallel using \code{future::multisession}.
+The function uses at most three workers, leaving at least one detected core free,
+and registers the fixed \code{doRNG} seed \code{123} for this branch.
+Otherwise, learners are fitted sequentially. The previous \code{future}
+plan is restored when the function exits.
 }
 \examples{
 

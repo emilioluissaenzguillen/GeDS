@@ -37,6 +37,11 @@ Method for \code{\link[stats]{confint.default}} to compute confidence intervals 
 the coefficients of a fitted GeDS model stored in a \code{"GeDS"}, \code{"GeDSgam"}
 or \code{"GeDSboost"} class object.
 }
+\details{
+Confidence intervals are not implemented for component-REML Stage B
+refits or their binomial Firth fallbacks. For the default \code{NGeDSgam}
+fit, use \code{n = 2} to request intervals for the linear fit.
+}
 \seealso{
 \code{\link[stats]{confint.default}}, \code{\link{NGeDS}}, \code{\link{GGeDS}},
 \code{\link{NGeDSgam}}, \code{\link{NGeDSboost}}

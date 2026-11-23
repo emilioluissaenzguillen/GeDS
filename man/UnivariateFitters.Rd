@@ -85,9 +85,8 @@ number of internal knots required. By default equal to zero.}
 
 \item{max.intknots}{Optional parameter allowing the user to set a maximum
 number of internal knots to be added by the GeDS estimation algorithm. By
-default equal to the number of internal knots \eqn{\kappa} for the saturated
-GeDS model (i.e., \eqn{\kappa=N-2}, where \eqn{N} is the number
-of observations).}
+default uses the per-spline sample-and-support Stage A coefficient budget described
+for \code{\link{NGeDS}}. An explicit value overrides this safeguard.}
 
 \item{q}{Numeric parameter which allows to fine-tune the stopping rule of
 stage A of GeDS, by default equal to 2. See Details in the description of

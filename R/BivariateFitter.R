@@ -42,6 +42,8 @@ fullRankBivariateLinear <- function(X, Y, Xintknots, Yintknots,
 #' @param weights An optional vector of size \eqn{N} of `prior weights' to be
 #' put on the observations in the fitting process in case the user requires
 #' weighted GeDS fitting. It is \code{NULL} by default.
+#' @param offset A numeric vector of length \eqn{N} added to the linear
+#' predictor with coefficient fixed at one. Defaults to zero.
 #' @param family A description of the error distribution and link function to be
 #' used in the model. This can be a character string naming a family function
 #' (e.g. \code{"gaussian"}), the family function itself (e.g.
@@ -61,7 +63,11 @@ fullRankBivariateLinear <- function(X, Y, Xintknots, Yintknots,
 #' internal knots required in Stage A's fit. Default is \code{0L}.
 #' @param max.intknots Optional parameter allowing the user to set a maximum
 #' number of internal knots to be added in Stage A by the GeDS estimation
-#' algorithm. Default equals \code{300L}.
+#' algorithm. Defaults to \code{300L} in these low-level fitters.
+#' @param max.coef Optional upper bound on the number of linear Stage A
+#' tensor-product coefficients plus parametric columns. Defaults to no
+#' coefficient cap. An explicit limit does not cap a complete additive model
+#' or its higher-order refits.
 #' @param q Numeric parameter which allows to fine-tune the stopping rule of
 #' stage A of GeDS, by default equal to 2. See Details in the description of
 #' \code{\link{NGeDS}} or \code{\link{GGeDS}}.
@@ -72,9 +78,10 @@ fullRankBivariateLinear <- function(X, Y, Xintknots, Yintknots,
 #' @param show.iters Logical variable indicating whether or not to print fitting
 #' information at each step. Default is \code{FALSE}.
 #' @param stoptype A character string indicating the type of GeDS stopping rule
-#' to be used. It should be either \code{"SR"}, \code{"RD"} or \code{"LR"},
-#' partial match allowed. See details of \code{\link{NGeDS}} or
-#' \code{\link{GGeDS}}.
+#' to be used. Choose \code{"SR"}, \code{"RD"}, \code{"LR"} or
+#' \code{"SR-post"}. For SR-post, the \eqn{q}th root of the smoothed ratio is
+#' compared with \code{phi}. Use the full name \code{"SR-post"}. See details
+#' in \code{\link{NGeDS}} or \code{\link{GGeDS}}.
 #' @param tol Numeric value indicating the tolerance to be used in checking
 #' whether two knots should be considered different during the knot placement
 #' steps in stage A.
@@ -110,17 +117,28 @@ fullRankBivariateLinear <- function(X, Y, Xintknots, Yintknots,
 
 BivariateFitter <- function(X, Y, Z, W, weights = rep(1,length(X)), indicator,
                             beta = 0.5, phi = 0.99, min.intknots = 0L,
-                            max.intknots = 300L, q = 2L, Xextr = range(X),
-                            Yextr = range(Y), show.iters = TRUE,
+                            max.intknots = 300L, q = 2L, Xextr = range(X[weights > 0]),
+                            Yextr = range(Y[weights > 0]), show.iters = TRUE,
                             tol = as.double(1e-12), stoptype = c("SR","RD","LR"),
-                            higher_order = TRUE, Xintknots = NULL, Yintknots = NULL)
+                            higher_order = TRUE, Xintknots = NULL, Yintknots = NULL,
+                            offset = rep(0, length(X)), max.coef = NULL)
   {
   # Capture the function call
   save <- match.call()
+  nparam <- if (is.null(W)) 0L else NCOL(W)
+  if (is.null(max.coef)) max.coef <- Inf
+  if ((length(Xintknots) + 2L) * (length(Yintknots) + 2L) + nparam > max.coef) {
+    stop("Initial spline exceeds 'max.coef'; supply a larger limit.", call. = FALSE)
+  }
+  coefficient_cap_reached <- FALSE
+  if (length(offset) != length(X) || anyNA(offset) || any(!is.finite(offset))) {
+    stop("'offset' must contain one finite value per observation.", call. = FALSE)
+  }
   # Extract arguments
   args <- list("X" = X, "Y" = Y, "Z" = Z, "W" = W, "weights" = weights, "beta" = beta,
                "phi" = phi, "min.intknots" = min.intknots, "max.intknots" = max.intknots,
-               "q" = q, "Xextr" = Xextr, "Yextr" = Yextr, "tol" = tol)
+               "q" = q, "Xextr" = Xextr, "Yextr" = Yextr, "tol" = tol, "offset" = offset,
+               "max.coef" = max.coef)
 
   # Initialize rss and phis
   n_starting_intknots <- length(Xintknots) + length(Yintknots)
@@ -129,7 +147,15 @@ BivariateFitter <- function(X, Y, Z, W, weights = rep(1,length(X)), indicator,
   # Initialize \hat{\phi}_\kappa, \hat{\gamma}_0 and \hat{\gamma}_\1 (stoptype = "SR"; see eq. 9 in Dimitrova et al. (2023))
   phis_star <- NULL; oldintc <- NULL; oldslp <- NULL
   # Stop type
-  stoptype <- match.arg(stoptype)
+  collect_path <- identical(stoptype, ".gamma_dynamic_path")
+  force_refit <- identical(stoptype, ".gamma_dynamic_refit")
+  phi_sr <- phi
+  if (identical(stoptype, "SR-post")) {
+    # Comparing the qth root of the smoothed ratio with phi is equivalent.
+    phi_sr <- phi^q
+    stoptype <- "SR"
+  }
+  if (!collect_path && !force_refit) stoptype <- match.arg(stoptype)
 
   # Initialize knots matrix
   previousX <- matrix(nrow = max.intknots + 1, ncol = max.intknots + 4)
@@ -139,16 +165,21 @@ BivariateFitter <- function(X, Y, Z, W, weights = rep(1,length(X)), indicator,
   oldcoef   <- matrix(nrow = max.intknots + 1,
                       ncol = round((max.intknots/2 + 2)^2) + nw) # max number of coef; comes from maximizing f(x) = (x + 2)(max.intknots - x + 2)
 
-  # Matrix for X, Y and residuals
-  ordX <- order(X, Y); ordY <- order(Y, X)
-  matr <- matrix(ncol = 3, nrow = length(Z))
+  # Knot placement uses only positive-weight rows, as in the univariate fitter:
+  # zero-weight rows must not split residual clusters or change the strips.
+  place <- weights > 0
+  Xplace <- X[place]; Yplace <- Y[place]; n.place <- length(Xplace)
+  if (!all(place)) {
+    indicator <- if (anyDuplicated(cbind(Xplace, Yplace))) table(Xplace, Yplace) else NULL
+  }
+  ordX <- order(Xplace, Yplace); ordY <- order(Yplace, Xplace)
 
   ##################################################################################
   ## STEP 1: Divide the sample space D into M_1/M_2 rectangular strips in X_1/X_2 ##
   ##################################################################################
 
   # Set the number of intervals for dividing the X_1 and X_2 dimensions (M_1 and M_2)
-  nintX <- nintY <- as.integer(sqrt(length(Z)))
+  nintX <- nintY <- as.integer(sqrt(n.place))
 
   # D_{1j} = [a_1 + (j - 1)(b_1 - a_1)/M_1, a_1 + j(b_1 - a_1)/M_1] \times [a_2, b_2], j = 1, ..., M_1
   # upperX = a_1 + j(b_1 - a_1)/M_1, i.e., the interval upper bound
@@ -183,7 +214,10 @@ BivariateFitter <- function(X, Y, Z, W, weights = rep(1,length(X)), indicator,
     ########################################################################
     ## STEP 2: Apply the IRLS procedure to find a bivariate ML spline fit ##
     ########################################################################
-    first.deg <- SplineReg_biv(X = X, Y = Y, Z = Z, W = W, weights = weights,
+    if (collect_path && !fullRankBivariateLinear(
+      X, Y, Xintknots, Yintknots, Xextr, Yextr, weights
+    )) break
+    first.deg <- SplineReg_biv(X = X, Y = Y, Z = Z, W = W, weights = weights, offset = offset,
                                InterKnotsX = Xintknots, InterKnotsY = Yintknots,
                                Xextr = Xextr, Yextr = Yextr, n = 2, fast = TRUE)
 
@@ -194,7 +228,7 @@ BivariateFitter <- function(X, Y, Z, W, weights = rep(1,length(X)), indicator,
     oldcoef[j, 1:lth] <- first.deg$theta
 
     # Store weighted residuals
-    matr <- cbind(X, Y, first.deg$residuals*weights)
+    matr <- cbind(X, Y, first.deg$residuals*weights)[place, , drop = FALSE]
     # Store rss
     rss.tmp <- first.deg$rss
     rssnew <- c(rssnew, rss.tmp)
@@ -202,7 +236,7 @@ BivariateFitter <- function(X, Y, Z, W, weights = rep(1,length(X)), indicator,
     ###########################
     ## STEP 3: Stopping rule ##
     ###########################
-    if (j > q + n_starting_intknots) {
+    if (!collect_path && !force_refit && j > q + n_starting_intknots) {
 
       if (rssnew[j]/rssnew[j-q] > 1) break
 
@@ -235,7 +269,7 @@ BivariateFitter <- function(X, Y, Z, W, weights = rep(1,length(X)), indicator,
           prnt      <- paste0(", phi_hat = ", round(phi_kappa, 3), ", ",
                               ncoef[j], " coefficients")
           # Check if \hat{φ}_κ ≥ φ_{exit}
-          if(phi_kappa >= phi)  break
+          if(phi_kappa >= phi_sr)  break
 
           # (II) Ratio of Deviances
           } else if (stoptype == "RD") {
@@ -254,12 +288,14 @@ BivariateFitter <- function(X, Y, Z, W, weights = rep(1,length(X)), indicator,
       }
     }
 
+    if ((collect_path || force_refit) && j == max.intknots + 1L) break
+
     ###################################
     ## STEP 4. (i) X knot placement ##
     ##################################
     placeXKnot <- placeKnot(
       Dim = "X", Dim.intknots = Xintknots, matr = matr,
-      indicator = indicator, FixedDim = Y, ordFixedDim = ordY,
+      indicator = indicator, FixedDim = Yplace, ordFixedDim = ordY,
       nintFixedDim = nintY, upperFixedDim = upperY, beta = beta
     )
 
@@ -270,12 +306,16 @@ BivariateFitter <- function(X, Y, Z, W, weights = rep(1,length(X)), indicator,
     ###################################
     placeYKnot <- placeKnot(
       Dim = "Y", Dim.intknots = Yintknots, matr = matr,
-      indicator = indicator, FixedDim = X, ordFixedDim = ordX,
+      indicator = indicator, FixedDim = Xplace, ordFixedDim = ordX,
       nintFixedDim = nintX, upperFixedDim = upperX, beta = beta
     )
 
     Ynewknot = placeYKnot$Dim.newknot; weightY = placeYKnot$weightDim; flagY = placeYKnot$flagDim
 
+    cap_flags <- .geds_bivariate_cap_flags(flagX, flagY, length(Xintknots),
+                                          length(Yintknots), nw, max.coef)
+    flagX <- cap_flags$flagX; flagY <- cap_flags$flagY
+    coefficient_cap_reached <- cap_flags$capped && flagX && flagY
     # Check if both X and Y dimensions have flags indicating no valid knots could be found
     if(flagX && flagY) {
       print("Unable to find other knots satisfying required conditions")
@@ -311,7 +351,7 @@ BivariateFitter <- function(X, Y, Z, W, weights = rep(1,length(X)), indicator,
     }
 
     # Print iteration details if show.iters is TRUE
-    if (show.iters) {
+    if (show.iters && !collect_path && !force_refit) {
       if (j > q) {
         toprint <- paste0("Iteration ", j, ": New ", knottype, " Knot = ", round(knotValue, 3),
                           ", rss = ", round(rssnew[j], 3), prnt)
@@ -326,7 +366,7 @@ BivariateFitter <- function(X, Y, Z, W, weights = rep(1,length(X)), indicator,
     Xintknots <- c(Xintknots, Xnewknot)
 
     # Check if the total number of knots exceeds a threshold based on the length of the response
-    if((length(Yintknots)+3)*(length(Xintknots)+3)>=length(Z)) {
+    if((length(Yintknots)+3)*(length(Xintknots)+3)>=n.place) {
       warning("Exiting stage A: Too many knots found")
       break # Exit the loop to avoid adding too many knots (prevent overfitting)
       }
@@ -336,17 +376,19 @@ BivariateFitter <- function(X, Y, Z, W, weights = rep(1,length(X)), indicator,
   ################################## STAGE B ###################################
   ##############################################################################
 
+  if (collect_path) return(utils::tail(rssnew, length(rssnew) - n_starting_intknots))
+
   # Keep the non-NA columns from the "j"th row
   toBeSaved <- sum(!is.na(previousX[j,]))
   previousX <- previousX[ ,-((toBeSaved + 1):max(max.intknots + 4, toBeSaved + 1)), drop = FALSE]
   toBeSaved <- sum(!is.na(previousY[j,]))
   previousY <- previousY[ ,-((toBeSaved + 1):max(max.intknots + 4, toBeSaved + 1)), drop = FALSE]
 
-  # Keep the corresponding (intknotsX + 2) * (intknotsY + 2) coefficients
-  oldcoef <- oldcoef[, 1:((NCOL(previousX) - 4 + 2) * (NCOL(previousY) - 4 + 2)), drop = FALSE]
+  # Retain both the tensor-spline and parametric coefficient history.
+  oldcoef <- oldcoef[, seq_len((NCOL(previousX) - 2) * (NCOL(previousY) - 2) + nw), drop = FALSE]
 
   if (j == max.intknots + 1) {
-    warning("Maximum number of iterations exceeded")
+    if (!force_refit) warning("Maximum number of iterations exceeded")
     lastXknots <- sum(!is.na(previousX[j,]))
     lastYknots <- sum(!is.na(previousY[j,]))
     iter <- j
@@ -356,9 +398,9 @@ BivariateFitter <- function(X, Y, Z, W, weights = rep(1,length(X)), indicator,
       previousY <- previousY[-((j+1):(max.intknots+1)), , drop = FALSE]
       oldcoef   <- oldcoef[-((j+1):(max.intknots+1)), , drop = FALSE]
 
-      lastXknots <- sum(!is.na(previousX[j-q, ]))
-      lastYknots <- sum(!is.na(previousY[j-q, ]))
-      iter <- j - q
+      iter <- if (coefficient_cap_reached) j else j - q
+      lastXknots <- sum(!is.na(previousX[iter, ]))
+      lastYknots <- sum(!is.na(previousY[iter, ]))
     }
 
   selected.iter <- iter
@@ -384,9 +426,9 @@ BivariateFitter <- function(X, Y, Z, W, weights = rep(1,length(X)), indicator,
 
   # 1. LINEAR
   if (iter < 2) {
-    warning("Too few internal knots found: Linear spline will be computed with NULL internal knots. Try to set a different value for 'q' or a different treshold")
+    if (!force_refit) warning("Too few internal knots found: Linear spline will be computed with NULL internal knots. Try to set a different value for 'q' or a different treshold")
     llX <- llY <- NULL
-    lin <- SplineReg_biv(X = X, Y = Y, Z = Z, W = W, weights = weights,
+    lin <- SplineReg_biv(X = X, Y = Y, Z = Z, W = W, weights = weights, offset = offset,
                          InterKnotsX = llX, InterKnotsY = llY,
                          Xextr = Xextr, Yextr = Yextr, n = 2)
     } else {
@@ -396,7 +438,7 @@ BivariateFitter <- function(X, Y, Z, W, weights = rep(1,length(X)), indicator,
       llX <- if (length(ikX) < 1) NULL else makenewknots(ikX, 2)
       llY <- if (length(ikY) < 1) NULL else makenewknots(ikY, 2)
       # Stage B.2
-      lin <- SplineReg_biv(X = X, Y = Y, Z = Z, W = W, weights = weights,
+      lin <- SplineReg_biv(X = X, Y = Y, Z = Z, W = W, weights = weights, offset = offset,
                            InterKnotsX = llX, InterKnotsY = llY,
                            Xextr = Xextr, Yextr = Yextr, n = 2)
     }
@@ -406,9 +448,10 @@ BivariateFitter <- function(X, Y, Z, W, weights = rep(1,length(X)), indicator,
   if (higher_order) {
   # 2. QUADRATIC
   if (iter < 3) {
-    warning("Too few internal knots found: Quadratic spline will be computed with NULL internal knots. Try to set a different value for 'q' or a different treshold")
+    if (!force_refit) warning("Too few internal knots found: Quadratic spline will be computed with NULL internal knots. Try to set a different value for 'q' or a different treshold")
     qqX <- qqY <- NULL
-    squ <- SplineReg_biv(X = X, Y = Y, Z = Z, W = W, weights = weights,
+    squ <- SplineReg_biv(
+                         X = X, Y = Y, Z = Z, W = W, weights = weights, offset = offset,
                          InterKnotsX = qqX, InterKnotsY = qqY,
                          Xextr = Xextr, Yextr = Yextr, n = 3)
     } else {
@@ -416,15 +459,17 @@ BivariateFitter <- function(X, Y, Z, W, weights = rep(1,length(X)), indicator,
       qqX <- if (length(ikX) < 2) NULL else makenewknots(ikX, 3)
       qqY <- if (length(ikY) < 2) NULL else makenewknots(ikY, 3)
       # Stage B.2
-      squ <- SplineReg_biv(X = X, Y = Y, Z = Z, W = W, weights = weights,
+      squ <- SplineReg_biv(
+                           X = X, Y = Y, Z = Z, W = W, weights = weights, offset = offset,
                            InterKnotsX = qqX, InterKnotsY = qqY,
                            Xextr = Xextr, Yextr = Yextr, n = 3)
       }
   # 3. CUBIC
   if(iter < 4) {
-    warning("Too few internal knots found: Cubic spline will be computed with NULL internal knots. Try to set a different value for 'q' or a different treshold")
+    if (!force_refit) warning("Too few internal knots found: Cubic spline will be computed with NULL internal knots. Try to set a different value for 'q' or a different treshold")
     ccX <- ccY <- NULL
-    cub <- SplineReg_biv(X = X, Y = Y, Z = Z, W = W, weights = weights,
+    cub <- SplineReg_biv(
+                         X = X, Y = Y, Z = Z, W = W, weights = weights, offset = offset,
                          InterKnotsX = ccX, InterKnotsY = ccY,
                          Xextr = Xextr, Yextr = Yextr, n = 4)
     } else {
@@ -432,7 +477,8 @@ BivariateFitter <- function(X, Y, Z, W, weights = rep(1,length(X)), indicator,
       ccX <- if (length(ikX) < 3) NULL else makenewknots(ikX, 4)
       ccY <- if (length(ikY) < 3) NULL else makenewknots(ikY, 4)
       # Stage B.2
-      cub <- SplineReg_biv(X = X, Y = Y, Z = Z, W = W, weights = weights,
+      cub <- SplineReg_biv(
+                           X = X, Y = Y, Z = Z, W = W, weights = weights, offset = offset,
                            InterKnotsX = ccX, InterKnotsY = ccY,
                            Xextr = Xextr, Yextr = Yextr, n = 4)
     }
@@ -461,16 +507,25 @@ BivariateFitter <- function(X, Y, Z, W, weights = rep(1,length(X)), indicator,
 GenBivariateFitter <- function(X, Y, Z, W, family = family, weights = rep(1,length(X)),
                                indicator, beta = 0.5, phi = 0.5,
                                min.intknots = 0L, max.intknots = 300L, q = 2L,
-                               Xextr = range(X), Yextr=range(Y),
+                               Xextr = range(X[weights > 0]), Yextr = range(Y[weights > 0]),
                                show.iters=TRUE, tol = as.double(1e-12),
-                               stoptype = c("SR","RD","LR"), higher_order = TRUE)
+                               stoptype = c("SR","RD","LR"), higher_order = TRUE,
+                               offset = rep(0, length(X)), max.coef = NULL)
 {
   # Capture the function call
   save <- match.call()
   # Extract arguments
+  if (length(offset) != length(X) || anyNA(offset) || any(!is.finite(offset))) {
+    stop("'offset' must contain one finite value per observation.", call. = FALSE)
+  }
+  nparam <- if (is.null(W)) 0L else NCOL(W)
+  if (is.null(max.coef)) max.coef <- Inf
+  if (4L + nparam > max.coef) stop("'max.coef' is smaller than the initial spline.", call. = FALSE)
+  coefficient_cap_reached <- FALSE
   args <- list("X" = X, "Y" = Y, "Z" = Z, "W" = W, "weights" = weights, "beta" = beta,
                "phi" = phi, "min.intknots" = min.intknots, "max.intknots" = max.intknots,
-               "q" = q, "Xextr" = Xextr, "Yextr" = Yextr, "tol" = tol, family = family)
+               "q" = q, "Xextr" = Xextr, "Yextr" = Yextr, "tol" = tol, family = family,
+               "offset" = offset, "max.coef" = max.coef)
 
   # Initialize rss and phis
   rssnew <- numeric()
@@ -478,6 +533,11 @@ GenBivariateFitter <- function(X, Y, Z, W, family = family, weights = rep(1,leng
   # Initialize \hat{\phi}_\kappa, \hat{\gamma}_0 and \hat{\gamma}_\1 (stoptype = "SR"; see eq. 9 in Dimitrova et al. (2023))
   phis_star <- NULL; oldintc <- NULL; oldslp <- NULL
   # Stop type
+  phi_sr <- phi
+  if (identical(stoptype, "SR-post")) {
+    phi_sr <- phi^q
+    stoptype <- "SR"
+  }
   stoptype <- match.arg(stoptype)
 
   # Initialize knots matrix
@@ -493,16 +553,21 @@ GenBivariateFitter <- function(X, Y, Z, W, family = family, weights = rep(1,leng
   oldguess <- matrix(nrow = max.intknots + 1, ncol = NROW(Z))
   # oldguess <- matrix(nrow = max.intknots + 1,
   #                    ncol = round((max.intknots/2 + 2)^2)) # max number of coef; comes from maximizing f(x) = (x + 2)(max.intknots - x + 2)
-  # Matrix for X, Y and residuals
-  ordX <- order(X, Y); ordY <- order(Y, X)
-  matr <- matrix(ncol = 3, nrow = length(Z))
+  # Knot placement uses only positive-weight rows, as in the univariate fitter:
+  # zero-weight rows must not split residual clusters or change the strips.
+  place <- weights > 0
+  Xplace <- X[place]; Yplace <- Y[place]; n.place <- length(Xplace)
+  if (!all(place)) {
+    indicator <- if (anyDuplicated(cbind(Xplace, Yplace))) table(Xplace, Yplace) else NULL
+  }
+  ordX <- order(Xplace, Yplace); ordY <- order(Yplace, Xplace)
 
   ##################################################################################
   ## STEP 1: Divide the sample space D into M_1/M_2 rectangular strips in X_1/X_2 ##
   ##################################################################################
 
   # Set the number of intervals for dividing the X_1 and X_2 dimensions (M_1 and M_2)
-  nintX <- nintY <- as.integer(sqrt(length(Z)))
+  nintX <- nintY <- as.integer(sqrt(n.place))
 
   # D_{1j} = [a_1 + (j - 1)(b_1 - a_1)/M_1, a_1 + j(b_1 - a_1)/M_1] \times [a_2, b_2], j = 1, ..., M_1
   # upperX = a_1 + j(b_1 - a_1)/M_1, i.e., the interval upper bound
@@ -542,7 +607,7 @@ GenBivariateFitter <- function(X, Y, Z, W, family = family, weights = rep(1,leng
     ########################################################################
     ## STEP 2: Apply the IRLS procedure to find a bivariate ML spline fit ##
     ########################################################################
-    first.deg <- SplineReg_biv_GLM(X = X, Y = Y, Z = Z, W = W, weights = weights,
+    first.deg <- SplineReg_biv_GLM(X = X, Y = Y, Z = Z, W = W, weights = weights, offset = offset,
                                    InterKnotsX = Xintknots, InterKnotsY = Yintknots,
                                    n = 2, Xextr = Xextr, Yextr = Yextr,
                                    family = family, mustart = guess, fast = TRUE)
@@ -586,7 +651,7 @@ GenBivariateFitter <- function(X, Y, Z, W, family = family, weights = rep(1,leng
     # Working weights (weights in the final iteration of the IRLS fit)
     working.weights <- first.deg$temporary$weights
     # Store weighted residuals
-    matr <- cbind(X, Y, first.deg$residuals*working.weights*weights)
+    matr <- cbind(X, Y, first.deg$residuals*working.weights*weights)[place, , drop = FALSE]
 
     ###########################
     ## STEP 2: Stopping Rule ##
@@ -622,7 +687,7 @@ GenBivariateFitter <- function(X, Y, Z, W, family = family, weights = rep(1,leng
           prnt      <- paste0(", phi_hat = ", round(phi_kappa, 3), ", ",
                               ncoef[j], " coefficients")
           # Check if \hat{φ}_κ ≥ φ_{exit}
-          if(phi_kappa >= phi)  break
+          if(phi_kappa >= phi_sr)  break
           # (II) Ratio of Deviances
         } else if (stoptype == "RD") {
           prnt <- paste0(", phi = ",round(phnew,3), ", ",
@@ -643,7 +708,7 @@ GenBivariateFitter <- function(X, Y, Z, W, family = family, weights = rep(1,leng
     ##################################
     placeXKnot <- placeKnot(
       Dim = "X", Dim.intknots = Xintknots, matr = matr,
-      indicator = indicator, FixedDim = Y, ordFixedDim = ordY,
+      indicator = indicator, FixedDim = Yplace, ordFixedDim = ordY,
       nintFixedDim = nintY, upperFixedDim = upperY, beta = beta
     )
 
@@ -654,13 +719,17 @@ GenBivariateFitter <- function(X, Y, Z, W, family = family, weights = rep(1,leng
     ###################################
     placeYKnot <- placeKnot(
       Dim = "Y", Dim.intknots = Yintknots, matr = matr,
-      indicator = indicator, FixedDim = X, ordFixedDim = ordX,
+      indicator = indicator, FixedDim = Xplace, ordFixedDim = ordX,
       nintFixedDim = nintX, upperFixedDim = upperX, beta = beta
     )
 
     Ynewknot = placeYKnot$Dim.newknot; weightY = placeYKnot$weightDim; flagY = placeYKnot$flagDim
 
 
+    cap_flags <- .geds_bivariate_cap_flags(flagX, flagY, length(Xintknots),
+                                          length(Yintknots), nw, max.coef)
+    flagX <- cap_flags$flagX; flagY <- cap_flags$flagY
+    coefficient_cap_reached <- cap_flags$capped && flagX && flagY
     # Check if both X and Y dimensions have flags indicating no valid knots could be found
     if(flagX && flagY) {
       print("Unable to find other knots satisfying required conditions")
@@ -714,7 +783,7 @@ GenBivariateFitter <- function(X, Y, Z, W, family = family, weights = rep(1,leng
     Xintknots <- c(Xintknots,Xnewknot)
 
     # Check if the total number of knots exceeds a threshold based on the length of the response
-    if((length(Yintknots)+3)*(length(Xintknots)+3)>=length(Z)) {
+    if((length(Yintknots)+3)*(length(Xintknots)+3)>=n.place) {
       warning("Exiting stage A: Too many knots found")
       break # Exit the loop to avoid adding too many knots (prevent overfitting)
     }
@@ -730,8 +799,8 @@ GenBivariateFitter <- function(X, Y, Z, W, family = family, weights = rep(1,leng
   toBeSaved <- sum(!is.na(previousY[j,]))
   previousY <- previousY[ ,-((toBeSaved + 1):max(max.intknots + 4, toBeSaved + 1)), drop = FALSE]
 
-  # Keep the corresponding (intknotsX + 2) * (intknotsY + 2) coefficients
-  oldcoef <- oldcoef[, 1:((NCOL(previousX) - 4 + 2) * (NCOL(previousY) - 4 + 2)), drop = FALSE]
+  # Retain both the tensor-spline and parametric coefficient history.
+  oldcoef <- oldcoef[, seq_len((NCOL(previousX) - 2) * (NCOL(previousY) - 2) + nw), drop = FALSE]
 
   if (j == max.intknots + 1) {
     warning("Maximum number of iterations exceeded")
@@ -744,9 +813,9 @@ GenBivariateFitter <- function(X, Y, Z, W, family = family, weights = rep(1,leng
     previousY <- previousY[-((j+1):(max.intknots+1)), , drop = FALSE]
     oldcoef   <- oldcoef[-((j+1):(max.intknots+1)), , drop = FALSE]
 
-    lastXknots <- sum(!is.na(previousX[j-q, ]))
-    lastYknots <- sum(!is.na(previousY[j-q, ]))
-    iter <- j - q
+    iter <- if (coefficient_cap_reached) j else j - q
+    lastXknots <- sum(!is.na(previousX[iter, ]))
+    lastYknots <- sum(!is.na(previousY[iter, ]))
   }
 
   # If model selected is from first iteration
@@ -760,7 +829,8 @@ GenBivariateFitter <- function(X, Y, Z, W, family = family, weights = rep(1,leng
   if(iter < 2) {
     warning("Too few internal knots found: Linear spline will be computed with NULL internal knots. Try to set a different value for 'q' or a different treshold")
     llX <- llY <- NULL
-    lin <- SplineReg_biv_GLM(X = X, Y = Y, Z = Z, InterKnotsX = llX, InterKnotsY = llY, Xextr = Xextr, Yextr = Yextr,
+    lin <- SplineReg_biv_GLM(X = X, Y = Y, Z = Z, W = W, weights = weights, offset = offset,
+                             InterKnotsX = llX, InterKnotsY = llY, Xextr = Xextr, Yextr = Yextr,
                              n = 2, family = family, mustart = mustart)
     } else {
       ikX <- if (lastXknots > 4) previousX[iter, 3:(lastXknots-2)] else NULL
@@ -769,7 +839,8 @@ GenBivariateFitter <- function(X, Y, Z, W, family = family, weights = rep(1,leng
       llX <- if (length(ikX) < 1) NULL else makenewknots(ikX, 2)
       llY <- if (length(ikY) < 1) NULL else makenewknots(ikY, 2)
       # Stage B.2
-      lin <- SplineReg_biv_GLM(X = X, Y = Y, Z = Z, InterKnotsX = llX, InterKnotsY = llY, Xextr = Xextr, Yextr = Yextr,
+      lin <- SplineReg_biv_GLM(X = X, Y = Y, Z = Z, W = W, weights = weights, offset = offset,
+                               InterKnotsX = llX, InterKnotsY = llY, Xextr = Xextr, Yextr = Yextr,
                                n = 2, family = family, mustart = mustart)
     }
   #######################
@@ -781,7 +852,9 @@ GenBivariateFitter <- function(X, Y, Z, W, family = family, weights = rep(1,leng
       warning("Too few internal knots found: Quadratic spline will be computed with NULL internal knots. Try to set a different value for 'q' or a different treshold")
       qqX <- qqY <- NULL
       guess_lin <- lin$predicted
-      squ <- SplineReg_biv_GLM(X = X, Y = Y, Z = Z, InterKnotsX = qqX, InterKnotsY = qqY, Xextr = Xextr, Yextr = Yextr,
+      squ <- SplineReg_biv_GLM(
+                               X = X, Y = Y, Z = Z, W = W, weights = weights, offset = offset,
+                               InterKnotsX = qqX, InterKnotsY = qqY, Xextr = Xextr, Yextr = Yextr,
                                n = 3, family = family, mustart = guess_lin)
       } else {
         # Stage B.1 (averaging knot location)
@@ -789,7 +862,9 @@ GenBivariateFitter <- function(X, Y, Z, W, family = family, weights = rep(1,leng
         qqY <- if (length(ikY) < 2) NULL else makenewknots(ikY, 3)
         # Stage B.2
         guess_lin <- lin$predicted
-        squ <- SplineReg_biv_GLM(X = X, Y = Y, Z = Z, InterKnotsX = qqX, InterKnotsY = qqY, Xextr = Xextr, Yextr = Yextr,
+        squ <- SplineReg_biv_GLM(
+                                 X = X, Y = Y, Z = Z, W = W, weights = weights, offset = offset,
+                                 InterKnotsX = qqX, InterKnotsY = qqY, Xextr = Xextr, Yextr = Yextr,
                                  n = 3, family = family, mustart = guess_lin)
         }
     # 3. CUBIC
@@ -797,7 +872,9 @@ GenBivariateFitter <- function(X, Y, Z, W, family = family, weights = rep(1,leng
       warning("Too few internal knots found: Cubic spline will be computed with NULL internal knots. Try to set a different value for 'q' or a different treshold")
       ccX <- ccY <- NULL
       guess_sq <- squ$predicted
-      cub <- SplineReg_biv_GLM(X = X, Y = Y, Z = Z, InterKnotsX = ccX, InterKnotsY = ccY, Xextr = Xextr, Yextr = Yextr,
+      cub <- SplineReg_biv_GLM(
+                               X = X, Y = Y, Z = Z, W = W, weights = weights, offset = offset,
+                               InterKnotsX = ccX, InterKnotsY = ccY, Xextr = Xextr, Yextr = Yextr,
                                n = 4, family = family, mustart = guess_sq)
       } else {
         # Stage B.1 (averaging knot location)
@@ -805,7 +882,9 @@ GenBivariateFitter <- function(X, Y, Z, W, family = family, weights = rep(1,leng
         ccY <- if (length(ikY) < 3) NULL else makenewknots(ikY, 4)
         # Stage B.2
         guess_sq <- squ$predicted
-        cub <- SplineReg_biv_GLM(X = X, Y = Y, Z = Z, InterKnotsX = ccX, InterKnotsY = ccY, Xextr = Xextr, Yextr = Yextr,
+        cub <- SplineReg_biv_GLM(
+                                 X = X, Y = Y, Z = Z, W = W, weights = weights, offset = offset,
+                                 InterKnotsX = ccX, InterKnotsY = ccY, Xextr = Xextr, Yextr = Yextr,
                                  n = 4, family = family, mustart = guess_sq)
       }
     } else {
@@ -2061,11 +2140,10 @@ stageBND <- function(coordinates, response, intknots,
                                   spline.orders[i])),
     numeric(1)
   )
-  fits <- lapply(
-    seq_along(spline.orders),
-    function(i) {
-      if (basis.sizes[i] > max.coef) return(NULL)
-      fitTensorSplineND(
+  fits <- vector("list", length(spline.orders))
+  for (i in seq_along(spline.orders)) {
+    if (basis.sizes[i] <= max.coef) {
+      fits[[i]] <- fitTensorSplineND(
         coordinates = coordinates,
         response = response,
         intknots = transformed.knots[[i]],
@@ -2075,7 +2153,7 @@ stageBND <- function(coordinates, response, intknots,
         max.coef = max.coef
       )
     }
-  )
+  }
   names(transformed.knots) <- names(fits) <- order.names
   names(basis.sizes) <- order.names
   skipped <- ifelse(
@@ -2181,6 +2259,51 @@ makeGridBoundsND <- function(coordinates, coordinate.ranges = NULL,
 }
 
 
+.multivariateHistoryComponents <- function(stageA, stageB, coordinate.ranges) {
+  history <- stageA$history
+  padded <- function(rows) {
+    width <- max(c(0L, lengths(rows)))
+    result <- matrix(NA_real_, nrow = length(rows), ncol = width)
+    for (i in seq_along(rows)) {
+      if (length(rows[[i]])) result[i, seq_along(rows[[i]])] <- rows[[i]]
+    }
+    result
+  }
+  stored <- lapply(seq_along(coordinate.ranges), function(j) {
+    padded(lapply(history, function(step) {
+      sort(c(step$intknots[[j]], rep(coordinate.ranges[[j]], 2L)))
+    }))
+  })
+  names(stored) <- names(stageA$selected.intknots)
+  result <- list(
+    rss = stageA$rss,
+    stored = stored,
+    coefficients = padded(lapply(history, `[[`, "coefficients")),
+    guesses = NULL,
+    stopinfo = list(
+      phis = stageA$phis, phis_star = stageA$phis.star,
+      oldintc = stageA$gamma$intercept, oldslp = stageA$gamma$slope,
+      selected.iteration = stageA$selected.iteration,
+      insertions = stageA$insertions, stop.reason = stageA$stop.reason,
+      basis.sizes = stageA$basis.sizes, ncoef = stageA$ncoef,
+      effective.nobs = stageA$effective.nobs,
+      solvers = vapply(history, `[[`, character(1), "solver"),
+      fitted.orders = vapply(stageB$fits[!vapply(stageB$fits, is.null, logical(1))],
+                             `[[`, integer(1), "spline.order"),
+      order.basis.sizes = stageB$basis.sizes,
+      omitted.fits = stageB$skipped
+    )
+  )
+  if (length(history) && !is.null(history[[1L]]$temporary)) {
+    result$iterIrls <- vapply(history, function(step) as.integer(step$temporary$iter), integer(1))
+  }
+  for (name in setdiff(names(stageB$fits), c("linear", "quadratic", "cubic"))) {
+    result[paste0(name, ".fit")] <- stageB$fits[name]
+    result[paste0(name, ".intknots")] <- stageB$intknots[name]
+  }
+  result
+}
+
 MultivariateFitter <- function(coordinates, response,
                                weights = rep(1, NROW(coordinates)),
                                beta = 0.5, phi = 0.99, q = 2L,
@@ -2276,12 +2399,8 @@ MultivariateFitter <- function(coordinates, response,
     linear.fit = linear.fit,
     quadratic.fit = quadratic.fit,
     cubic.fit = cubic.fit,
-    stageA = stageA,
-    stageB = stageB,
-    grid = grid,
     Nintknots = if (is.null(linear.intknots)) NULL else lengths(linear.intknots),
     iters = length(stageA$history),
-    selected.iteration = stageA$selected.iteration,
     args = list(
       coordinates = coordinates,
       response = response,
@@ -2295,12 +2414,14 @@ MultivariateFitter <- function(coordinates, response,
       coordinate.ranges = grid$coordinate.ranges,
       placement.ranges = placement.ranges,
       nint = grid$nint,
+      grid = grid,
       intknots_init = intknots_init,
       spline.orders = spline.orders,
       max.coef = max.coef
     ),
     Call = call
   )
+  out <- c(out, .multivariateHistoryComponents(stageA, stageB, grid$coordinate.ranges))
   class(out) <- c("GeDSfitND", "list")
   out
 }
@@ -2362,20 +2483,20 @@ GenMultivariateFitter <- function(coordinates, response, family,
     dev.quadratic = if (is.null(quadratic.fit)) NULL else quadratic.fit$rss,
     dev.cubic = if (is.null(cubic.fit)) NULL else cubic.fit$rss,
     linear.fit = linear.fit, quadratic.fit = quadratic.fit, cubic.fit = cubic.fit,
-    stageA = stageA, stageB = stageB, grid = grid,
     Nintknots = if (is.null(linear.intknots)) NULL else lengths(linear.intknots),
-    iters = length(stageA$history), selected.iteration = stageA$selected.iteration,
+    iters = length(stageA$history),
     args = list(
       coordinates = coordinates, response = response, weights = weights,
       offset = offset, parametric = parametric, family = family,
       beta = beta, phi = phi, q = q,
       min.intknots = min.intknots, max.steps = max.steps, stoptype = stoptype,
       coordinate.ranges = grid$coordinate.ranges,
-      placement.ranges = placement.ranges, nint = grid$nint,
+      placement.ranges = placement.ranges, nint = grid$nint, grid = grid,
       spline.orders = spline.orders, max.coef = max.coef
     ),
     Call = call
   )
+  out <- c(out, .multivariateHistoryComponents(stageA, stageB, grid$coordinate.ranges))
   class(out) <- c("GeDSfitND", "list")
   out
 }
@@ -2405,14 +2526,11 @@ predict.GeDSfitND <- function(object, newdata = NULL, n = 3L, ...)
     stop("'n' must identify one fitted spline order.", call. = FALSE)
   }
 
-  fitted.orders <- vapply(
-    object$stageB$fits, `[[`, integer(1), "spline.order"
-  )
-  fit.index <- match(n, fitted.orders)
-  if (is.na(fit.index)) {
+  fit.name <- if (n %in% 2:4) c("linear", "quadratic", "cubic")[n - 1L] else paste0("order", n)
+  stage.fit <- object[[paste0(fit.name, ".fit")]]
+  if (is.null(stage.fit)) {
     stop("Spline order ", n, " was not fitted.", call. = FALSE)
   }
-  stage.fit <- object$stageB$fits[[fit.index]]
 
   if (is.null(newdata)) {
     coordinates <- object$args$coordinates
@@ -2488,18 +2606,14 @@ predict.GeDSfitND <- function(object, newdata = NULL, n = 3L, ...)
   basis.matrices <- lapply(
     seq_along(object$dimensions),
     function(j) {
-      splines::splineDesign(
-        knots = stage.fit$full.knots[[j]],
-        x = coordinates[, j],
-        ord = n,
-        derivs = rep(0L, NROW(coordinates)),
-        outer.ok = TRUE
-      )
+      .prediction_spline_basis(stage.fit$full.knots[[j]], coordinates[, j], n,
+        clamp_linear = .prediction_clamp_linear(stage.fit$family))
     }
   )
   design <- tensorProdND(basis.matrices)
   if (!is.null(parametric)) design <- cbind(design, parametric)
   eta <- as.numeric(design %*% stage.fit$coefficients) + prediction.offset
+  .validate_prediction_link(eta, stage.fit$family)
   if (!is.null(stage.fit$family)) stage.fit$family$linkinv(eta) else eta
 }
 
@@ -2546,70 +2660,6 @@ placeKnot <- function(Dim, Dim.intknots, matr, indicator, FixedDim,
 
 
 ##########################################################
-## Unmodified safe copy of the pre-fix bivariate code   ##
-##########################################################
-placeKnot_biv_original <- function(Dim, Dim.intknots, matr, indicator,
-                                   FixedDim, ordFixedDim, nintFixedDim,
-                                   zeroesFixedDim, dcumFixedDim, beta)
-{
-  if (Dim == "X") {
-    Dim.index <- 1
-    by.row <- TRUE
-  } else if (Dim == "Y") {
-    Dim.index <- 2
-    by.row <- FALSE
-  }
-
-  matrFixedDim <- matr[ordFixedDim, ]
-  matrFixedDim <- makeNewMatrCPP(matrFixedDim, indicator, by.row)
-
-  Dim.mean <- Dim.width <- dFixedDim.Dim <- numeric()
-  strip <- rep.int(seq_len(nintFixedDim), diff(c(0L, dcumFixedDim)))
-  keep_rows <- !zeroesFixedDim[strip]
-  idx <- which(keep_rows)
-  ord_idx <- idx[order(strip[idx], matrFixedDim[idx, Dim.index], method = "radix")]
-  matrFixedDim[idx, ] <- matrFixedDim[ord_idx, , drop = FALSE]
-
-  st <- strip[idx]
-  s <- sign(matrFixedDim[idx, 3])
-  breaks <- c(TRUE, (st[-1] != st[-length(st)]) | (s[-1] != s[-length(s)]))
-  lens <- diff(c(which(breaks), length(s) + 1L))
-  dFixedDim.Dim[seq_along(lens)] <- lens
-
-  dcumFixedDim.Dim <- cumsum(dFixedDim.Dim)
-  Dim.mean <- Dim.width <- numeric(length(dFixedDim.Dim))
-  Dim.mean[1] <- abs(mean(matrFixedDim[1:dcumFixedDim.Dim[1], 3]))
-  Dim.width[1] <- diff(range(matrFixedDim[1:dcumFixedDim.Dim[1], Dim.index]))
-  for (i in 2:length(dFixedDim.Dim)) {
-    Dim.mean[i] <- abs(mean(
-      matrFixedDim[(dcumFixedDim.Dim[i - 1] + 1):dcumFixedDim.Dim[i], 3]
-    ))
-    Dim.width[i] <- diff(range(
-      matrFixedDim[(dcumFixedDim.Dim[i - 1] + 1):dcumFixedDim.Dim[i], Dim.index]
-    ))
-  }
-  Dim.mean <- Dim.mean / max(Dim.mean)
-  if (max(Dim.width) != 0) Dim.width <- Dim.width / max(Dim.width)
-  Dim.weights <- beta * Dim.mean + (1 - beta) * Dim.width
-
-  if (is.null(Dim.intknots)) Dim.intknots <- NA_real_
-  xx <- findNewDimKnot(
-    dcumFixedDim.Dim,
-    Dim.weights,
-    sort(c(Dim.intknots, range(matr[, Dim]))),
-    matrFixedDim[, Dim.index],
-    matrFixedDim[, 3]
-  )
-
-  list(
-    Dim.newknot = as.numeric(xx$Dim.newknot),
-    weightDim = as.numeric(xx$weightDim),
-    flagDim = xx$flagDim
-  )
-}
-
-
-##########################################################
 ## Corrected reference bivariate implementation         ##
 ##########################################################
 placeKnot_biv_legacy <- function(Dim, Dim.intknots, matr, indicator,
@@ -2638,7 +2688,7 @@ placeKnot_biv_legacy <- function(Dim, Dim.intknots, matr, indicator,
   matrFixedDim <- matr[ordFixedDim, , drop = FALSE]
   matrFixedDim <- makeNewMatrCPP(matrFixedDim, indicator, by.row)
 
-  # Unlike placeKnot_biv_original(), this produces one strip ID per row.
+  # This produces one strip ID per row.
   strip <- fixedDimCellId(
     matrFixedDim[, FixedDim.index, drop = FALSE],
     list(upperFixedDim)

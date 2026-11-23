@@ -37,6 +37,7 @@ BugReports: https://github.com/emilioluissaenzguillen/GeDS/issues
 Depends:
     R (>= 4.4.0)
 Imports:
+    brglm2,
     doFuture,
     doParallel,
     doRNG,
@@ -47,6 +48,8 @@ Imports:
     MASS,
     Matrix,
     mboost,
+    methods,
+    mgcv,
     parallel,
     Rcpp,
     splines,

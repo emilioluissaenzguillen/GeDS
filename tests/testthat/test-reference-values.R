@@ -9,7 +9,7 @@ test_that("NGeDS returns stable reference values", {
   dat <- data.frame(X = X, Y = Y)
 
   Gmod <- suppressWarnings(
-    NGeDS(Y ~ f(X), data = dat, beta = 0.6, phi = 0.95)
+    NGeDS(Y ~ f(X), data = dat, beta = 0.6, phi = 0.95, stoptype = "RD")
   )
 
   ref <- list(
@@ -45,7 +45,7 @@ test_that("GGeDS Poisson fit returns stable reference values", {
   dat <- data.frame(X = X, Y = Y)
 
   Gmod <- suppressWarnings(
-    GGeDS(Y ~ f(X), data = dat, family = poisson(), beta = 0.2, phi = 0.95)
+    GGeDS(Y ~ f(X), data = dat, family = poisson(), beta = 0.2, phi = 0.95, stoptype = "SR")
   )
 
   ref <- list(
@@ -81,7 +81,8 @@ test_that("NGeDSgam returns stable reference values", {
         data = mtcars,
         family = gaussian,
         phi_gam_exit = 0.8,
-        phi = 0.8
+        phi = 0.8,
+        stoptype = "RD", penalty = "none"
       )
     )
   }))
@@ -97,12 +98,18 @@ test_that("NGeDSgam returns stable reference values", {
   )
 
   expect_equal(ref$deviance,
-               c(linear = 144.647406, quadratic = 151.514521, cubic = 138.654298),
+               c(linear = 144.647406, quadratic = 159.528346, cubic = 147.858943),
                tolerance = 1e-6)
   expect_equal(ref$pred_first_5,
-               c(21.046966, 20.362244, 25.492233, 19.478188, 16.409189),
+               c(21.912536, 20.710742, 26.256086, 19.261310, 16.508585),
                tolerance = 1e-6)
   expect_equal(ref$local_scoring_iterations, 1L)
+  # With no Stage B internal knots, the spline is a global polynomial.
+  for (n in c(3, 4)) {
+    polynomial <- lm(mpg ~ cyl + poly(wt, n - 1, raw = TRUE), data = mtcars)
+    expect_equal(predict(Gmodgam, newdata = mtcars, n = n),
+                 unname(predict(polynomial, mtcars)), tolerance = 1e-10)
+  }
 })
 
 test_that("NGeDSboost returns stable reference values", {
@@ -117,7 +124,8 @@ test_that("NGeDSboost returns stable reference values", {
         data = mtcars,
         family = mboost::Gaussian(),
         phi_boost_exit = 0.8,
-        phi = 0.8
+        phi = 0.8,
+        stoptype = "RD", penalty = "none"
       )
     )
   }))
@@ -133,10 +141,19 @@ test_that("NGeDSboost returns stable reference values", {
   )
 
   expect_equal(ref$deviance,
-               c(linear = 173.313384, quadratic = 144.860008, cubic = 135.990358),
+               c(linear = 172.616114, quadratic = 159.528346, cubic = 147.858943),
                tolerance = 1e-6)
   expect_equal(ref$pred_first_5,
-               c(21.125119, 20.125442, 25.724839, 19.292672, 15.883611),
+               c(21.912536, 20.710742, 26.256086, 19.261310, 16.508585),
                tolerance = 1e-6)
-  expect_equal(ref$boosting_iterations, 2L)
+  expect_equal(ref$boosting_iterations, 5L)
+  # With unit shrinkage, Gaussian Phase 2 reaches LS on the selected basis.
+  internal <- knots(Gmodboost, n = 2, options = "internal")[["f(wt)"]]
+  linear_reference <- lm(mpg ~ cyl + splines::bs(wt, degree = 1, knots = internal), data = mtcars)
+  expect_equal(deviance(Gmodboost, n = 2), deviance(linear_reference), tolerance = 1e-10)
+  for (n in 3:4) {
+    polynomial <- lm(mpg ~ cyl + poly(wt, n - 1, raw = TRUE), data = mtcars)
+    expect_equal(predict(Gmodboost, newdata = mtcars, n = n),
+                 unname(predict(polynomial, mtcars)), tolerance = 1e-10)
+  }
 })
