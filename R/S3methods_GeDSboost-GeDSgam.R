@@ -1147,10 +1147,12 @@ print.GeDSgam_GeDSboost <- function(x, digits = max(3L, getOption("digits") - 3L
 }
 
 #' @rdname print.GeDS
+#' @method print GeDSgam
 #' @export
 print.GeDSgam <- print.GeDSgam_GeDSboost
 
 #' @rdname print.GeDS
+#' @method print GeDSboost
 #' @export
 print.GeDSboost <- print.GeDSgam_GeDSboost
 
@@ -1205,10 +1207,12 @@ summary.GeDSgam_GeDSboost <- function(object, ...)
 }
 
 #' @rdname summary.GeDS
+#' @method summary GeDSgam
 #' @export
 summary.GeDSgam <- summary.GeDSgam_GeDSboost
 
 #' @rdname summary.GeDS
+#' @method summary GeDSboost
 #' @export
 summary.GeDSboost <- summary.GeDSgam_GeDSboost
 

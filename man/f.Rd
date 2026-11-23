@@ -16,9 +16,8 @@ covariate (in case \code{\link{NGeDS}}/\code{\link{GGeDS}} is run for two
 dimensions). It has to be either \code{NULL} (the default) or a vector of size
 \eqn{N}, same as \code{x}.}
 
-\item{...}{Further covariates for an experimental multivariate Normal GeDS
-spline. Generalized and additive-model smoothers currently remain limited to
-one or two covariates per spline component.}
+\item{...}{Additional covariates are not supported. Each spline component
+is limited to one or two covariates.}
 }
 \description{
 In general the GeDS predictor model may include a GeD spline regression

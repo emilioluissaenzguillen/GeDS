@@ -83,7 +83,7 @@ by the GeDS smoothers at each backfitting iteration, effectively setting the
 value of \code{max.intknots} in \code{\link{NGeDS}} at each backfitting
 iteration. When omitted, univariate smoothers use the per-spline
 sample-and-support Stage A coefficient budget described for \code{\link{NGeDS}};
-bivariate and experimental higher-dimensional smoothers retain 500. An explicit value
+bivariate smoothers retain 500. An explicit value
 overrides the safeguard. There is no shared cap across additive components.}
 
 \item{q}{Numeric parameter which allows to fine-tune the stopping rule of
@@ -93,8 +93,7 @@ default equal to \code{2L}. See Details in \code{\link{NGeDS}}.}
 \item{higher_order}{a logical that defines whether to compute the higher order
 fits (quadratic and cubic) after the local-scoring algorithm is run. Default
 is \code{TRUE}.
-Joint smoothers can contain more than two predictors, for example
-\code{Y ~ f(X1, X2, X3)}.}
+Each spline smoother can contain one or two covariates.}
 
 \item{penalty}{Stage B curvature penalisation. The default is
 \code{"component"} when \code{higher_order = TRUE}, and \code{"none"}

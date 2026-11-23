@@ -6,7 +6,7 @@
 #' @title Generalized Geometrically Designed Spline Regression Estimation
 #' @name GGeDS
 #' @description
-#' \code{GGeDS} constructs a geometrically designed univariate or joint multivariate
+#' \code{GGeDS} constructs a geometrically designed univariate or bivariate
 #' variable knots spline regression model for the predictor in the context of
 #' generalized (non-)linear models. This is referred to as a GeDS model for a
 #' response with a distribution from the exponential family.
@@ -40,8 +40,7 @@
 #' algorithm. Univariate defaults use the per-spline sample-and-support
 #' Stage A coefficient budget described for \code{\link{NGeDS}}. An explicit
 #' value overrides this safeguard. Bivariate fits retain their previous knot
-#' limit without an automatic coefficient cap. Experimental fits in more than two dimensions
-#' retain their default of 300.
+#' limit without an automatic coefficient cap.
 #' @param q Numeric parameter which allows to fine-tune the stopping rule of
 #' stage A of GeDS, by default equal to \code{2L}. See Details below.
 #' @param Xextr Numeric vector of 2 elements representing the left-most and
@@ -170,8 +169,7 @@
 #' computed \code{q} iterations before, i.e. before
 #' introducing the last \code{q} knots.
 #'
-#' @return An object of class \code{"GeDS"}, or \code{"GeDSfitND"} for a joint
-#' spline with more than two covariates, with the components
+#' @return An object of class \code{"GeDS"}, with the components
 #' described under \code{\link{NGeDS}}’s \code{@return} plus the following slots:
 #' \describe{
 #' \item{type}{Character string indicating the type of regression performed.
@@ -543,18 +541,7 @@ GGeDS <- function(formula, family = gaussian(), data, weights, beta, phi = 0.99,
                               max.coef = if (is.null(spline_cap)) Inf else spline_cap$max.coef)
 
     } else {
-      if (!is.null(Xextr) || !is.null(Yextr)) {
-        stop("'Xextr' and 'Yextr' are only available for one- or two-dimensional fits.",
-             call. = FALSE)
-      }
-      out <- GenMultivariateFitter(
-        coordinates = X, response = Y, family = family, weights = weights,
-        offset = offset, parametric = Z,
-        beta = beta, phi = phi, q = q, min.intknots = min.intknots,
-        max.steps = max.intknots + 1L, stoptype = stoptype,
-        spline.orders = if (isTRUE(higher_order)) 2:4 else 2L,
-        max.coef = 100000L
-      )
+      stop("Each GeDS spline component supports at most two covariates.", call. = FALSE)
     }
 
     out$formula <- formula
@@ -563,7 +550,6 @@ GGeDS <- function(formula, family = gaussian(), data, weights, beta, phi = 0.99,
     out$znames <- getZnames(newdata)
     out$contrasts <- newdata$contrasts
     out$xlevels <- newdata$xlevels
-    if (inherits(out, "GeDSfitND")) out$args$parametric.names <- out$znames
     return(out)
 }
 

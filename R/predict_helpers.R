@@ -205,7 +205,7 @@ predict_newdata_full_model <- function(object, model, newdata, n, type) {
     lin_bl <- base_learners[sapply(base_learners, function(x) x$type == "linear")]
     # 1.2 Extract univariate base learners
     univariate_bl <- base_learners[sapply(base_learners, function(x) x$type == "GeDS" & length(x$variables) == 1)]
-    # 1.3 Extract joint (two- or higher-dimensional) base learners
+    # 1.3 Extract bivariate base learners
     bivariate_bl <- base_learners[sapply(base_learners, function(x) x$type == "GeDS" & length(x$variables) >= 2)]
 
     # Family

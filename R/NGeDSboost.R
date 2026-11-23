@@ -24,8 +24,8 @@ utils::globalVariables("bl_batch")
 #' including the dependent and independent variables. Unlike \code{\link{NGeDS}}
 #' and \code{\link{GGeDS}}, the formula specified allows for multiple additive
 #' GeD spline regression components (as well as linear components) to be
-#' included (e.g., \code{Y ~ f(X1) + f(X2) + X3}), including joint smoothers
-#' with more than two predictors such as \code{Y ~ f(X1, X2, X3)}.
+#' included (e.g., \code{Y ~ f(X1) + f(X2) + X3}). Each spline
+#' base learner can contain one or two covariates.
 #' @param data A \code{data.frame} containing the variables referenced in the formula.
 #' @param weights An optional vector of "prior weights" to be put on the
 #' observations during the fitting process. It should be \code{NULL} or a
@@ -186,7 +186,7 @@ utils::globalVariables("bl_batch")
 #' are not excluded so that other components can continue. The same check applies
 #' to the selected initial learner. Final-model selection from the last
 #' \code{q_boost + 1} models is unchanged. There is no shared additive-model
-#' cap, and no accumulated cap for joint multivariate components. The limits and
+#' cap, and no accumulated cap for bivariate components. The limits and
 #' any cap-triggered stop are recorded in \code{args$component_knot_caps} and
 #' \code{args$knot_cap_stop}, respectively.
 #'
@@ -663,8 +663,7 @@ NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE,
         knots <- list(Xk = c(min_vals[1], max_vals[1]), Yk = c(min_vals[2], max_vals[2]))
         base_learners_list[[bl_name]] <- list("knots" = knots, "iterations" = list())
       } else {
-        knots <- setNames(Map(c, min_vals, max_vals), pred_vars)
-        base_learners_list[[bl_name]] <- list("knots" = knots, "iterations" = list())
+        stop("Each GeDS spline component supports at most two covariates.", call. = FALSE)
         }
     ## (B) Linear base-learners (initialize only coefficients)
     } else if (base_learners[[bl_name]]$type=="linear") {
@@ -1093,21 +1092,9 @@ NGeDSboost <- function(formula, data, weights = NULL, normalize_data = FALSE,
           ## 3/4. Save knots and coefficients (bivariate base-learners are not converted into PP form)
           pred_linear <- best_pred$Y_hat
           int.knt <- best_pred$int.knt
-          if (length(base_learners[[best_bl]]$variables) == 2L) {
-            knots <- list(Xk = sort(unique(c(base_learners_list[[best_bl]]$knots$Xk, int.knt$Xint.knt))),
-                          Yk = sort(unique(c(base_learners_list[[best_bl]]$knots$Yk, int.knt$Yint.knt))))
-          } else {
-            knots <- Map(function(old, new) sort(unique(c(old, new))),
-                         base_learners_list[[best_bl]]$knots, int.knt)
-            names(knots) <- base_learners[[best_bl]]$variables
-          }
+          knots <- list(Xk = sort(unique(c(base_learners_list[[best_bl]]$knots$Xk, int.knt$Xint.knt))),
+                        Yk = sort(unique(c(base_learners_list[[best_bl]]$knots$Yk, int.knt$Yint.knt))))
           base_learners_list[[best_bl]]$knots <- knots
-          if (length(base_learners[[best_bl]]$variables) > 2L) {
-            base_learners_list[[best_bl]]$knot_order <- c(
-              base_learners_list[[best_bl]]$knot_order,
-              best_pred$knot_order
-            )
-          }
           # Number of int. knots placed on current iteration
           n_intknots <- Map(function(new, old) length(new) - length(old),
                             knots, previous_model$base_learners[[best_bl]]$knots)
@@ -1570,9 +1557,7 @@ componentwise_fit <- function(bl_name, response, data, model_formula_template,
             if (!default_spline_cap || length(pred_vars) > 1L) fit_args$max.intknots <- max.intknots
             do.call(NGeDS, fit_args)
           } else {
-            fit_joint_GeDS_linear(data, response, pred_vars, weights, beta,
-                                  phi, q, max.intknots, max.coef,
-                                  starting_intknots)
+            stop("Each GeDS spline component supports at most two covariates.", call. = FALSE)
           }
         } else {
           fit_args <- list(formula = model_formula, data = data, family = family,
@@ -1609,18 +1594,7 @@ componentwise_fit <- function(bl_name, response, data, model_formula_template,
     } else if(length(pred_vars) == 2) {
       predict_GeDS_linear(fit, X = data[pred_vars[1]], Y = data[pred_vars[2]], Z = data[[response]])
     } else {
-      if (inherits(fit, "GeDSfitND")) {
-        int.knt <- fit$linear.intknots
-        names(int.knt) <- pred_vars
-        knt <- Map(function(boundary, internal) sort(c(boundary, internal)),
-                   fit$args$coordinate.ranges, int.knt)
-        names(knt) <- pred_vars
-        list(Y_hat = predict(fit, n = 2L), knt = knt,
-             int.knt = int.knt, theta = fit$linear.fit$coefficients,
-             knot_order = .selected_joint_insertion_order(fit))
-      } else {
-        fit
-      }
+      stop("Each GeDS spline component supports at most two covariates.", call. = FALSE)
     }
 
     ## (B) Linear base-learners

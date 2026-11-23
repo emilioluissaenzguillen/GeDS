@@ -11,3 +11,4 @@
 ^Rplots\.pdf$
 ^student-paper-faculty-letter$
 ^stageA73-diagnostics$
+^vignettes/multivariate_GeDS\.(html|pdf)$

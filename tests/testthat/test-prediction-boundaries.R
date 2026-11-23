@@ -58,27 +58,6 @@ test_that("joint linear prediction retains the fitted tensor and its mixed term"
   }
 })
 
-test_that("higher-dimensional component predictions follow the same boundary rule", {
-  set.seed(123)
-  data <- expand.grid(x = seq(0, 1, length.out = 5), z = seq(0, 1, length.out = 5),
-                      w = seq(0, 1, length.out = 5))
-  data$y <- data$x + data$z + data$w + rnorm(nrow(data), sd = .05)
-  fit <- NULL
-  invisible(capture.output(fit <- NGeDSgam(y ~ f(x, z, w), data = data, phi = .7,
-                                         q = 1, penalty = "none")))
-  newdata <- data.frame(x = c(-.2, 1.2), z = c(.5, 1.3), w = c(.2, -.1))
-  clipped <- newdata
-  clipped[] <- lapply(clipped, function(x) pmax(0, pmin(1, x)))
-  for (n in 2:4) {
-    pred <- function(d) predict(fit, newdata = d, n = n, base_learner = "f(x, z, w)")
-    expect_equal(pred(newdata), vapply(1:2, function(i) pred(newdata[i, , drop = FALSE]), numeric(1)))
-    if (n > 2) {
-      expect_equal(pred(newdata), pred(clipped))
-      expect_equal(pred(newdata), predict(fit, newdata = newdata, n = n))
-    }
-  }
-})
-
 test_that("GAM and boost full and component predictions use fixed boundary rules", {
   set.seed(123)
   data <- expand.grid(x = seq(0, 1, length.out = 7), z = seq(0, 1, length.out = 7))

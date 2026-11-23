@@ -34,8 +34,8 @@ NGeDSboost(
 including the dependent and independent variables. Unlike \code{\link{NGeDS}}
 and \code{\link{GGeDS}}, the formula specified allows for multiple additive
 GeD spline regression components (as well as linear components) to be
-included (e.g., \code{Y ~ f(X1) + f(X2) + X3}), including joint smoothers
-with more than two predictors such as \code{Y ~ f(X1, X2, X3)}.}
+included (e.g., \code{Y ~ f(X1) + f(X2) + X3}). Each spline
+base learner can contain one or two covariates.}
 
 \item{data}{A \code{data.frame} containing the variables referenced in the formula.}
 
@@ -318,7 +318,7 @@ Phase 1 boosting loop stops, even before \code{min_iterations}; saturated compon
 are not excluded so that other components can continue. The same check applies
 to the selected initial learner. Final-model selection from the last
 \code{q_boost + 1} models is unchanged. There is no shared additive-model
-cap, and no accumulated cap for joint multivariate components. The limits and
+cap, and no accumulated cap for bivariate components. The limits and
 any cap-triggered stop are recorded in \code{args$component_knot_caps} and
 \code{args$knot_cap_stop}, respectively.
 

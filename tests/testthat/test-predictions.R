@@ -6,13 +6,11 @@ test_that("GAM and boost Stage B drops knots only where averaging is impossible"
   full <- lapply(internal, function(k) c(0, k, 1))
   learners <- list(
     univ = list(type = "GeDS", variables = "x1"),
-    biv = list(type = "GeDS", variables = c("x1", "x2")),
-    joint = list(type = "GeDS", variables = paste0("x", 1:4))
+    biv = list(type = "GeDS", variables = c("x1", "x2"))
   )
   model <- list(base_learners = list(
     univ = list(knots = full[[2]]),
-    biv = list(knots = list(Xk = full[[2]], Yk = full[[4]])),
-    joint = list(knots = setNames(full, paste0("x", 1:4)))
+    biv = list(knots = list(Xk = full[[2]], Yk = full[[4]]))
   ))
   compute <- function(n) {
     result <- NULL
@@ -25,13 +23,11 @@ test_that("GAM and boost Stage B drops knots only where averaging is impossible"
   linear <- compute(2)
   expect_equal(linear$univ, internal[[2]])
   expect_equal(linear$biv, list(ikX = internal[[2]], ikY = internal[[4]]))
-  expect_equal(linear$joint, setNames(internal, paste0("x", 1:4)))
   for (n in c(3, 4)) {
     higher <- compute(n)
     expect_null(higher$univ)
     expect_null(higher$biv$ikX)
     expect_equal(higher$biv$ikY, GeDS:::makenewknots(internal[[4]], n))
-    expect_equal(higher$joint, GeDS:::stageBKnotsND(linear$joint, n))
   }
 })
 
@@ -92,75 +88,6 @@ test_that("IRIS - NGeDSgam predictions consistency", {
       )
     }
   }
-})
-
-test_that("joint NGeDSgam predicts after an SR-based learner fit", {
-  set.seed(123)
-  data <- data.frame(
-    x1 = runif(400), x2 = runif(400),
-    x3 = runif(400), x4 = runif(400)
-  )
-  data$y <- with(data,
-                 2 * sin(pi * x1) * sin(pi * x2) *
-                   sin(pi * x3) * sin(pi * x4)) +
-    rnorm(nrow(data), sd = 0.15)
-
-  invisible(capture.output(
-    fit <- suppressWarnings(NGeDSgam(
-      y ~ f(x1, x2, x3, x4), data = data, penalty = "none"
-    ))
-  ))
-
-  expect_gt(sum(lengths(fit$internal_knots$linear.int.knots[[1]])), 0L)
-  expect_equal(predict(fit, newdata = data, n = 2),
-               fit$predictions$pred_linear)
-  expect_length(predict(fit, newdata = data, n = 4), nrow(data))
-})
-
-test_that("joint NGeDSboost prediction retains learners above two dimensions", {
-  set.seed(713)
-  data <- data.frame(
-    x1 = runif(120), x2 = runif(120),
-    x3 = runif(120), x4 = runif(120)
-  )
-  data$y <- with(data, sin(2 * pi * x1) + x2 * x3 - x4)
-
-  invisible(capture.output(
-    fit <- suppressWarnings(NGeDSboost(
-      y ~ f(x1, x2, x3, x4), data = data,
-      higher_order = FALSE
-    ))
-  ))
-
-  expect_equal(
-    predict(fit, newdata = data, n = 2),
-    fit$predictions$pred_linear,
-    tolerance = 1e-7
-  )
-  expect_true(all(is.finite(predict(fit, newdata = data, n = 2))))
-})
-
-test_that("omitted joint Stage B orders fail clearly at prediction time", {
-  set.seed(123)
-  data <- data.frame(
-    x1 = runif(80), x2 = runif(80),
-    x3 = runif(80), x4 = runif(80)
-  )
-  data$y <- with(data,
-                 sin(2 * pi * x1) * sin(2 * pi * x2) * sin(2 * pi * x3))
-
-  invisible(capture.output(
-    fit <- suppressWarnings(NGeDSboost(
-      y ~ f(x1, x2, x3, x4), data = data,
-      initial_learner = FALSE
-    ))
-  ))
-
-  expect_null(fit$final_model$cubic.fit)
-  expect_error(predict(fit, newdata = data, n = 4),
-               "joint tensor basis requires")
-  expect_error(predict(fit, n = 4),
-               "joint tensor basis requires")
 })
 
 test_that("IRIS - NGeDSboost predictions consistency", {
@@ -377,58 +304,4 @@ test_that("MTCARS - NGeDSboost predictions consistency", {
       }
     }
   }
-})
-
-test_that("joint Stage B keeps an early prefix of fitted knots", {
-  internal <- list(x1 = c(0.2, 0.5), x2 = c(0.3, 0.7),
-                   x3 = numeric(), x4 = numeric())
-  order <- list(
-    list(dimension = "x2", knot = 0.7),
-    list(dimension = "x1", knot = 0.5),
-    list(dimension = "x1", knot = 0.2),
-    list(dimension = "x2", knot = 0.3)
-  )
-  chosen <- GeDS:::.stageB_joint_prefix(internal, order, 4L, 1000L)
-  expect_equal(chosen, list(x1 = c(0.2, 0.5), x2 = 0.7,
-                            x3 = NULL, x4 = NULL))
-  expect_equal(internal$x1, c(0.2, 0.5))
-})
-
-test_that("joint boosting retains its linear knots and fits a smaller cubic tensor", {
-  set.seed(123)
-  data <- data.frame(
-    x1 = runif(1000), x2 = runif(1000),
-    x3 = runif(1000), x4 = runif(1000)
-  )
-  data$y <- with(data,
-                 2 * sin(pi * x1) * sin(pi * x2) *
-                   sin(pi * x3) * sin(pi * x4) *
-                   (1 + 0.15 * sin(4 * pi * x1) * sin(4 * pi * x2))) +
-    rnorm(nrow(data), sd = 0.15)
-  set.seed(99)
-  invisible(capture.output(
-    fit <- suppressWarnings(NGeDSboost(
-      y ~ f(x1, x2, x3, x4), data = data,
-      initial_learner = FALSE, max_iterations = 3
-    ))
-  ))
-  set.seed(99)
-  invisible(capture.output(
-    linear_only <- suppressWarnings(NGeDSboost(
-      y ~ f(x1, x2, x3, x4), data = data,
-      initial_learner = FALSE, max_iterations = 3,
-      higher_order = FALSE
-    ))
-  ))
-  expect_gt(sum(lengths(fit$internal_knots$linear.int.knots[[1]])), 1L)
-  expect_equal(lengths(fit$internal_knots$linear.int.knots[[1]]),
-               c(x1 = 1L, x2 = 1L, x3 = 1L, x4 = 1L))
-  expect_identical(fit$internal_knots$linear.int.knots,
-                   linear_only$internal_knots$linear.int.knots)
-  expect_equal(predict(fit, newdata = data, n = 2),
-               predict(linear_only, newdata = data, n = 2))
-  expect_lt(prod(lengths(fit$internal_knots$cubic.int.knots[[1]]) + 4L),
-            nrow(data))
-  expect_false(is.null(fit$final_model$cubic.fit))
-  expect_length(predict(fit, newdata = data, n = 4), nrow(data))
 })

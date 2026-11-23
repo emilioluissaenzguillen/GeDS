@@ -24,6 +24,8 @@ read.formula <- function(formula, data, weights, offset)
   data <- as.list(data)
   data$f <- function(x, xx = NULL, ...) {
     coordinates <- c(list(x), if (!is.null(xx)) list(xx), list(...))
+    if (length(coordinates) > 2L)
+      stop("Each GeDS spline component supports at most two covariates.", call. = FALSE)
     do.call(cbind, coordinates)
   }
 
@@ -224,6 +226,8 @@ read.formula.gam <- read.formula.boost <- function(formula, data,
     type <- ifelse(grepl("f\\(.*\\)", bl), "GeDS", "linear")
     # Extract the predictor variables
     variables <- trimws(unlist(strsplit(gsub("f\\((.*?)\\)", "\\1", bl), ",")))
+    if (type == "GeDS" && length(variables) > 2L)
+      stop("Each GeDS spline component supports at most two covariates.", call. = FALSE)
     # Return a list containing variable names and the type
     return(list(variables = variables, type = type))
   }), bl_elements)
@@ -258,9 +262,8 @@ read.formula.gam <- read.formula.boost <- function(formula, data,
 #' covariate (in case \code{\link{NGeDS}}/\code{\link{GGeDS}} is run for two
 #' dimensions). It has to be either \code{NULL} (the default) or a vector of size
 #' \eqn{N}, same as \code{x}.
-#' @param ... Further covariates for an experimental multivariate Normal GeDS
-#' spline. Generalized and additive-model smoothers currently remain limited to
-#' one or two covariates per spline component.
+#' @param ... Additional covariates are not supported. Each spline component
+#' is limited to one or two covariates.
 #'
 #' @examples
 #' # Generate a data sample for the response variable Y and
@@ -299,6 +302,8 @@ read.formula.gam <- read.formula.boost <- function(formula, data,
 
 f <- function(x, xx = NULL, ...) {
   coordinates <- c(list(x), if (!is.null(xx)) list(xx), list(...))
+  if (length(coordinates) > 2L)
+    stop("Each GeDS spline component supports at most two covariates.", call. = FALSE)
   do.call(cbind, coordinates)
 }
 

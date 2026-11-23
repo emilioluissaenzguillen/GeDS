@@ -1,13 +1,6 @@
 library("testthat")
 library("GeDS")
 
-test_that("f() combines more than two covariates", {
-  result <- f(1:5, 6:10, 11:15)
-
-  expect_equal(dim(result), c(5L, 3L))
-  expect_equal(unname(result), unname(cbind(1:5, 6:10, 11:15)))
-})
-
 test_that("Knotnew handles empty residual clusters", {
   result <- GeDS:::Knotnew(
     weights = numeric(),

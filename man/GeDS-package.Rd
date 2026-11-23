@@ -13,8 +13,7 @@ generalized non-linear models (GNM), which include generalized linear models
 (GLM) as a special case. GeDS regression is fitted  based on a sample of
 \eqn{N} observations of a response variable \eqn{y}, dependent on a set of
 one or two covariates, assuming \eqn{y} has a distribution from the
-exponential family. An experimental normal-response implementation also fits
-a joint tensor-product spline in more than two covariates. In addition, GeDS methodology is implemented both in
+exponential family. In addition, GeDS methodology is implemented both in
 the context of generalized additive models (GAM) and functional gradient
 boosting (FGB). On the one hand, GAM consist of an additive modeling
 technique where the impact of the predictor variables is captured through
@@ -45,8 +44,7 @@ here provides an enhanced implementation of the original normal GeDS
 includes a generalization, \code{\link{GGeDS}}, which extends the method to
 any distribution in the exponential family.
 
-The \pkg{GeDS} package allows also to fit two dimensional response surfaces,
-and experimentally normal-response surfaces of higher dimension, and to
+The \pkg{GeDS} package allows also to fit two dimensional response surfaces and to
 construct multivariate (predictor) models with a GeD spline component
 and a parametric component (see the functions \code{\link{f}},
 \code{\link[=formula.GeDS]{formula}}, \code{\link{NGeDS}} and
@@ -67,9 +65,8 @@ spline model rather than as a sum of base-learner fits. For this,
 B-splines, and, at each boosting iteration, performs a piecewise update of the
 corresponding polynomial coefficients.
 
-The established outputs of both \code{\link{NGeDS}} and \code{\link{GGeDS}}
-are \code{"GeDS"} class objects. Experimental \code{NGeDS} fits with more
-than two spline covariates are \code{"GeDSfitND"} objects. The outputs of \code{\link{NGeDSgam}}
+The outputs of both \code{\link{NGeDS}} and \code{\link{GGeDS}}
+are \code{"GeDS"} class objects. The outputs of \code{\link{NGeDSgam}}
 and \code{\link{NGeDSboost}} functions are\code{"GeDSgam"} class and
 \code{"GeDSboost"} class objects, respectively. \code{"GeDS"} class,
 \code{"GeDSgam"} class and \code{"GeDSboost"} class objects contain

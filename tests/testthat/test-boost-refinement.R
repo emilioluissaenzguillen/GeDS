@@ -113,8 +113,7 @@ test_that("additive, tensor, factor and normalized predictions include refinemen
   set.seed(248)
   d <- data.frame(x = runif(70), z = runif(70), a = factor(rep(1:2, 35)))
   d$y <- 2 + 3 * d$x * d$z + as.numeric(d$a) + rnorm(70, sd = .1)
-  for (form in list(y ~ f(x) + a, y ~ f(x, z) + a, y ~ f(x, z, y0))) {
-    d$y0 <- runif(70)
+  for (form in list(y ~ f(x) + a, y ~ f(x, z) + a)) {
     for (normalize in c(FALSE, TRUE)) {
       fit <- suppressMessages(suppressWarnings(NGeDSboost(
         form, data = d, shrinkage = .5, initial_learner = FALSE,

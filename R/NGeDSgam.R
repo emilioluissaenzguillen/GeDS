@@ -54,7 +54,7 @@
 #' value of \code{max.intknots} in \code{\link{NGeDS}} at each backfitting
 #' iteration. When omitted, univariate smoothers use the per-spline
 #' sample-and-support Stage A coefficient budget described for \code{\link{NGeDS}};
-#' bivariate and experimental higher-dimensional smoothers retain 500. An explicit value
+#' bivariate smoothers retain 500. An explicit value
 #' overrides the safeguard. There is no shared cap across additive components.
 #' @param q Numeric parameter which allows to fine-tune the stopping rule of
 #' stage A of GeDS, for each of the GeD spline components of the model. By
@@ -62,8 +62,7 @@
 #' @param higher_order a logical that defines whether to compute the higher order
 #' fits (quadratic and cubic) after the local-scoring algorithm is run. Default
 #' is \code{TRUE}.
-#' Joint smoothers can contain more than two predictors, for example
-#' \code{Y ~ f(X1, X2, X3)}.
+#' Each spline smoother can contain one or two covariates.
 #' @param penalty Stage B curvature penalisation. The default is
 #' \code{"component"} when \code{higher_order = TRUE}, and \code{"none"}
 #' otherwise. \code{"none"} uses unpenalised fits; \code{"component"} estimates a separate
@@ -336,12 +335,6 @@ NGeDSgam <- function(formula, family = "gaussian", data, weights = NULL,
   response <- read.formula$response
   predictors <- read.formula$predictors
   base_learners <- read.formula$base_learners
-  if (joint_stoptype == "GD" && any(vapply(base_learners, function(bl) {
-    bl$type == "GeDS" && length(bl$variables) > 2L
-  }, logical(1)))) {
-    stop("The GD stopping rule is not supported for smoothers with more than two predictors.",
-         call. = FALSE)
-  }
 
   # Weights and offset
   nobs = length(data[[response]])
@@ -469,8 +462,7 @@ NGeDSgam <- function(formula, family = "gaussian", data, weights = NULL,
         knots <- list(Xk = c(min_vals[1], max_vals[1]), Yk = c(min_vals[2], max_vals[2]))
         base_learners_list[[bl_name]] <- list("knots" = knots, "coefficients" = list())
       } else {
-        knots <- setNames(Map(c, min_vals, max_vals), pred_vars)
-        base_learners_list[[bl_name]] <- list("knots" = knots, "coefficients" = numeric())
+        stop("Each GeDS spline component supports at most two covariates.", call. = FALSE)
       }
       ## (B) Linear base-learners (initialize only coefficients)
     } else if (base_learners[[bl_name]]$type=="linear"){
@@ -832,10 +824,7 @@ backfitting <- function(z, base_learners, base_learners_list, data, wz, phi_gam_
               if (!default_spline_cap || length(pred_vars) > 1L) fit_args$max.intknots <- max.intknots
               do.call(NGeDS, fit_args)
             } else {
-              fit_joint_GeDS_linear(
-                data_loop, "partial_resid", pred_vars, wz, beta, phi, q,
-                max.intknots, max.coef, stoptype = joint_stoptype
-              )
+              stop("Each GeDS spline component supports at most two covariates.", call. = FALSE)
             },
             error = function(e) {
               message(paste0("Error occurred in NGeDS() for base learner ", bl_name, ": ", e))
@@ -867,9 +856,6 @@ backfitting <- function(z, base_learners, base_learners_list, data, wz, phi_gam_
           } else if(length(base_learners[[bl_name]]$variables) >= 2) {
             base_learners_list[[bl_name]]$knots <- pred$knt
             base_learners_list[[bl_name]]$coefficients <- pred$theta
-            if (length(pred_vars) > 2L) {
-              base_learners_list[[bl_name]]$knot_order <- pred$knot_order
-            }
           }
 
       # (B) Linear base-learners

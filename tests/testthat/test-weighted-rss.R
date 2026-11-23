@@ -91,40 +91,6 @@ test_that("an initial univariate fit enters Stage A with weighted RSS", {
                tolerance = 1e-13)
 })
 
-test_that("multidimensional Normal fits report weighted RSS", {
-  grid <- expand.grid(
-    x0 = seq(0, 1, length.out = 6),
-    x1 = seq(0, 1, length.out = 5),
-    x2 = seq(0, 1, length.out = 4)
-  )
-  coordinates <- as.matrix(grid)
-  response <- with(grid, sin(3 * x0) + x1^2 - x2 + x0 * x1 * x2)
-  weights <- seq(0.4, 1.8, length.out = NROW(coordinates))
-
-  stage_a <- GeDS:::stageAOneStepND(
-    coordinates = coordinates,
-    response = response,
-    upper.bounds = rep(list(c(0.5, 1) + 1e-15), 3L),
-    coordinate.ranges = rep(list(c(0, 1)), 3L),
-    weights = weights
-  )
-  expect_equal(stage_a$rss,
-               sum(weights * stage_a$residuals^2),
-               tolerance = 1e-13)
-
-  stage_b <- GeDS:::fitTensorSplineND(
-    coordinates = coordinates,
-    response = response,
-    intknots = rep(list(0.5), 3L),
-    spline.order = 2L,
-    coordinate.ranges = rep(list(c(0, 1)), 3L),
-    weights = weights
-  )
-  expect_equal(stage_b$rss,
-               sum(weights * stage_b$residuals^2),
-               tolerance = 1e-13)
-})
-
 test_that("the additive Normal spline fitter reports weighted RSS", {
   x <- seq(0, 1, length.out = 30)
   response <- sin(4 * x) + x

@@ -60,8 +60,7 @@ number of internal knots to be added by stage A's GeDS estimation
 algorithm. Univariate defaults use the per-spline sample-and-support
 Stage A coefficient budget described for \code{\link{NGeDS}}. An explicit
 value overrides this safeguard. Bivariate fits retain their previous knot
-limit without an automatic coefficient cap. Experimental fits in more than two dimensions
-retain their default of 300.}
+limit without an automatic coefficient cap.}
 
 \item{q}{Numeric parameter which allows to fine-tune the stopping rule of
 stage A of GeDS, by default equal to \code{2L}. See Details below.}
@@ -102,8 +101,7 @@ paths for univariate Gamma dynamic. Defaults to 10. Larger values give
 finer calibration of the cutoff at the cost of more computation.}
 }
 \value{
-An object of class \code{"GeDS"}, or \code{"GeDSfitND"} for a joint
-spline with more than two covariates, with the components
+An object of class \code{"GeDS"}, with the components
 described under \code{\link{NGeDS}}’s \code{@return} plus the following slots:
 \describe{
 \item{type}{Character string indicating the type of regression performed.
@@ -123,7 +121,7 @@ this slot is empty if the object is not created by one of these functions.}
 }
 }
 \description{
-\code{GGeDS} constructs a geometrically designed univariate or joint multivariate
+\code{GGeDS} constructs a geometrically designed univariate or bivariate
 variable knots spline regression model for the predictor in the context of
 generalized (non-)linear models. This is referred to as a GeDS model for a
 response with a distribution from the exponential family.

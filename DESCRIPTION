@@ -16,9 +16,9 @@ Description: Spline regression, generalized additive models and
     component-wise gradient boosting utilizing geometrically designed
     (GeD) splines. GeDS regression is a non-parametric method inspired by
     geometric principles, for fitting spline regression models with
-    variable knots. Joint tensor-product spline components may involve more
-    than two independent variables in Normal, generalized, additive, and
-    boosting models. It efficiently
+    variable knots. Spline components may involve one or two independent
+    variables, with multiple components allowed in additive and boosting
+    models. It efficiently
     estimates the number of knots and their positions, as well as the
     spline order, assuming the response variable follows a distribution
     from the exponential family. GeDS models integrate the broader

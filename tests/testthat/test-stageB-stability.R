@@ -196,13 +196,13 @@ test_that("standalone fits bypass the safeguard and retain all averaged knots", 
   d$off <- .2 + .1 * d$x
   d$y <- exp(.2 + .3 * sin(4 * d$x) + .2 * d$z + .1 * d$v) + d$off
   formulas <- list(y ~ f(x) + z + offset(off),
-    y ~ f(x, z) + v + offset(off), y ~ f(x, z, v))
+    y ~ f(x, z) + v + offset(off))
   w <- rep(c(0, 1, 2, 1), 20)
   for (v in c("x", "z", "v")) w[c(which.min(d[[v]]), which.max(d[[v]]))] <- 1
   for (dimension in seq_along(formulas)) for (generalised in c(FALSE, TRUE)) {
     formula <- formulas[[dimension]]
-    weights <- if (dimension == 3L) rep(1, nrow(d)) else w
-    limit <- if (dimension == 3L) 1L else 4L
+    weights <- w
+    limit <- 4L
     fit <- suppressWarnings(if (generalised) GGeDS(formula,
       data = d, weights = weights, family = Gamma(link = "log"), beta = .5, max.intknots = limit) else
       NGeDS(formula, data = d, weights = weights, max.intknots = limit))
@@ -210,7 +210,9 @@ test_that("standalone fits bypass the safeguard and retain all averaged knots", 
     axes <- if (is.list(linear)) linear else list(x = linear)
     for (n in 3:4) {
       label <- if (n == 3L) "quadratic" else "cubic"
-      expected <- GeDS:::stageBKnotsND(axes, n)
+      expected <- lapply(axes, function(k) {
+        if (length(k) >= n - 1L) GeDS:::makenewknots(k, n) else NULL
+      })
       if (!is.list(linear)) expected <- expected[[1L]]
       expect_equal(fit[[paste0(label, ".intknots")]], expected)
       expect_null(fit[[paste0(label, ".fit")]]$stability)
