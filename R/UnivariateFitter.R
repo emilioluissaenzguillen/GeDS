@@ -875,7 +875,10 @@ GenUnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)),
       !family$family %in% names(families) || !family$link %in% names(links)) {
     return(NULL)
   }
-  standard <- get(family$family, envir = asNamespace("stats"))(link = family$link)
+  standard <- tryCatch(
+    get(family$family, envir = asNamespace("stats"))(link = family$link),
+    error = function(e) NULL)
+  if (is.null(standard)) return(NULL)
   callbacks <- c("variance", "dev.resids", "linkfun", "linkinv", "mu.eta",
                  "validmu", "valideta", "initialize")
   for (key in callbacks) {
@@ -886,7 +889,7 @@ GenUnivariateFitter <- function(X, Y, Z = NULL, offset = rep(0, NROW(Y)),
       # Built-in family closures have fresh environments on each call.
       # Compare the bindings their bodies use, rather than those environments'
       # identities; a copied body with changed captured values is still custom.
-      symbols <- setdiff(all.names(body(expected)), names(formals(expected)))
+      symbols <- setdiff(all.names(body(expected), unique = TRUE), names(formals(expected)))
       for (symbol in symbols) {
         actual_has <- exists(symbol, environment(actual), inherits = TRUE)
         expected_has <- exists(symbol, environment(expected), inherits = TRUE)
